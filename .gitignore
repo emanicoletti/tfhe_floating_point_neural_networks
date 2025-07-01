@@ -1,5 +1,5 @@
 # Ignore build output
-/target/
+target/
 
 # Ignore generated files by Cargo
 **/*.rs.bk
