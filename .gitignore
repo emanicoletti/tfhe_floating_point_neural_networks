@@ -1,0 +1,16 @@
+# Ignore build output
+/target/
+
+# Ignore generated files by Cargo
+**/*.rs.bk
+
+# Ignore Cargo.lock if this is a library
+# (uncomment if your project is a library)
+/Cargo.lock
+
+# Ignore editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.bak
