@@ -1,9 +1,9 @@
 use crate::CudaServerKey; // your server key type
 use tfhe::{set_server_key, FheUint16, ClientKey};
 
-use crate::add::fhe_add;
-use crate::add::fhe_negate;
-use crate::mul::fhe_lmul16_parallel;
+use crate::add::fhe_add16_gpu;
+use crate::negate::fhe_negate16_gpu;
+use crate::mul::fhe_lmul16_gpu;
 
 use tfhe::prelude::*;
 
@@ -47,7 +47,7 @@ impl DenseLayer {
     
                 for (inp, w) in input.iter().zip(weight_row.iter()) {
                     let mul_start = Instant::now();
-                    let prod = fhe_lmul16_parallel(
+                    let prod = fhe_lmul16_gpu(
                         inp.clone(),
                         w.clone(),
                         encrypted_zero.clone(),
@@ -56,12 +56,12 @@ impl DenseLayer {
                     mul_time += mul_start.elapsed();
     
                     let add_start = Instant::now();
-                    acc = fhe_add(acc, prod, encrypted_zero.clone(), encrypted_1023.clone(), server_key.clone());
+                    acc = fhe_add16_gpu(acc, prod, encrypted_zero.clone(), encrypted_1023.clone(), server_key.clone());
                     add_time += add_start.elapsed();
                 }
     
                 // Add bias after sum
-                fhe_add(acc, bias.clone(), encrypted_zero.clone(), encrypted_1023.clone(), server_key.clone())
+                fhe_add16_gpu(acc, bias.clone(), encrypted_zero.clone(), encrypted_1023.clone(), server_key.clone())
             })
             .collect()
     }
@@ -82,10 +82,10 @@ impl DenseLayer {
             .zip(self.biases.iter_mut())
             .zip(output.iter().zip(target.iter()))
             .for_each(|((weight_row, bias), (y_hat, mut y_true))| {
-                let binding_y_true = fhe_negate(y_true.clone(), server_key.clone());
+                let binding_y_true = fhe_negate16_gpu(y_true.clone(), server_key.clone());
                 y_true = &binding_y_true;
     
-                let error = fhe_add(
+                let error = fhe_add16_gpu(
                     y_hat.clone(),
                     y_true.clone(),
                     encrypted_zero.clone(),
@@ -99,21 +99,21 @@ impl DenseLayer {
                 println!("Error: {}", error_f32);
     
                 for (w_i, x_i) in weight_row.iter_mut().zip(input.iter()) {
-                    let grad = fhe_lmul16_parallel(
+                    let grad = fhe_lmul16_gpu(
                         error.clone(),
                         x_i.clone(),
                         encrypted_zero.clone(),
                         server_key.clone(),
                     );
     
-                    let mut update = fhe_lmul16_parallel(
+                    let mut update = fhe_lmul16_gpu(
                         grad,
                         learning_rate.clone(),
                         encrypted_zero.clone(),
                         server_key.clone(),
                     );
     
-                    let binding_update = fhe_negate(update.clone(), server_key.clone());
+                    let binding_update = fhe_negate16_gpu(update.clone(), server_key.clone());
                     update = binding_update;
     
                     // 🔍 Debug: Decrypt weight update
@@ -121,7 +121,7 @@ impl DenseLayer {
                     let update_f32 = f16::from_bits(update_plain).to_f32();
                     println!("Weight update: {}", update_f32);
     
-                    *w_i = fhe_add(
+                    *w_i = fhe_add16_gpu(
                         w_i.clone(),
                         update,
                         encrypted_zero.clone(),
@@ -130,14 +130,14 @@ impl DenseLayer {
                     );
                 }
     
-                let mut bias_update = fhe_lmul16_parallel(
+                let mut bias_update = fhe_lmul16_gpu(
                     error,
                     learning_rate.clone(),
                     encrypted_zero.clone(),
                     server_key.clone(),
                 );
     
-                let binding_bias_update = fhe_negate(bias_update.clone(), server_key.clone());
+                let binding_bias_update = fhe_negate16_gpu(bias_update.clone(), server_key.clone());
                 bias_update = binding_bias_update;
     
                 // 🔍 Debug: Decrypt bias update
@@ -145,7 +145,7 @@ impl DenseLayer {
                 let bias_update_f32 = f16::from_bits(bias_update_plain).to_f32();
                 println!("Bias update: {}", bias_update_f32);
     
-                *bias = fhe_add(
+                *bias = fhe_add16_gpu(
                     bias.clone(),
                     bias_update,
                     encrypted_zero.clone(),

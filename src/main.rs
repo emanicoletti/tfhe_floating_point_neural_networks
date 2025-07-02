@@ -15,10 +15,9 @@ use dense_enc::DenseLayer;
 
 use std::time::Instant;
 
-use crate::add::{fhe_add, fhe_negate};
-
 mod add;
 mod mul;
+mod negate;
 
 type B = NdArray<f32>;
 
