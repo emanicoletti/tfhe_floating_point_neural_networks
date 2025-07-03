@@ -1,25 +1,20 @@
-use burn_ndarray::NdArray;
-
 use half::f16;
 
-use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M128, PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
-use tfhe::{prelude::*, set_server_key};
+use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
+use tfhe::{prelude::*, set_server_key, generate_keys};
 use tfhe::{ ConfigBuilder, FheUint16, ClientKey, CompressedServerKey, CudaServerKey};
 
-
-mod dense_plain;
-use dense_plain::DenseLayerPlain;
-mod dense_enc;
-use dense_enc::DenseLayer;
-
+use rand::distributions::{Uniform};
+use rand::{thread_rng, Rng};
 
 use std::time::Instant;
 
-mod add;
-mod mul;
-mod negate;
+mod encrypted_layers;
+mod plain_layers;
+mod encrypted_ops;
+use crate::encrypted_layers::EncryptedDenseLayer;
+use crate::plain_layers::PlainDenseLayer;
 
-type B = NdArray<f32>;
 
 // Function to generate dataset
 fn generate_dataset() -> Vec<(Vec<f32>, Vec<f32>)> {
@@ -29,10 +24,12 @@ fn generate_dataset() -> Vec<(Vec<f32>, Vec<f32>)> {
         (vec![1.5, 0.8, 3.7, 0.0], vec![18.3, 28.05, 34.76]),
         (vec![1.0, 1.9, 1.3, 2.0], vec![16.3, 21.1, 22.48]),
         (vec![0.3, 5.0, 2.1, 3.0], vec![24.07, 34.05, 35.04]),
+        (vec![1.5, 4.0, 0.8, 1.0], vec![23.1, 20.05, 18.4]),
     ]
 }
 
 fn main() {
+    
     // 1. Generate keys
     let config = ConfigBuilder::with_custom_parameters(
         PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,
@@ -43,19 +40,23 @@ fn main() {
     let compressed_server_key = CompressedServerKey::new(&client_key);
     let cuda_server_key = compressed_server_key.decompress_to_gpu();
 
+
     set_server_key(cuda_server_key.clone());
 
     // Create encrypted zero and learning rate
     let encrypted_zero = FheUint16::encrypt(0u16, &client_key);
     let encrypted_1023 = FheUint16::encrypt(1023u16, &client_key);
     let learning_rate = FheUint16::encrypt(8479u16, &client_key); // ~0.01 in f16
+
+    let limit = (6.0f32).sqrt() / ((4 + 3) as f32).sqrt(); // ≈ 0.92
+    let dist = Uniform::new(-limit, limit);
+    let mut rng = thread_rng();
+
     // 2. Initialize weights and biases
-    let float_weights: Vec<Vec<f32>> = vec![
-        vec![1.0, 1.0, 1.0, 1.0],
-        vec![1.0, 1.0, 1.0, 1.0],
-        vec![1.0, 1.0, 1.0, 1.0],
-    ];
-    let float_biases: Vec<f32> = vec![1.0, 1.0, 1.0];
+    let float_weights: Vec<Vec<f32>> = (0..3)
+    .map(|_| (0..4).map(|_| (rng.sample(dist))).collect())
+    .collect();
+    let float_biases: Vec<f32> = vec![0.0, 0.0, 0.0];
 
     let plain_weights: Vec<Vec<u16>> = float_weights
         .iter()
@@ -72,7 +73,7 @@ fn main() {
         .map(|&b| FheUint16::encrypt(b, &client_key))
         .collect();
 
-    let mut dense_layer = DenseLayer::new(encrypted_weights, encrypted_biases);
+    let mut dense_layer = EncryptedDenseLayer::new(encrypted_weights, encrypted_biases);
 
     let float_weights_f16: Vec<Vec<f16>> = float_weights
     .iter()
@@ -86,7 +87,7 @@ fn main() {
         .collect();
 
     // Now create the plain dense layer with f16 values
-    let mut plain_dense_layer = DenseLayerPlain::new(float_weights_f16, float_biases_f16);
+    let mut plain_dense_layer = PlainDenseLayer::new(float_weights_f16, float_biases_f16);
 
     let plain_learning_rate: f16 = f16::from_f32(0.01);
     let dataset = generate_dataset();
@@ -95,7 +96,7 @@ fn main() {
     for epoch in 0..num_epochs {
         println!("Epoch {}", epoch + 1);
 
-        for (float_input, float_target) in &dataset[..dataset.len() - 1] {
+        for (float_input, float_target) in &dataset[..dataset.len()] {
             
             // Convert f64 → f32 → f16
             let float_input_f16: Vec<f16> = float_input.iter()

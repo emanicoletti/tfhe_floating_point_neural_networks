@@ -20,8 +20,8 @@ pub fn fhe_add8_gpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
+    let ns_a = &encrypted_a & 0b0111_1111u8;
+    let ns_b = &encrypted_b & 0b0111_1111u8;
     
 
     let ab_cmp = ns_a.ge(&ns_b);
@@ -106,10 +106,8 @@ pub fn fhe_add16_gpu(
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
-    
+    let ns_a = &encrypted_a & 0b0111_1111_1111_1111u16;
+    let ns_b = &encrypted_b & 0b0111_1111_1111_1111u16;
 
     let ab_cmp = ns_a.ge(&ns_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -193,8 +191,8 @@ pub fn fhe_add32_gpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
+    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
+    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
     
 
     let ab_cmp = ns_a.ge(&ns_b);
@@ -365,8 +363,8 @@ pub fn fhe_add8_cpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
+    let ns_a = &encrypted_a & 0b0111_1111u8;
+    let ns_b = &encrypted_b & 0b0111_1111u8;
     
 
     let ab_cmp = ns_a.ge(&ns_b);
@@ -452,9 +450,8 @@ pub fn fhe_add16_cpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
-    
+    let ns_a = &encrypted_a & 0b0111_1111_1111_1111u16;
+    let ns_b = &encrypted_b & 0b0111_1111_1111_1111u16;
 
     let ab_cmp = ns_a.ge(&ns_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -538,8 +535,8 @@ pub fn fhe_add32_cpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
-    let ns_a = &encrypted_a << 1u8;
-    let ns_b = &encrypted_b << 1u8;
+    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
+    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
     
 
     let ab_cmp = ns_a.ge(&ns_b);

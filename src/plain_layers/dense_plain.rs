@@ -1,11 +1,11 @@
 use half::f16;
 
-pub struct DenseLayerPlain {
+pub struct PlainDenseLayer {
     weights: Vec<Vec<f16>>, // [output_size][input_size]
     biases: Vec<f16>,       // [output_size]
 }
 
-impl DenseLayerPlain {
+impl PlainDenseLayer {
     pub fn new(weights: Vec<Vec<f16>>, biases: Vec<f16>) -> Self {
         assert_eq!(weights.len(), biases.len(), "Weights and biases size mismatch");
         Self { weights, biases }

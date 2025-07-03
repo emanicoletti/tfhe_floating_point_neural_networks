@@ -1,9 +1,5 @@
-use crate::CudaServerKey; // your server key type
+use crate::CudaServerKey; 
 use tfhe::{set_server_key, FheUint16, ClientKey};
-
-use crate::add::fhe_add16_gpu;
-use crate::negate::fhe_negate16_gpu;
-use crate::mul::fhe_lmul16_gpu;
 
 use tfhe::prelude::*;
 
@@ -13,13 +9,15 @@ use std::time::Instant;
 
 use half::f16;
 
+use crate::encrypted_ops::*;
 
-pub struct DenseLayer {
+
+pub struct EncryptedDenseLayer {
     weights: Vec<Vec<FheUint16>>, // [output_size][input_size] - already encrypted
     biases: Vec<FheUint16>,       // [output_size] - already encrypted
 }
 
-impl DenseLayer {
+impl EncryptedDenseLayer {
     /// Create a new DenseLayer with encrypted weights and biases
     pub fn new(weights: Vec<Vec<FheUint16>>, biases: Vec<FheUint16>) -> Self {
         assert_eq!(weights.len(), biases.len(), "Weights and biases size mismatch");
