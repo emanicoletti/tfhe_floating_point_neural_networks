@@ -1,11 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
-use std::time::Instant;
-use rand::Rng;
-use half::f16;
-use rayon::prelude::*;
-use rayon::{join, scope};
-use std::thread;
+use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 /* GPU OPERATIONS */
 
@@ -13,8 +7,7 @@ use std::thread;
 pub fn fhe_add8_gpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
-    encrypted_zero: FheUint8,
-    encrypted_1023: FheUint8,
+    encrypted_mask: FheUint8,
     server_keys: CudaServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -82,8 +75,8 @@ pub fn fhe_add8_gpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 4u8);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 4u8;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 3u8;
             let res_exp = &x_exp - &sub_exp;
@@ -100,8 +93,7 @@ pub fn fhe_add8_gpu(
 pub fn fhe_add16_gpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
-    encrypted_zero: FheUint16,
-    encrypted_1023: FheUint16,
+    encrypted_mask: FheUint16,
     server_keys: CudaServerKey,
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -166,8 +158,8 @@ pub fn fhe_add16_gpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 5u16);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 5u16;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 10u16;
             let res_exp = &x_exp - &sub_exp;
@@ -184,8 +176,7 @@ pub fn fhe_add16_gpu(
 pub fn fhe_add32_gpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
-    encrypted_zero: FheUint32,
-    encrypted_1023: FheUint32,
+    encrypted_mask: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -252,8 +243,8 @@ pub fn fhe_add32_gpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 8u32);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 8u32;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 23u16;
             let res_exp = &x_exp - &sub_exp;
@@ -270,8 +261,7 @@ pub fn fhe_add32_gpu(
 pub fn fhe_add64_gpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
-    encrypted_zero: FheUint64,
-    encrypted_1023: FheUint64,
+    encrypted_mask: FheUint64,
     server_keys: CudaServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -336,8 +326,8 @@ pub fn fhe_add64_gpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 11u64);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 11u64;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 52u8;
             let res_exp = &x_exp - &sub_exp;
@@ -356,8 +346,7 @@ pub fn fhe_add64_gpu(
 pub fn fhe_add8_cpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
-    encrypted_zero: FheUint8,
-    encrypted_1023: FheUint8,
+    encrypted_mask: FheUint8,
     server_keys: ServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -425,8 +414,8 @@ pub fn fhe_add8_cpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 4u8);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 4u8;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 3u8;
             let res_exp = &x_exp - &sub_exp;
@@ -443,8 +432,7 @@ pub fn fhe_add8_cpu(
 pub fn fhe_add16_cpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
-    encrypted_zero: FheUint16,
-    encrypted_1023: FheUint16,
+    encrypted_mask: FheUint16,
     server_keys: ServerKey,
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -510,8 +498,8 @@ pub fn fhe_add16_cpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 5u16);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 5u16;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 10u16;
             let res_exp = &x_exp - &sub_exp;
@@ -528,8 +516,7 @@ pub fn fhe_add16_cpu(
 pub fn fhe_add32_cpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
-    encrypted_zero: FheUint32,
-    encrypted_1023: FheUint32,
+    encrypted_mask: FheUint32,
     server_keys: ServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -596,8 +583,8 @@ pub fn fhe_add32_cpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 8u32);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 8u32;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 23u16;
             let res_exp = &x_exp - &sub_exp;
@@ -614,8 +601,7 @@ pub fn fhe_add32_cpu(
 pub fn fhe_add64_cpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
-    encrypted_zero: FheUint64,
-    encrypted_1023: FheUint64,
+    encrypted_mask: FheUint64,
     server_keys: ServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -680,8 +666,8 @@ pub fn fhe_add64_cpu(
             result
         },
         ||{
-            let diff = (&leading_zeros - 11u64);
-            let mask = &encrypted_1023 >> &diff;
+            let diff = &leading_zeros - 11u64;
+            let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 52u8;
             let res_exp = &x_exp - &sub_exp;

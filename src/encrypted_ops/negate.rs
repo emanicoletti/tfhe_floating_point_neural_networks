@@ -1,7 +1,4 @@
-use tfhe::prelude::*;
-use tfhe::{set_server_key, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
-use rayon::prelude::*;
-use rayon::{join, scope};
+use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 /* Gpu operations */
 

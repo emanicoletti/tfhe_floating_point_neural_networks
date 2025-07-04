@@ -1,7 +1,6 @@
 pub mod add;
 pub mod mul;
 pub mod negate;
+pub mod ops;  
 
-pub use add::*;
-pub use mul::*;
-pub use negate::*;
+pub use ops::*; 

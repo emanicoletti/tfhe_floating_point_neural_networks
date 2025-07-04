@@ -1,6 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CudaServerKey};
-use std::thread;
+use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 /* GPU OPERATIONS */
 
