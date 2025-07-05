@@ -3,7 +3,6 @@ use tfhe::core_crypto::gpu;
 use tfhe::{prelude::*, HlCompressible};
 use tfhe::shortint::client_key;
 use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
-use std::ops::BitOr;
 use std::time::Instant;
 use rand::Rng;
 use half::f16;

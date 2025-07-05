@@ -1,6 +1,7 @@
 use super::add::*;
 use super::mul::*;
 use super::negate::*;
+use super::div::*;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
@@ -18,6 +19,13 @@ where
     K: ServerKeyTrait + Clone + Send + Sync,
 {
     fn mul(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
+}
+
+pub trait EncryptedDiv<K,T>
+where 
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn div(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
 }
 
 pub trait EncryptedNegate<K, T>
@@ -120,6 +128,54 @@ impl EncryptedMul<CudaServerKey, FheUint64> for CudaServerKey {
 impl EncryptedMul<ServerKey, FheUint64> for ServerKey {
     fn mul(&self, a: FheUint64, b: FheUint64, ctx: &EncryptedContext<Self, FheUint64>) -> FheUint64 {
         fhe_lmul64_cpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<CudaServerKey, FheUint8> for CudaServerKey {
+    fn div(&self, a: FheUint8, b: FheUint8, ctx: &EncryptedContext<Self, FheUint8>) -> FheUint8 {
+        fhe_ldiv8_gpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<ServerKey, FheUint8> for ServerKey {
+    fn div(&self, a: FheUint8, b: FheUint8, ctx: &EncryptedContext<Self, FheUint8>) -> FheUint8 {
+        fhe_ldiv8_cpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<CudaServerKey, FheUint16> for CudaServerKey {
+    fn div(&self, a: FheUint16, b: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_ldiv16_gpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<ServerKey, FheUint16> for ServerKey {
+    fn div(&self, a: FheUint16, b: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_ldiv16_cpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<CudaServerKey, FheUint32> for CudaServerKey {
+    fn div(&self, a: FheUint32, b: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+        fhe_ldiv32_gpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<ServerKey, FheUint32> for ServerKey {
+    fn div(&self, a: FheUint32, b: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+        fhe_ldiv32_cpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<CudaServerKey, FheUint64> for CudaServerKey {
+    fn div(&self, a: FheUint64, b: FheUint64, ctx: &EncryptedContext<Self, FheUint64>) -> FheUint64 {
+        fhe_ldiv64_gpu(a, b, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedDiv<ServerKey, FheUint64> for ServerKey {
+    fn div(&self, a: FheUint64, b: FheUint64, ctx: &EncryptedContext<Self, FheUint64>) -> FheUint64 {
+        fhe_ldiv64_cpu(a, b, ctx.encrypted_zero.clone(), self.clone())
     }
 }
 
