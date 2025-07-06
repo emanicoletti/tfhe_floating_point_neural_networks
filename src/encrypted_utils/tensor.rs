@@ -4,6 +4,7 @@ use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_ops::{EncryptedAdd, EncryptedMul};
 
+#[derive(Clone)]
 pub struct EncryptedTensor<T: EncryptedElement> {
     pub data: Vec<T>,
     pub shape: Vec<usize>, // [batch, channels, height, width]
@@ -98,6 +99,65 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         EncryptedTensor {
             data,
             shape: self.shape.clone(),
+        }
+    }
+
+    pub fn transpose(&self) -> EncryptedTensor<T> {
+        assert_eq!(self.shape.len(), 2, "Transpose supports 2D tensors only");
+        let rows = self.shape[0];
+        let cols = self.shape[1];
+
+        let mut transposed_data = Vec::with_capacity(self.data.len());
+
+        for col in 0..cols {
+            for row in 0..rows {
+                transposed_data.push(self.get(&[row, col]).clone());
+            }
+        }
+
+        EncryptedTensor::new(transposed_data, vec![cols, rows])
+    }
+
+    pub fn sum_axis<K>(&self, axis: usize, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>
+    where
+        K: ServerKeyTrait + EncryptedAdd<K, T>,
+    {
+        assert_eq!(self.shape.len(), 2, "sum_axis supports 2D tensors only");
+        let (dim0, dim1) = (self.shape[0], self.shape[1]);
+        assert!(axis == 0 || axis == 1, "Only axis 0 or 1 supported");
+
+        match axis {
+            0 => {
+                // Sum over rows (batch), result shape: [features]
+                let mut result_data = Vec::with_capacity(dim1);
+
+                for col in 0..dim1 {
+                    let mut sum = ctx.encrypted_zero.clone();
+                    for row in 0..dim0 {
+                        let val = self.get(&[row, col]).clone();
+                        sum = ctx.server_key.add(sum, val, ctx);
+                    }
+                    result_data.push(sum);
+                }
+
+                EncryptedTensor::new(result_data, vec![dim1]) // 1D tensor for biases
+            }
+            1 => {
+                // Sum over columns, result shape: [batch]
+                let mut result_data = Vec::with_capacity(dim0);
+
+                for row in 0..dim0 {
+                    let mut sum = ctx.encrypted_zero.clone();
+                    for col in 0..dim1 {
+                        let val = self.get(&[row, col]).clone();
+                        sum = ctx.server_key.add(sum, val, ctx);
+                    }
+                    result_data.push(sum);
+                }
+
+                EncryptedTensor::new(result_data, vec![dim0]) // 1D tensor
+            }
+            _ => unreachable!(),
         }
     }
 
