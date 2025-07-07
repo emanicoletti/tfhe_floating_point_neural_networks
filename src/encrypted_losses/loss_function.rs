@@ -5,6 +5,7 @@ use crate::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValue
 use crate::encrypted_ops::*;
 
 use tfhe::prelude::FheTryEncrypt;
+use tfhe::ClientKey;
 
 pub trait LossFunction<K, T> 
 where
@@ -31,7 +32,7 @@ pub struct MseLoss;
 impl<K, T> LossFunction<K, T> for MseLoss
 where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedDiv<K, T> + EncryptedNegate<K, T>, 
-    T: Clone + FheTryEncrypt<T, K> + EncryptedElement + EncryptableValueType,
+    T: Clone + FheTryEncrypt<<T as EncryptableValueType>::Plain, ClientKey> + EncryptedElement + EncryptableValueType,
 {
     fn compute_loss(
         &self,

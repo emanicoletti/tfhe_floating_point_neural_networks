@@ -17,4 +17,14 @@ where
         grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>;
+
+    fn get_weights(&self) -> EncryptedTensor<T>;
+    
+    fn get_biases(&self) -> EncryptedTensor<T>;
+
+    fn get_grad_weights(&self) -> EncryptedTensor<T>;
+
+    fn get_grad_biases(&self) -> EncryptedTensor<T>;
+
+    fn get_id(&self) -> String;
 }

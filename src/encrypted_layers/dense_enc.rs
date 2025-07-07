@@ -7,6 +7,7 @@ use crate::encrypted_layers::EncryptedLayer;
 
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
+    pub id: String,
     pub weights: EncryptedTensor<T>,
     pub biases: EncryptedTensor<T>,
     pub grad_weights: Option<EncryptedTensor<T>>,
@@ -14,8 +15,9 @@ pub struct EncryptedDenseLayer<T: EncryptedElement> {
 }
 
 impl<T: EncryptedElement> EncryptedDenseLayer<T> {
-    pub fn new(weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
+    pub fn new(id:String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
+            id,
             weights,
             biases,
             grad_weights: None,
@@ -50,5 +52,25 @@ where
         self.grad_biases = Some(grad_biases);
 
         grad_input
+    }
+
+    fn get_weights(&self) -> EncryptedTensor<T> {
+        self.weights.clone()
+    }
+
+    fn get_biases(&self) -> EncryptedTensor<T> {
+        self.biases.clone()
+    }
+
+    fn get_grad_weights(&self) -> EncryptedTensor<T> {
+        self.grad_weights.clone().unwrap()
+    }
+
+    fn get_grad_biases(&self) -> EncryptedTensor<T> {
+        self.grad_biases.clone().unwrap()
+    }
+
+    fn get_id(&self) -> String {
+        self.id.clone()
     }
 }
