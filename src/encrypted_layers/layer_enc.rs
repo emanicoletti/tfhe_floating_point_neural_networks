@@ -18,6 +18,12 @@ where
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>;
 
+    fn update_parameters(
+        &mut self,
+        learning_rate: T,
+        ctx: &EncryptedContext<K, T>,
+    );
+
     fn get_weights(&self) -> EncryptedTensor<T>;
     
     fn get_biases(&self) -> EncryptedTensor<T>;

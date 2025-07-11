@@ -23,6 +23,16 @@ use half::f16;
 pub trait EncryptedNeuralNetwork{
     fn create() -> Self;
     fn add_dense(&mut self, input_size: usize, output_size: usize);
+    fn train(
+        &mut self,
+        epochs: usize,
+        batch_size: usize,
+        learning_rate: f32,
+        train_inputs: &[Vec<f32>],   
+        train_labels: &[Vec<f32>],  
+        val_inputs: &[Vec<f32>],
+        val_labels: &[Vec<f32>],
+    );
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
     fn print_plain_grad_weights(&self, id: String);
@@ -103,6 +113,16 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
 
+    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], val_inputs: &[Vec<f32>], val_labels: &[Vec<f32>],) {
+        set_server_key(self.inner.context.server_key.clone());
+        let enc_learning_rate = FheUint16::try_encrypt(f16::from_f32(learning_rate).to_bits(), &self.inner.context.client_key).unwrap();
+        let enc_train_inputs = self.encrypt_dataset(batch_size, train_inputs);
+        let enc_train_labels = self.encrypt_dataset(batch_size, train_labels);
+        let enc_val_inputs = self.encrypt_dataset(batch_size, val_inputs);
+        let enc_val_labels = self.encrypt_dataset(batch_size, val_labels);
+        self.inner.train(epochs, batch_size, enc_learning_rate, enc_train_inputs, enc_train_labels, enc_val_inputs, enc_val_labels);
+    }
+
     fn print_plain_weights(&self, id: String) {
         for layer in &self.inner.layers {
             if layer.get_id() == id {
@@ -145,12 +165,12 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let biases = layer.get_biases();
                 let shape = &biases.shape;
 
-                let rows = shape[0];
+                let columns = shape[1];
                 let flat = biases.data;
 
                 println!("Decrypted Biases for Layer \"{}\":", id);
 
-                for i in 0..rows {
+                for i in 0..columns {
                     let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
@@ -202,12 +222,12 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let biases = layer.get_grad_biases();
                 let shape = &biases.shape;
 
-                let rows = shape[0];
+                let columns = shape[1];
                 let flat = biases.data;
 
                 println!("Decrypted grad_biases for Layer \"{}\":", id);
 
-                for i in 0..rows {
+                for i in 0..columns {
                     let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
@@ -243,14 +263,37 @@ impl EncryptedNeuralNetworkU16GPU {
     fn init_biases(&mut self, output_size:usize) -> EncryptedTensor<FheUint16> {
         let zero_enc = &self.inner.context.encrypted_zero;
         let biases = vec![zero_enc.clone(); output_size];
-        EncryptedTensor::new(biases, vec![output_size])
+        EncryptedTensor::new(biases, vec![1, output_size])
     }
 
     fn init_gradients(&self, shape: &[usize]) -> EncryptedTensor<FheUint16> {
         let zero_enc = &self.inner.context.encrypted_zero;
         let size = shape.iter().product();
         let zeros = vec![zero_enc.clone(); size];
-        EncryptedTensor::new(zeros, shape.to_vec())
+        let shapes: Vec<usize>;
+        if(shape.to_vec().len() == 1){
+            shapes = [1, shape[0]].to_vec();
+        }
+        else{
+            shapes = shape.to_vec();
+        }
+        EncryptedTensor::new(zeros, shapes)
+    }
+
+    fn encrypt_dataset(&mut self, batch_size: usize, clear_data: &[Vec<f32>]) -> EncryptedTensor<FheUint16> {
+        let mut encrypted_dataset = Vec::new();
+        let feature_size = clear_data[0].len();
+
+        for vec in clear_data{
+            for sample in vec{
+                let u16_sample = f16::from_f32(*sample).to_bits();
+                let enc_sample = FheUint16::try_encrypt(u16_sample, &self.inner.context.client_key).unwrap();
+                encrypted_dataset.push(enc_sample);
+            }
+        }
+
+        EncryptedTensor { data: encrypted_dataset, shape: vec![batch_size, feature_size] }
+
     }
 
 }

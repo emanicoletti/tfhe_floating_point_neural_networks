@@ -18,8 +18,21 @@ mod encrypted_nn;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let mut model = EncryptedNeuralNetworkU16GPU::create();
-    model.add_dense(3, 4);
+    model.add_dense(2, 3);
     let id = String::from("Dense1");
+    model.print_plain_weights(id.clone());
+    model.print_plain_biases(id.clone());
+    model.print_plain_grad_weights(id.clone());
+    model.print_plain_grad_biases(id.clone());
+    model.train(
+        1,                          
+        2,                           
+        0.01,                       
+        &[vec![1.0, 1.0], vec![2.0, 2.0]],               
+        &[vec![2.6, 4.0, 1.3], vec![5.2, 8.0, 2.6]],              
+        &[vec![2.0, 8.0]],               
+        &[vec![5.2, 9.0, 2.0]],               
+    );
     model.print_plain_weights(id.clone());
     model.print_plain_biases(id.clone());
     model.print_plain_grad_weights(id.clone());

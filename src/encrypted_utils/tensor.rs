@@ -1,8 +1,11 @@
-use crate::encrypted_ops::ops;
+use crate::encrypted_ops::{ops, EncryptedNegate};
 use crate::encrypted_utils::encrypted_types::EncryptedElement;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_ops::{EncryptedAdd, EncryptedMul};
+
+use rayon::prelude::*;
+
 
 #[derive(Clone)]
 pub struct EncryptedTensor<T: EncryptedElement> {
@@ -59,21 +62,23 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         let (n2, p) = (other.shape[0], other.shape[1]);
         assert_eq!(n1, n2, "Inner dimensions must match");
     
-        let mut result_data = Vec::with_capacity(m * p);
-        for i in 0..m {
-            for j in 0..p {
+        let result_data: Vec<T> = (0..(m * p))
+            .into_par_iter()
+            .map(|index| {
+                let i = index / p;
+                let j = index % p;
                 let mut sum = ctx.encrypted_zero.clone();
-    
+
                 for k in 0..n1 {
                     let a_val = self.get(&[i, k]).clone();
                     let b_val = other.get(&[k, j]).clone();
                     let prod = ctx.server_key.mul(a_val, b_val, ctx);
                     sum = ctx.server_key.add(sum, prod, ctx);
                 }
-    
-                result_data.push(sum);
-            }
-        }
+
+                sum
+            })
+            .collect();
     
         EncryptedTensor::new(result_data, vec![m, p])
     }
@@ -89,11 +94,33 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     {
         assert_eq!(self.shape, other.shape, "Shape mismatch for add");
     
+        
+        let data: Vec<T> = self.data.par_iter()
+        .zip(other.data.par_iter())
+        .map(|(a, b)| ctx.server_key.add(a.clone(), b.clone(), ctx))
+        .collect();
+            
+        EncryptedTensor {
+            data,
+            shape: self.shape.clone(),
+        }
+    }
+
+    pub fn sub<K>(
+        &self,
+        other: &EncryptedTensor<T>,
+        ctx: &EncryptedContext<K, T>,
+    ) -> EncryptedTensor<T>
+    where
+        K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedNegate<K,T>,
+    {
+        assert_eq!(self.shape, other.shape, "Shape mismatch for add");
+    
         let data = self
             .data
             .iter()
             .zip(&other.data)
-            .map(|(a, b)| ctx.server_key.add(a.clone(), b.clone(), ctx))
+            .map(|(a, b)| ctx.server_key.add(a.clone(), ctx.server_key.negate(b.clone()), ctx))
             .collect();
     
         EncryptedTensor {
@@ -140,7 +167,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                     result_data.push(sum);
                 }
 
-                EncryptedTensor::new(result_data, vec![dim1]) // 1D tensor for biases
+                EncryptedTensor::new(result_data, vec![1, dim1]) // 1D tensor for biases
             }
             1 => {
                 // Sum over columns, result shape: [batch]
@@ -161,7 +188,17 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         }
     }
 
+    pub fn mul_scalar<K>(&self, scalar: &T, ctx: &EncryptedContext<K, T>) -> Self
+    where
+        K: ServerKeyTrait + EncryptedMul<K, T>,
+    {
+        let data = self.data.iter().map(|x| ctx.server_key.mul(x.clone(), scalar.clone(), ctx)).collect();
 
+        EncryptedTensor {
+            data,
+            shape: self.shape.clone(),
+        }
+    }
 }
 
 

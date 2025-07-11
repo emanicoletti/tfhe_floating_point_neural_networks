@@ -28,4 +28,68 @@ where
         };
         self.layers.push(Box::new(dense_layer));
     }
+
+    pub fn train( 
+        &mut self,
+        epochs: usize,
+        batch_size: usize,
+        learning_rate: T,
+        train_inputs: EncryptedTensor<T>,
+        train_labels: EncryptedTensor<T>,
+        val_inputs: EncryptedTensor<T>,
+        val_labels: EncryptedTensor<T>,
+    ) 
+    {
+        for epoch in 0..epochs{
+            for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+                let mut activations = input_batch.clone();
+                for layer in &self.layers{
+                    activations = layer.forward(&activations, &self.context)
+                }
+                let loss_val = self.loss.compute_loss(&activations, &label_batch, &self.context);
+                let grad_output = self.loss.gradient(&activations, &label_batch, &self.context);
+                let mut grad = grad_output.clone();
+                for layer in self.layers.iter_mut().rev(){
+                    grad = layer.backward(&input_batch, &grad_output, &self.context);
+                }
+                for layer in &mut self.layers{
+                    layer.update_parameters(learning_rate.clone(), &self.context);
+                }
+            }
+        }
+    }
+
+    fn iter_batches(
+        &self,
+        inputs: &EncryptedTensor<T>,
+        labels: &EncryptedTensor<T>,
+        batch_size: usize,
+    ) -> Vec<(EncryptedTensor<T>, EncryptedTensor<T>)> {
+        let feature_size = inputs.shape[1];
+        let label_size = labels.shape[1];
+
+        let num_samples = inputs.shape[0];
+        let mut batches = Vec::new();
+
+        let mut start = 0;
+        while start < num_samples {
+            let end = usize::min(start + batch_size, num_samples);
+
+            let input_batch_data = inputs.data[start * feature_size..end * feature_size].to_vec();
+            let label_batch_data = labels.data[start * label_size..end * label_size].to_vec();
+            let input_batch = EncryptedTensor {
+                data: input_batch_data,
+                shape: vec![end - start, feature_size],
+            };
+            let label_batch = EncryptedTensor {
+                data: label_batch_data,
+                shape: vec![end - start, label_size],
+            };
+
+            batches.push((input_batch, label_batch));
+            start = end;
+        }
+
+        batches
+    }
 }
