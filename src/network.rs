@@ -120,7 +120,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         let enc_train_labels = self.encrypt_dataset(batch_size, train_labels);
         let enc_val_inputs = self.encrypt_dataset(batch_size, val_inputs);
         let enc_val_labels = self.encrypt_dataset(batch_size, val_labels);
-        self.inner.train(epochs, batch_size, enc_learning_rate, enc_train_inputs, enc_train_labels, enc_val_inputs, enc_val_labels);
+        self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone(), enc_val_inputs.clone(), enc_val_labels.clone());
     }
 
     fn print_plain_weights(&self, id: String) {
@@ -148,7 +148,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                     print!("\n[");
                     for j in 0..cols {
                         let index = i * cols + j;
-                        let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
+                        //let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
+                        let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.inner.context.client_key);
                         print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                     }
                     print!("]\n");
@@ -172,7 +173,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 println!("\nDecrypted Biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
-                    let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
+                    //let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
+                    let decrypted: u16 = EncryptableValueType::decrypt(&flat[i], &self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
                 print!("]\n");
@@ -206,7 +208,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                     print!("\n[");
                     for j in 0..cols {
                         let index = i * cols + j;
-                        let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
+                        //let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
+                        let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.inner.context.client_key);
                         print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                     }
                     print!("]\n");
@@ -230,7 +233,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 println!("\nDecrypted grad_biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
-                    let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
+                    //let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
+                    let decrypted: u16 = EncryptableValueType::decrypt(&flat[i], &self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
                 print!("]\n");

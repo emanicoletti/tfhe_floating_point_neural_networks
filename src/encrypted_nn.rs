@@ -6,6 +6,8 @@ use crate::encrypted_losses::loss_function::LossFunction;
 use crate::encrypted_utils::tensor::EncryptedTensor;
 use crate::encrypted_ops::*;
 
+use half::f16;
+
 /// Core generic implementation of an encrypted neural network
 pub struct EncryptedNeuralNetworkImpl<K: ServerKeyTrait, T: EncryptedElement> {
     pub layers: Vec<Box<dyn EncryptedLayer<K, T>>>,
@@ -14,8 +16,12 @@ pub struct EncryptedNeuralNetworkImpl<K: ServerKeyTrait, T: EncryptedElement> {
 }
 impl<K, T> EncryptedNeuralNetworkImpl<K, T> 
 where
-    K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedDiv<K, T> + EncryptedNegate<K, T>,
-    T: Clone + EncryptedElement + 'static,
+    K: ServerKeyTrait
+    + EncryptedAdd<K, T>
+    + EncryptedMul<K, T>
+    + EncryptedDiv<K, T>
+    + EncryptedNegate<K, T>,
+    T: EncryptedElement + Clone + EncryptableValueType<Plain=u16> + 'static,
 {
     pub fn add_dense(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
         let id = format!("Dense{}", self.layers.len() + 1);
@@ -48,10 +54,14 @@ where
                     activations = layer.forward(&activations, &self.context)
                 }
                 let loss_val = self.loss.compute_loss(&activations, &label_batch, &self.context);
-                let grad_output = self.loss.gradient(&activations, &label_batch, &self.context);
-                let mut grad = grad_output.clone();
-                for layer in self.layers.iter_mut().rev(){
-                    grad = layer.backward(&input_batch, &grad_output, &self.context);
+                let decrypted: u16 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
+                println!("Batch Loss:{:<6} ", f16::from_bits(decrypted).to_f32());
+                let mut grad = self.loss.gradient(&activations, &label_batch, &self.context);
+                let flat = &grad.data;
+                let rows = grad.shape[0];
+                let cols = grad.shape[1];
+                for layer in self.layers.iter_mut().rev() {
+                    grad = layer.backward(&input_batch, &grad, &self.context);
                 }
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone(), &self.context);

@@ -15,6 +15,8 @@ pub trait EncryptableValueType {
     fn try_encrypt_plain(value: usize, key: &ClientKey) -> Result<Self, ()>
     where
         Self: Sized;
+
+    fn decrypt(&self, key: &ClientKey) -> Self::Plain;
 }
 
 impl EncryptableValueType for FheUint8 {
@@ -22,6 +24,10 @@ impl EncryptableValueType for FheUint8 {
 
     fn try_encrypt_plain(value: usize, key: &ClientKey) -> Result<Self, ()> {
         FheUint8::try_encrypt(value as u8, key).map_err(|_| ())
+    }
+
+    fn decrypt(&self, key: &ClientKey) -> Self::Plain {
+        FheDecrypt::decrypt(self, key)
     }
 }
 
@@ -31,6 +37,10 @@ impl EncryptableValueType for FheUint16 {
     fn try_encrypt_plain(value: usize, key: &ClientKey) -> Result<Self, ()> {
         FheUint16::try_encrypt(value as u16, key).map_err(|_| ())
     }
+
+    fn decrypt(&self, key: &ClientKey) -> Self::Plain {
+        FheDecrypt::decrypt(self, key)
+    }
 }
 
 impl EncryptableValueType for FheUint32 {
@@ -39,6 +49,10 @@ impl EncryptableValueType for FheUint32 {
     fn try_encrypt_plain(value: usize, key: &ClientKey) -> Result<Self, ()> {
         FheUint32::try_encrypt(value as u32, key).map_err(|_| ())
     }
+
+    fn decrypt(&self, key: &ClientKey) -> Self::Plain {
+        FheDecrypt::decrypt(self, key)
+    }
 }
 
 impl EncryptableValueType for FheUint64 {
@@ -46,5 +60,9 @@ impl EncryptableValueType for FheUint64 {
 
     fn try_encrypt_plain(value: usize, key: &ClientKey) -> Result<Self, ()> {
         FheUint64::try_encrypt(value as u64, key).map_err(|_| ())
+    }
+
+    fn decrypt(&self, key: &ClientKey) -> Self::Plain {
+        FheDecrypt::decrypt(self, key)
     }
 }
