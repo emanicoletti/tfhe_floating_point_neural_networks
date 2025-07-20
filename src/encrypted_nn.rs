@@ -41,6 +41,7 @@ where
     ) 
     {
         for epoch in 0..epochs{
+            println!("Epoch {}/{}", epoch + 1, epochs);
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = input_batch.clone();
                 for layer in &self.layers{

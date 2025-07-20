@@ -118,11 +118,11 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     
         let data = self
             .data
-            .iter()
+            .par_iter()
             .zip(&other.data)
             .map(|(a, b)| ctx.server_key.add(a.clone(), ctx.server_key.negate(b.clone()), ctx))
             .collect();
-    
+
         EncryptedTensor {
             data,
             shape: self.shape.clone(),
@@ -148,6 +148,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     pub fn sum_axis<K>(&self, axis: usize, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedAdd<K, T>,
+        T: Send + Sync + Clone, // needed for rayon
     {
         assert_eq!(self.shape.len(), 2, "sum_axis supports 2D tensors only");
         let (dim0, dim1) = (self.shape[0], self.shape[1]);
@@ -155,34 +156,30 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
 
         match axis {
             0 => {
-                // Sum over rows (batch), result shape: [features]
-                let mut result_data = Vec::with_capacity(dim1);
-
-                for col in 0..dim1 {
+                // Sum over rows (batch), result shape: [1, dim1]
+                let result_data: Vec<T> = (0..dim1).into_par_iter().map(|col| {
                     let mut sum = ctx.encrypted_zero.clone();
                     for row in 0..dim0 {
                         let val = self.get(&[row, col]).clone();
                         sum = ctx.server_key.add(sum, val, ctx);
                     }
-                    result_data.push(sum);
-                }
+                    sum
+                }).collect();
 
-                EncryptedTensor::new(result_data, vec![1, dim1]) // 1D tensor for biases
+                EncryptedTensor::new(result_data, vec![1, dim1])
             }
             1 => {
-                // Sum over columns, result shape: [batch]
-                let mut result_data = Vec::with_capacity(dim0);
-
-                for row in 0..dim0 {
+                // Sum over columns, result shape: [dim0]
+                let result_data: Vec<T> = (0..dim0).into_par_iter().map(|row| {
                     let mut sum = ctx.encrypted_zero.clone();
                     for col in 0..dim1 {
                         let val = self.get(&[row, col]).clone();
                         sum = ctx.server_key.add(sum, val, ctx);
                     }
-                    result_data.push(sum);
-                }
+                    sum
+                }).collect();
 
-                EncryptedTensor::new(result_data, vec![dim0]) // 1D tensor
+                EncryptedTensor::new(result_data, vec![dim0])
             }
             _ => unreachable!(),
         }

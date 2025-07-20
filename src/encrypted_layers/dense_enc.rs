@@ -9,18 +9,18 @@ use rayon::prelude::*;
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>,
-    pub biases: EncryptedTensor<T>,
+    pub weights: EncryptedTensor<T>, // shape: [input_dim, output_dim]
+    pub biases: EncryptedTensor<T>,  // shape: [1, output_dim]
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
 }
 
 impl<T: EncryptedElement> EncryptedDenseLayer<T> {
-    pub fn new(id:String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
+    pub fn new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
             id,
-            weights,
-            biases,
+            weights, // expect shape [input_dim, output_dim]
+            biases,  // expect shape [1, output_dim]
             grad_weights: None,
             grad_biases: None,
         }
@@ -33,53 +33,51 @@ where
     T: Clone + EncryptedElement,
 {
     fn forward(&self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
-        let weighted_sum = input.matmul(&self.weights, ctx);
-        let row = &self.biases.data;
-        
+        let weighted_sum = input.matmul(&self.weights.transpose(), ctx); 
+
+        // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
-        let feature_len = row.len();
+        let output_dim = self.biases.shape[1];
+        let bias_data = &self.biases.data;
 
         let repeated: Vec<T> = (0..batch_size)
             .into_par_iter()
-            .flat_map(|_| row.clone().into_par_iter())
+            .flat_map(|_| bias_data.par_iter().cloned())
             .collect();
+
         let expanded_biases = EncryptedTensor {
             data: repeated,
-            shape: vec![input.shape[0], self.biases.shape[1]],
+            shape: vec![batch_size, output_dim],
         };
+
         weighted_sum.add(&expanded_biases, ctx)
     }
 
     fn backward(
         &mut self,
-        input: &EncryptedTensor<T>,
-        grad_output: &EncryptedTensor<T>,
+        input: &EncryptedTensor<T>,          // [batch_size, input_dim]
+        grad_output: &EncryptedTensor<T>,    // [batch_size, output_dim]
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T> {
-        let input_t = input.transpose();
-        let grad_weights = input_t.matmul(&grad_output, ctx);
-        let grad_biases = grad_output;
-        let weights_t = self.weights.transpose();
-        let grad_input = grad_output.matmul(&weights_t, ctx);
-        self.grad_weights = Some(grad_weights.clone());
-        self.grad_biases = Some(grad_biases.clone());
+        let grad_weights = grad_output.transpose().matmul(input, ctx); 
+
+        let grad_biases = grad_output.sum_axis(0, ctx); // [1, output_dim]
+
+        let grad_input = grad_output.matmul(&self.weights, ctx); // [batch_size, input_dim]
+
+        self.grad_weights = Some(grad_weights);
+        self.grad_biases = Some(grad_biases);
 
         grad_input
     }
 
-    fn update_parameters(
-            &mut self,
-            learning_rate: T,
-            ctx: &EncryptedContext<K, T>,
-    ) {
+    fn update_parameters(&mut self, learning_rate: T, ctx: &EncryptedContext<K, T>) {
         if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-            // Element-wise multiplication: grad_weights * learning_rate
-            let mut lr_grad_w = grad_w.mul_scalar(&learning_rate, ctx);
-            let mut lr_grad_b = grad_b.mul_scalar(&learning_rate, ctx);
-            // Subtract from current weights and biases
+            let lr_grad_w = grad_w.mul_scalar(&learning_rate, ctx);
+            let lr_grad_b = grad_b.mul_scalar(&learning_rate, ctx);
+
             self.weights = self.weights.sub(&lr_grad_w, ctx);
-            let reduced_grad_b = lr_grad_b.sum_axis(0, ctx);
-            self.biases = self.biases.sub(&reduced_grad_b, ctx);
+            self.biases = self.biases.sub(&lr_grad_b, ctx);
         }
     }
 
@@ -103,3 +101,4 @@ where
         self.id.clone()
     }
 }
+

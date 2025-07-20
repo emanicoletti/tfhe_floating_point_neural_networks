@@ -106,9 +106,9 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
     }
 
     fn add_dense(&mut self, input_size: usize, output_size: usize) {
-        let encrypted_weights = self.init_weights(input_size, output_size);
+        let encrypted_weights = self.init_weights(output_size, input_size);
         let encrypted_biases = self.init_biases(output_size);
-        let encrypted_grad_weights = self.init_gradients(&[input_size, output_size]);
+        let encrypted_grad_weights = self.init_gradients(&[output_size, input_size]);
         let encrypted_grad_biases = self.init_gradients(&[output_size]);
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
@@ -143,14 +143,15 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                     return;
                 }
     
-                println!("Decrypted Weights for Layer \"{}\":", id);
+                println!("\nDecrypted Weights for Layer \"{}\":", id);
                 for i in 0..rows {
+                    print!("\n[");
                     for j in 0..cols {
                         let index = i * cols + j;
                         let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
                         print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                     }
-                    println!();
+                    print!("]\n");
                 }
                 return;
             }
@@ -168,13 +169,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let columns = shape[1];
                 let flat = biases.data;
 
-                println!("Decrypted Biases for Layer \"{}\":", id);
-
+                println!("\nDecrypted Biases for Layer \"{}\":", id);
+                print!("\n[");
                 for i in 0..columns {
                     let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
-                println!();
+                print!("]\n");
                 return;
             }
         }
@@ -200,14 +201,15 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                     return;
                 }
     
-                println!("Decrypted grad_weights for Layer \"{}\":", id);
+                println!("\nDecrypted grad_weights for Layer \"{}\":", id);
                 for i in 0..rows {
+                    print!("\n[");
                     for j in 0..cols {
                         let index = i * cols + j;
                         let decrypted: u16 = flat[index].decrypt(&self.inner.context.client_key);
                         print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                     }
-                    println!();
+                    print!("]\n");
                 }
                 return;
             }
@@ -225,13 +227,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let columns = shape[1];
                 let flat = biases.data;
 
-                println!("Decrypted grad_biases for Layer \"{}\":", id);
-
+                println!("\nDecrypted grad_biases for Layer \"{}\":", id);
+                print!("\n[");
                 for i in 0..columns {
                     let decrypted: u16 = flat[i].decrypt(&self.inner.context.client_key);
                     print!("{:<6} ", f16::from_bits(decrypted).to_f32());
                 }
-                println!();
+                print!("]\n");
                 return;
             }
         }
@@ -242,21 +244,26 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
 impl EncryptedNeuralNetworkU16GPU {
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint16>{
         
+        /* 
         // Xavier Initialization
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
         let normal = Normal::new(0.0, std_dev).unwrap();
 
         let mut rng = thread_rng();
+        */
+
+        let weights_f32: &Vec<f32> = &vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0];
 
         let mut encrypted_weights = Vec::with_capacity(input_size * output_size);
 
-        for _ in 0..(input_size * output_size) {
-            let sample = f16::from_f32(normal.sample(&mut rng) as f32);
+        for i in 0..(input_size * output_size) {
+            //let sample = f16::from_f32(normal.sample(&mut rng) as f32);
+            let sample = f16::from_f32(weights_f32[i]);
             let u_sample = sample.to_bits();
             let encrypted_sample = FheUint16::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");;
             encrypted_weights.push(encrypted_sample);
         }
-
+        
         EncryptedTensor { data: (encrypted_weights), shape: (vec![input_size, output_size]) }
     }
 
