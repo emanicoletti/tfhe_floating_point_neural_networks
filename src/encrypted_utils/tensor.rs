@@ -2,9 +2,16 @@ use crate::encrypted_ops::{ops, EncryptedNegate};
 use crate::encrypted_utils::encrypted_types::EncryptedElement;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::encrypted_ops::{EncryptedAdd, EncryptedMul};
+use crate::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh};
 
+use crate::encrypted_utils::encrypted_types::EncryptableValueType;
+
+use rand_distr::num_traits::ToPrimitive;
 use rayon::prelude::*;
+
+use half::f16;
+
+use std::time::Instant;
 
 
 #[derive(Clone)]
@@ -55,6 +62,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     ) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedMul<K, T> + EncryptedAdd<K, T>,
+        T: EncryptableValueType<Plain = u32>,
     {
         assert_eq!(self.shape.len(), 2, "Left tensor must be 2D");
         assert_eq!(other.shape.len(), 2, "Right tensor must be 2D");
@@ -68,10 +76,10 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                 let i = index / p;
                 let j = index % p;
                 let mut sum = ctx.encrypted_zero.clone();
-
                 for k in 0..n1 {
                     let a_val = self.get(&[i, k]).clone();
                     let b_val = other.get(&[k, j]).clone();
+                    let start_inner = Instant::now();
                     let prod = ctx.server_key.mul(a_val, b_val, ctx);
                     sum = ctx.server_key.add(sum, prod, ctx);
                 }
@@ -79,7 +87,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                 sum
             })
             .collect();
-    
+            
         EncryptedTensor::new(result_data, vec![m, p])
     }
 
@@ -189,12 +197,34 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     where
         K: ServerKeyTrait + EncryptedMul<K, T>,
     {
-        let data = self.data.iter().map(|x| ctx.server_key.mul(x.clone(), scalar.clone(), ctx)).collect();
+        let data = self.data.par_iter().map(|x| ctx.server_key.mul(x.clone(), scalar.clone(), ctx)).collect();
 
         EncryptedTensor {
             data,
             shape: self.shape.clone(),
         }
+    }
+
+    pub fn tanh<K>(
+        &self,
+        ctx: &EncryptedContext<K, T>,
+    ) -> (EncryptedTensor<T>, EncryptedTensor<T>)
+    where
+        K: ServerKeyTrait + EncryptedTanh<K, T> + Sync,
+        T: EncryptableValueType + Send + Sync,
+    {
+        let (result_data, derivatives): (Vec<_>, Vec<_>) = self
+            .data
+            .par_iter()
+            .map(|value| {
+                ctx.server_key.tanh(value.clone(), ctx)
+            })
+            .unzip();
+    
+        (
+            EncryptedTensor::new(result_data, self.shape.clone()),
+            EncryptedTensor::new(derivatives, self.shape.clone()),
+        )
     }
 }
 

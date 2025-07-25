@@ -1,11 +1,14 @@
 use crate::encrypted_utils::tensor::EncryptedTensor;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_types::EncryptedElement;
+use crate::encrypted_utils::encrypted_types::{EncryptableValueType, EncryptedElement};
 use crate::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate};
 use crate::encrypted_layers::EncryptedLayer;
 
 use rayon::prelude::*;
+use rayon::scope;
+
+use std::time::Instant;
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
     pub id: String,
@@ -30,11 +33,10 @@ impl<T: EncryptedElement> EncryptedDenseLayer<T> {
 impl<K, T> EncryptedLayer<K, T> for EncryptedDenseLayer<T>
 where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedNegate<K, T>,
-    T: Clone + EncryptedElement,
+    T: Clone + EncryptedElement + EncryptableValueType<Plain = u32>,
 {
-    fn forward(&self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
+    fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
         let weighted_sum = input.matmul(&self.weights.transpose(), ctx); 
-
         // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[1];
@@ -50,7 +52,8 @@ where
             shape: vec![batch_size, output_dim],
         };
 
-        weighted_sum.add(&expanded_biases, ctx)
+        weighted_sum.add(&expanded_biases, ctx);
+        weighted_sum
     }
 
     fn backward(
@@ -58,26 +61,83 @@ where
         input: &EncryptedTensor<T>,          // [batch_size, input_dim]
         grad_output: &EncryptedTensor<T>,    // [batch_size, output_dim]
         ctx: &EncryptedContext<K, T>,
-    ) -> EncryptedTensor<T> {
-        let grad_weights = grad_output.transpose().matmul(input, ctx); 
-
-        let grad_biases = grad_output.sum_axis(0, ctx); // [1, output_dim]
-
-        let grad_input = grad_output.matmul(&self.weights, ctx); // [batch_size, input_dim]
-
+    ) -> EncryptedTensor<T>
+    where
+        K: ServerKeyTrait + EncryptedMul<K, T> + Send + Sync,
+        T: Clone + Send + Sync,
+    {
+        let mut grad_weights_opt = None;
+        let mut grad_biases_opt = None;
+        let mut grad_input_opt = None;
+    
+        scope(|s| {
+            s.spawn(|_| {
+                let time = Instant::now();
+                let grad_weights = grad_output.transpose().matmul(input, ctx);
+                grad_weights_opt = Some(grad_weights);
+            });
+    
+            s.spawn(|_| {
+                let time = Instant::now();
+                let grad_biases = grad_output.sum_axis(0, ctx);
+                grad_biases_opt = Some(grad_biases);
+            });
+    
+            s.spawn(|_| {
+                let time = Instant::now();
+                let grad_input = grad_output.matmul(&self.weights, ctx);
+                grad_input_opt = Some(grad_input);
+            });
+        });
+    
+        // Unwrap results (these will always be Some because the spawns run synchronously)
+        let grad_weights = grad_weights_opt.expect("grad_weights not computed");
+        let grad_biases = grad_biases_opt.expect("grad_biases not computed");
+        let grad_input = grad_input_opt.expect("grad_input not computed");
+    
         self.grad_weights = Some(grad_weights);
         self.grad_biases = Some(grad_biases);
 
         grad_input
     }
 
-    fn update_parameters(&mut self, learning_rate: T, ctx: &EncryptedContext<K, T>) {
+    fn update_parameters(&mut self, learning_rate: T, ctx: &EncryptedContext<K, T>)
+    where
+        K: ServerKeyTrait + EncryptedMul<K, T> + Send + Sync,
+        T: Clone + Send + Sync,
+    {
         if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-            let lr_grad_w = grad_w.mul_scalar(&learning_rate, ctx);
-            let lr_grad_b = grad_b.mul_scalar(&learning_rate, ctx);
-
-            self.weights = self.weights.sub(&lr_grad_w, ctx);
-            self.biases = self.biases.sub(&lr_grad_b, ctx);
+            let mut lr_grad_w_opt = None;
+            let mut lr_grad_b_opt = None;
+    
+            // Compute scalar multiplications in parallel
+            scope(|s| {
+                s.spawn(|_| {
+                    lr_grad_w_opt = Some(grad_w.mul_scalar(&learning_rate, ctx));
+                });
+                s.spawn(|_| {
+                    lr_grad_b_opt = Some(grad_b.mul_scalar(&learning_rate, ctx));
+                });
+            });
+    
+            let lr_grad_w = lr_grad_w_opt.expect("lr_grad_w not computed");
+            let lr_grad_b = lr_grad_b_opt.expect("lr_grad_b not computed");
+    
+            let mut new_weights = None;
+            let mut new_biases = None;
+    
+            // Subtractions can also be parallelized
+            scope(|s| {
+                s.spawn(|_| {
+                    new_weights = Some(self.weights.sub(&lr_grad_w, ctx));
+                });
+                s.spawn(|_| {
+                    new_biases = Some(self.biases.sub(&lr_grad_b, ctx));
+                });
+            });
+    
+            self.weights = new_weights.expect("weights update failed");
+            self.biases = new_biases.expect("biases update failed");
         }
     }
 

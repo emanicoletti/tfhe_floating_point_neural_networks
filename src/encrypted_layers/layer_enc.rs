@@ -9,7 +9,7 @@ where
     K: ServerKeyTrait,
     T: EncryptedElement,
 {
-    fn forward(&self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>;
+    fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>;
 
     fn backward(
         &mut self,

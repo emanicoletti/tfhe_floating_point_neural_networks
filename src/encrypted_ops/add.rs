@@ -24,12 +24,15 @@ pub fn fhe_add8_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
-            let y_mant = (&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1000u8;
+            let denorm_y = y_exp.eq(0u16);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0111u8),
+                &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -43,11 +46,11 @@ pub fn fhe_add8_gpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
                     let x_sign = &encrypted_x & 0b1000_0000u8;
                     let y_sign = &encrypted_y & 0b1000_0000u8;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -67,12 +70,13 @@ pub fn fhe_add8_gpu(
     let leading_zeros_16: FheUint16 = FheUint16::cast_from(op_mant.leading_zeros());
     let leading_zeros: FheUint8 = FheUint8::cast_from(leading_zeros_16);
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(3u8);
             let mant = (&op_mant & 0b0000_1110u8) >> 1u8;
             let res_exp = &x_exp + 0b0000_1000u8;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 4u8;
@@ -85,7 +89,6 @@ pub fn fhe_add8_gpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(3u8);
     overflow.select(&ov_result, &result)
 }
 
@@ -108,12 +111,16 @@ pub fn fhe_add16_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-            let y_mant = (&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
+            let denorm_y = y_exp.eq(0u16);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0011_1111_1111u16),
+                &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -128,10 +135,11 @@ pub fn fhe_add16_gpu(
                 },
                 || {
                     // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000u16;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000u16;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -150,12 +158,13 @@ pub fn fhe_add16_gpu(
 
     let leading_zeros = FheUint16::cast_from(op_mant.leading_zeros());
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.eq(4u16);
             let mant = (&op_mant & 0b0000_0111_1111_1110u16) >> 1u16;
             let res_exp = &x_exp + 1024u16;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 5u16;
@@ -168,7 +177,6 @@ pub fn fhe_add16_gpu(
         }
     );
 
-    let overflow = leading_zeros.eq(4u16);
     overflow.select(&ov_result, &result)
 }
 
@@ -193,12 +201,15 @@ pub fn fhe_add32_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-            let y_mant = (&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
+            let denorm_y = y_exp.eq(0u32);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
+                &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -212,11 +223,11 @@ pub fn fhe_add32_gpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -235,12 +246,13 @@ pub fn fhe_add32_gpu(
 
     let leading_zeros = op_mant.leading_zeros();
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(7u32);
             let mant = (&op_mant & 0b0000_0000_1111_1111_1111_1111_1111_1110u32) >> 1u16;
             let res_exp = &x_exp + 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 8u32;
@@ -253,7 +265,6 @@ pub fn fhe_add32_gpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(7u32);
     overflow.select(&ov_result, &result)
 }
 
@@ -276,12 +287,15 @@ pub fn fhe_add64_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            let y_mant = (&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
+            let denorm_y = y_exp.eq(0u64);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
+                &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -295,11 +309,11 @@ pub fn fhe_add64_gpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -318,12 +332,13 @@ pub fn fhe_add64_gpu(
 
     let leading_zeros = FheUint64::cast_from(op_mant.leading_zeros());
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(10u8);
             let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u8;
             let res_exp = &x_exp + 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 11u64;
@@ -336,7 +351,6 @@ pub fn fhe_add64_gpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(10u8);
     overflow.select(&ov_result, &result)
 }
 
@@ -363,12 +377,15 @@ pub fn fhe_add8_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
-            let y_mant = (&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1000u8;
+            let denorm_y = y_exp.eq(0u16);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0111u8),
+                &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -382,11 +399,11 @@ pub fn fhe_add8_cpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
                     let x_sign = &encrypted_x & 0b1000_0000u8;
                     let y_sign = &encrypted_y & 0b1000_0000u8;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -406,12 +423,13 @@ pub fn fhe_add8_cpu(
     let leading_zeros_16: FheUint16 = FheUint16::cast_from(op_mant.leading_zeros());
     let leading_zeros: FheUint8 = FheUint8::cast_from(leading_zeros_16);
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(3u8);
             let mant = (&op_mant & 0b0000_1110u8) >> 1u8;
             let res_exp = &x_exp + 0b0000_1000u8;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 4u8;
@@ -424,7 +442,6 @@ pub fn fhe_add8_cpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(3u8);
     overflow.select(&ov_result, &result)
 }
 
@@ -448,12 +465,16 @@ pub fn fhe_add16_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-            let y_mant = (&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
+            let denorm_y = y_exp.eq(0u16);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0011_1111_1111u16),
+                &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -468,10 +489,11 @@ pub fn fhe_add16_cpu(
                 },
                 || {
                     // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000u16;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000u16;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -490,12 +512,13 @@ pub fn fhe_add16_cpu(
 
     let leading_zeros = FheUint16::cast_from(op_mant.leading_zeros());
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(4u16);
             let mant = (&op_mant & 0b0000_0111_1111_1110u16) >> 1u16;
             let res_exp = &x_exp + 1024u16;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 5u16;
@@ -508,7 +531,6 @@ pub fn fhe_add16_cpu(
         }
     );
 
-    let overflow = leading_zeros.eq(4u16);
     overflow.select(&ov_result, &result)
 }
 
@@ -533,12 +555,15 @@ pub fn fhe_add32_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-            let y_mant = (&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
+            let denorm_y = y_exp.eq(0u32);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
+                &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -552,11 +577,11 @@ pub fn fhe_add32_cpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -575,12 +600,13 @@ pub fn fhe_add32_cpu(
 
     let leading_zeros = op_mant.leading_zeros();
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(7u32);
             let mant = (&op_mant & 0b0000_0000_1111_1111_1111_1111_1111_1110u32) >> 1u16;
             let res_exp = &x_exp + 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 8u32;
@@ -593,7 +619,6 @@ pub fn fhe_add32_cpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(7u32);
     overflow.select(&ov_result, &result)
 }
 
@@ -616,12 +641,15 @@ pub fn fhe_add64_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((x_mant, y_mant), ((x_exp, diff_exp), (x_sign, same_sign))) = rayon::join(
+    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
-            // Thread 1: Mantissas
-            let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            let y_mant = (&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            (x_mant, y_mant)
+            let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
+            let denorm_y = y_exp.eq(0u64);
+            let y_mant = denorm_y.select(
+                &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
+                &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
+            );
+            (y_mant)
         },
         || {
             // Thread 2 + 3: Nested join
@@ -635,11 +663,11 @@ pub fn fhe_add64_cpu(
                     (x_exp, clipped_diff_exp)
                 },
                 || {
-                    // Thread 3: Signs
+                    let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
                     let same_sign = x_sign.eq(&y_sign);
-                    (x_sign, same_sign)
+                    (x_mant, x_sign, same_sign)
                 },
             )
         },
@@ -658,12 +686,13 @@ pub fn fhe_add64_cpu(
 
     let leading_zeros = FheUint64::cast_from(op_mant.leading_zeros());
 
-    let (ov_result, result) = rayon::join(
+    let ((ov_result, overflow), result) = rayon::join(
         ||{
+            let overflow = leading_zeros.clone().eq(10u8);
             let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u8;
             let res_exp = &x_exp + 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let result = &x_sign | &res_exp | &mant;
-            result
+            (result, overflow)
         },
         ||{
             let diff = &leading_zeros - 11u64;
@@ -676,6 +705,5 @@ pub fn fhe_add64_cpu(
         }
     );
 
-    let overflow = &leading_zeros.eq(10u8);
     overflow.select(&ov_result, &result)
 }

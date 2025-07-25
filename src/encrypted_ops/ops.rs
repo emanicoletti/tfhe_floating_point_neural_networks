@@ -2,6 +2,7 @@ use super::add::*;
 use super::mul::*;
 use super::negate::*;
 use super::div::*;
+use super::tanh::*;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
@@ -34,6 +35,14 @@ where
 {
     fn negate(&self, a: T) -> T;
 }
+
+pub trait EncryptedTanh<K, T>
+where
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn tanh(&self, a: T, ctx: &EncryptedContext<K, T>) -> (T, T);
+}
+
 
 impl EncryptedAdd<CudaServerKey, FheUint8> for CudaServerKey {
     fn add(&self, a: FheUint8, b: FheUint8, ctx: &EncryptedContext<Self, FheUint8>) -> FheUint8 {
@@ -224,6 +233,30 @@ impl EncryptedNegate<CudaServerKey, FheUint64> for CudaServerKey {
 impl EncryptedNegate<ServerKey, FheUint64> for ServerKey {
     fn negate(&self, a: FheUint64) -> FheUint64 {
         fhe_negate64_cpu(a, self.clone())
+    }
+}
+
+impl EncryptedTanh<CudaServerKey, FheUint16> for CudaServerKey {
+    fn tanh(&self, a: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> (FheUint16, FheUint16) {
+        fhe_tanh16_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+    }
+}
+
+impl EncryptedTanh<ServerKey, FheUint16> for ServerKey {
+    fn tanh(&self, a: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> (FheUint16, FheUint16) {
+        fhe_tanh16_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+    }
+}
+
+impl EncryptedTanh<CudaServerKey, FheUint32> for CudaServerKey {
+    fn tanh(&self, a: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> (FheUint32, FheUint32) {
+        fhe_tanh32_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+    }
+}
+
+impl EncryptedTanh<ServerKey, FheUint32> for ServerKey {
+    fn tanh(&self, a: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> (FheUint32, FheUint32) {
+        fhe_tanh32_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
     }
 }
 
