@@ -1,9 +1,13 @@
+use std::time::Instant;
+
 use crate::encrypted_utils::tensor::EncryptedTensor;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::encrypted_utils::encrypted_types::{EncryptableValueType, EncryptedElement};
 use crate::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate, EncryptedTanh};
 use crate::encrypted_layers::EncryptedLayer;
+
+use rayon::prelude::*;
 
 pub struct EncryptedTanhActivation<T: EncryptedElement> {
     pub id: String,
@@ -27,8 +31,10 @@ where
     T: Clone + EncryptedElement + EncryptableValueType<>, {
 
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
+        let start = Instant::now();
         let (activations, derivatives ) = input.tanh(&ctx);
         self.derivatives = derivatives;
+        println!("Time for tanh: {:?}", start.elapsed());
         activations
     }
 
@@ -37,8 +43,20 @@ where
         input: &EncryptedTensor<T>,
         grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
-    ) -> EncryptedTensor<T> {
-        self.derivatives.clone()
+    ) -> EncryptedTensor<T> 
+    where
+        K: ServerKeyTrait + EncryptedMul<K, T>,
+        T: Clone + EncryptableValueType<>,
+    {
+        // grad_input = grad_output * derivative
+        let grad_input_data: Vec<T> = grad_output
+        .data
+        .par_iter()
+        .zip(self.derivatives.data.par_iter())
+        .map(|(g, d)| ctx.server_key.mul(g.clone(), d.clone(), ctx))
+        .collect();
+    
+        EncryptedTensor::new(grad_input_data, grad_output.shape.clone())
     }
 
     fn update_parameters(

@@ -6,6 +6,7 @@ use crate::encrypted_ops::mul::*;
 
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
+use rayon::iter::IntoParallelIterator;
 
 pub fn fhe_tanh16_gpu(
     input: FheUint16,
@@ -21,7 +22,7 @@ pub fn fhe_tanh16_gpu(
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
             let gt = input.ge(min.clone());
-            let lt = input.lt(max.clone());
+            let lt = input.le(max.clone());
             let in_range = gt & lt;
 
             let mul = fhe_lmul16_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
@@ -37,9 +38,9 @@ pub fn fhe_tanh16_gpu(
     .reduce(|acc, x| &acc | &x)
     .unwrap_or_else(|| encrypted_zero.clone());
 
-let derivative = derivatives.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or(encrypted_zero);
+    let derivative = derivatives.into_iter()
+        .reduce(|acc, x| &acc | &x)
+        .unwrap_or(encrypted_zero);
 
     (result, derivative)
 }
@@ -70,13 +71,11 @@ pub fn fhe_tanh32_gpu(
         })
         .unzip();
 
-    let result = results.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or_else(|| encrypted_zero.clone());
+    let result = results.into_par_iter()
+        .reduce(|| encrypted_zero.clone(), |acc, x| &acc | &x);
 
-let derivative = derivatives.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or(encrypted_zero);
+    let derivative = derivatives.into_par_iter()
+        .reduce(|| encrypted_zero.clone(), |acc, x| &acc | &x);
 
     (result, derivative)
 }

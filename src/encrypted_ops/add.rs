@@ -24,7 +24,7 @@ pub fn fhe_add8_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1000u8;
             let denorm_y = y_exp.eq(0u16);
@@ -32,7 +32,7 @@ pub fn fhe_add8_gpu(
                 &(&encrypted_y & 0b0000_0111u8),
                 &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -111,7 +111,7 @@ pub fn fhe_add16_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             // Thread 1: Mantissas
             let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
@@ -120,7 +120,7 @@ pub fn fhe_add16_gpu(
                 &(&encrypted_y & 0b0000_0011_1111_1111u16),
                 &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -201,7 +201,7 @@ pub fn fhe_add32_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
             let denorm_y = y_exp.eq(0u32);
@@ -209,7 +209,7 @@ pub fn fhe_add32_gpu(
                 &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
                 &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -287,7 +287,7 @@ pub fn fhe_add64_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let denorm_y = y_exp.eq(0u64);
@@ -295,7 +295,7 @@ pub fn fhe_add64_gpu(
                 &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
                 &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -377,7 +377,7 @@ pub fn fhe_add8_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1000u8;
             let denorm_y = y_exp.eq(0u16);
@@ -385,7 +385,7 @@ pub fn fhe_add8_cpu(
                 &(&encrypted_y & 0b0000_0111u8),
                 &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -465,7 +465,7 @@ pub fn fhe_add16_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             // Thread 1: Mantissas
             let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
@@ -474,7 +474,7 @@ pub fn fhe_add16_cpu(
                 &(&encrypted_y & 0b0000_0011_1111_1111u16),
                 &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -555,7 +555,7 @@ pub fn fhe_add32_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
             let denorm_y = y_exp.eq(0u32);
@@ -563,7 +563,7 @@ pub fn fhe_add32_cpu(
                 &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
                 &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join
@@ -641,7 +641,7 @@ pub fn fhe_add64_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let ((y_mant), ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let denorm_y = y_exp.eq(0u64);
@@ -649,7 +649,7 @@ pub fn fhe_add64_cpu(
                 &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
                 &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
             );
-            (y_mant)
+            y_mant
         },
         || {
             // Thread 2 + 3: Nested join

@@ -9,7 +9,6 @@ use crate::encrypted_ops::*;
 use crate::activations::tanh_activation::*;
 use crate::encrypted_nn::EncryptedNeuralNetworkImpl;
 
-use rayon::iter::Inspect;
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::prelude::FheDecrypt;
 
@@ -27,6 +26,7 @@ pub trait EncryptedNeuralNetwork{
     fn create() -> Self;
     fn add_dense(&mut self, input_size: usize, output_size: usize);
     fn add_tanh_activation(&mut self, size: usize);
+    fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize);
     fn train(
         &mut self,
         epochs: usize,
@@ -34,8 +34,8 @@ pub trait EncryptedNeuralNetwork{
         learning_rate: f32,
         train_inputs: &[Vec<f32>],   
         train_labels: &[Vec<f32>],  
-        val_inputs: &[Vec<f32>],
-        val_labels: &[Vec<f32>],
+        input_shapes: Vec<usize>,
+        label_shapes: Vec<usize>
     );
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
@@ -89,8 +89,9 @@ pub static TANH16_PLA_RANGES: &[(u16, u16, u16, u16, u16)] = &[
     (17409u16, 32767u16, 15360u16, 0u16,     0u16),     // [4.0, +inf], output ~ 1, derivative ≈ 0
 ];
 
+/* 
 pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
-    (3229614080u32, 4294967295u32, 3212836864u32, 0u32, 0u32,), // [-inf, -4], output ~ -1, derivative ≈ 0
+    (3229614080u32, 4294967295u32, 3212836864u32, 0u32, 0u32), // [-inf, -4], output ~ -1, derivative ≈ 0
     (3225419776u32, 3229614079u32, 999046974u32, 3212538397u32, 999046974u32), // [-4.0, -3.0], slope ≈ 0.00428, intercept ≈ -0.98221
     (3221225472u32, 3225419775u32, 1023286696u32, 3211192529u32, 1023286696u32), // [-3.0, -2.0], slope ≈ 0.03102, intercept ≈ -0.90199
     (3212836864u32, 3221225471u32, 1045384302u32, 3205440628u32, 1045384302u32), // [-2.0, -1.0], slope ≈ 0.20244, intercept ≈ -0.55915
@@ -102,6 +103,16 @@ pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
     (1073741825u32, 1077936128u32, 1023286696u32, 1063708881u32, 1023286696u32), // [2.0, 3.0],   slope ≈ 0.03102, intercept ≈ 0.90199
     (1077936129u32, 1082130432u32, 999046974u32, 1065054749u32, 999046974u32), // [3.0, 4.0],   slope ≈ 0.00428, intercept ≈ 0.98221
     (1082130433u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [4.0, +inf], output ~ 1, derivative ≈ 0
+];
+*/
+
+pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
+    (3221225472u32, 3229614080u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
+    (3210040661u32, 3221225471u32, 1048576000u32, 3204448256u32, 1048576000u32), // [-2, -0.8333] slope 0.25. intercept -0.5
+    (2147483648u32, 3210040660u32, 1062836634u32, 0u32, 1062836634u32), // [-0.833, -0] slope=0.85 intercept = 0
+    (0u32, 1062557013u32, 1062836634u32, 0u32, 1062836634u32), //[0, 0.833] slope=0.85 intercept = 0
+    (1062557014u32, 1073741824u32, 1048576000u32, 1056964608u32, 1048576000u32), //[0.833, 2] slope = 0.25 intercept 0.5
+    (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
 /*
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
@@ -402,14 +413,16 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         self.inner.add_tanh_activation(derivatives, self.inner.context.ranges.clone());
     }
 
-    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], val_inputs: &[Vec<f32>], val_labels: &[Vec<f32>],) {
+    fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize){
+        self.inner.add_max_pooling(input_dim, kernel_size, stride, padding);
+    }
+
+    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
         let enc_learning_rate = FheUint32::try_encrypt(learning_rate.to_bits(), &self.inner.context.client_key).unwrap();
-        let enc_train_inputs = self.encrypt_dataset(batch_size, train_inputs);
-        let enc_train_labels = self.encrypt_dataset(batch_size, train_labels);
-        let enc_val_inputs = self.encrypt_dataset(batch_size, val_inputs);
-        let enc_val_labels = self.encrypt_dataset(batch_size, val_labels);
+        let enc_train_inputs = self.encrypt_dataset(train_inputs, input_shapes.clone());
+        let enc_train_labels = self.encrypt_dataset(train_labels, label_shapes.clone());
         let time = Instant::now();
-        self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone(), enc_val_inputs.clone(), enc_val_labels.clone());
+        self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone());
         println!("Training completed in {:?}", time.elapsed());
     }
 
@@ -419,13 +432,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
                 let weights = layer.get_weights();
                 let shape = &weights.shape;
     
-                if shape.len() != 2 {
-                    println!("Expected 2D shape for weights, got {:?}", shape);
+                if shape.len() != 4 {
+                    println!("Expected 4D shape for weights, got {:?}", shape);
                     return;
                 }
-    
-                let rows = shape[0];
-                let cols = shape[1];
+                
+                let rows = shape[2];
+                let cols = shape[3];
                 let flat = weights.data;
     
                 if flat.len() != rows * cols {
@@ -457,7 +470,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
                 let biases = layer.get_biases();
                 let shape = &biases.shape;
 
-                let columns = shape[1];
+                let columns = shape[3];
                 let flat = biases.data;
 
                 println!("\nDecrypted Biases for Layer \"{}\":", id);
@@ -479,13 +492,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
                 let weights = layer.get_grad_weights();
                 let shape = &weights.shape;
     
-                if shape.len() != 2 {
-                    println!("Expected 2D shape for grad_weights, got {:?}", shape);
+                if shape.len() != 4 {
+                    println!("Expected 4D shape for grad_weights, got {:?}", shape);
                     return;
                 }
     
-                let rows = shape[0];
-                let cols = shape[1];
+                let rows = shape[2];
+                let cols = shape[3];
                 let flat = weights.data;
     
                 if flat.len() != rows * cols {
@@ -517,7 +530,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
                 let biases = layer.get_grad_biases();
                 let shape = &biases.shape;
 
-                let columns = shape[1];
+                let columns = shape[3];
                 let flat = biases.data;
 
                 println!("\nDecrypted grad_biases for Layer \"{}\":", id);
@@ -549,18 +562,19 @@ impl EncryptedNeuralNetworkU32GPU {
 
         for i in 0..(input_size * output_size) {
             let sample = normal.sample(&mut rng) as f32;
+            let sample = 1.0 as f32; 
             let u_sample = sample.to_bits();
-            let encrypted_sample = FheUint32::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");;
+            let encrypted_sample = FheUint32::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");
             encrypted_weights.push(encrypted_sample);
         }
         
-        EncryptedTensor { data: (encrypted_weights), shape: (vec![input_size, output_size]) }
+        EncryptedTensor { data: (encrypted_weights), shape: (vec![1, 1, input_size, output_size]) }
     }
 
     fn init_biases(&mut self, output_size:usize) -> EncryptedTensor<FheUint32> {
         let zero_enc = &self.inner.context.encrypted_zero;
         let biases = vec![zero_enc.clone(); output_size];
-        EncryptedTensor::new(biases, vec![1, output_size])
+        EncryptedTensor::new(biases, vec![1, 1, 1, output_size])
     }
 
     fn init_gradients(&self, shape: &[usize]) -> EncryptedTensor<FheUint32> {
@@ -591,9 +605,8 @@ impl EncryptedNeuralNetworkU32GPU {
         EncryptedTensor::new(zeros, shapes)
     }
 
-    fn encrypt_dataset(&mut self, batch_size: usize, clear_data: &[Vec<f32>]) -> EncryptedTensor<FheUint32> {
+    fn encrypt_dataset(&mut self, clear_data: &[Vec<f32>], input_shapes: Vec<usize>) -> EncryptedTensor<FheUint32> {
         let mut encrypted_dataset = Vec::new();
-        let feature_size = clear_data[0].len();
 
         for vec in clear_data{
             for sample in vec{
@@ -603,7 +616,9 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
 
-        EncryptedTensor { data: encrypted_dataset, shape: vec![batch_size, feature_size] }
+        let num_channels = 1; 
+
+        EncryptedTensor { data: encrypted_dataset, shape: vec![input_shapes[0], input_shapes[1], input_shapes[2], input_shapes[3]] }
 
     }
 

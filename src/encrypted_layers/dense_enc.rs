@@ -12,8 +12,8 @@ use std::time::Instant;
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>, // shape: [input_dim, output_dim]
-    pub biases: EncryptedTensor<T>,  // shape: [1, output_dim]
+    pub weights: EncryptedTensor<T>, // shape: [1, 1, input_dim, output_dim]
+    pub biases: EncryptedTensor<T>,  // shape: [1, 1, 1, output_dim]
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
 }
@@ -22,8 +22,8 @@ impl<T: EncryptedElement> EncryptedDenseLayer<T> {
     pub fn new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
             id,
-            weights, // expect shape [input_dim, output_dim]
-            biases,  // expect shape [1, output_dim]
+            weights, // expect shape [1, 1, input_dim, output_dim]
+            biases,  // expect shape [1, 1, 1, output_dim]
             grad_weights: None,
             grad_biases: None,
         }
@@ -36,10 +36,12 @@ where
     T: Clone + EncryptedElement + EncryptableValueType<Plain = u32>,
 {
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
-        let weighted_sum = input.matmul(&self.weights.transpose(), ctx); 
+        let start = Instant::now();
+        let flatten_input = input.flatten_hw_to_1d();
+        let weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx); 
         // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
-        let output_dim = self.biases.shape[1];
+        let output_dim = self.biases.shape[3];
         let bias_data = &self.biases.data;
 
         let repeated: Vec<T> = (0..batch_size)
@@ -49,10 +51,11 @@ where
 
         let expanded_biases = EncryptedTensor {
             data: repeated,
-            shape: vec![batch_size, output_dim],
+            shape: vec![batch_size, 1, 1, output_dim],
         };
 
         weighted_sum.add(&expanded_biases, ctx);
+        println!("Time: {:?}", start.elapsed());
         weighted_sum
     }
 
@@ -72,19 +75,17 @@ where
     
         scope(|s| {
             s.spawn(|_| {
-                let time = Instant::now();
-                let grad_weights = grad_output.transpose().matmul(input, ctx);
+                let flatten_input = input.flatten_hw_to_1d();
+                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx);
                 grad_weights_opt = Some(grad_weights);
             });
     
             s.spawn(|_| {
-                let time = Instant::now();
                 let grad_biases = grad_output.sum_axis(0, ctx);
                 grad_biases_opt = Some(grad_biases);
             });
     
             s.spawn(|_| {
-                let time = Instant::now();
                 let grad_input = grad_output.matmul(&self.weights, ctx);
                 grad_input_opt = Some(grad_input);
             });

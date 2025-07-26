@@ -3,6 +3,8 @@ use super::mul::*;
 use super::negate::*;
 use super::div::*;
 use super::tanh::*;
+use super::max::*;
+use super::grad_if_equal::*;
 use crate::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
 use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
@@ -43,6 +45,19 @@ where
     fn tanh(&self, a: T, ctx: &EncryptedContext<K, T>) -> (T, T);
 }
 
+pub trait EncryptedMax<K, T>
+where
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn max(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
+}
+
+pub trait EncryptedGradIfEqual<K, T>
+where
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn grad_if_equal(&self, a: T, b: T, zero: T, grad: T, ctx: &EncryptedContext<K, T>) -> T;
+}
 
 impl EncryptedAdd<CudaServerKey, FheUint8> for CudaServerKey {
     fn add(&self, a: FheUint8, b: FheUint8, ctx: &EncryptedContext<Self, FheUint8>) -> FheUint8 {
@@ -260,3 +275,26 @@ impl EncryptedTanh<ServerKey, FheUint32> for ServerKey {
     }
 }
 
+impl EncryptedMax<CudaServerKey, FheUint16> for CudaServerKey {
+    fn max(&self, a: FheUint16, b: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_max16_gpu(a, b, self.clone())
+    }
+}
+
+impl EncryptedMax<CudaServerKey, FheUint32> for CudaServerKey {
+    fn max(&self, a: FheUint32, b: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+        fhe_max32_gpu(a, b, self.clone())
+    }
+}
+
+impl EncryptedGradIfEqual<CudaServerKey, FheUint16> for CudaServerKey {
+    fn grad_if_equal(&self, a: FheUint16, b: FheUint16, zero: FheUint16, grad: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_grad_if_equal16_gpu(a, b, zero, grad, self.clone())
+    }
+}
+
+impl EncryptedGradIfEqual<CudaServerKey, FheUint32> for CudaServerKey {
+    fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+        fhe_grad_if_equal32_gpu(a, b, zero, grad, self.clone())
+    }
+}
