@@ -1,13 +1,13 @@
-use crate::encrypted_utils::tensor::EncryptedTensor;
-use crate::encrypted_utils::encrypted_context::{self, EncryptedContext};
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
-use crate::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer};
-use crate::encrypted_losses::loss_function::LossFunction;
-use crate::encrypted_losses::loss_function::MseLoss;
-use crate::encrypted_ops::*;
-use crate::activations::tanh_activation::*;
-use crate::encrypted_nn::EncryptedNeuralNetworkImpl;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::{self, EncryptedContext};
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
+use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer};
+use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
+use crate::tfhe_nn_builder::encrypted_losses::loss_function::MseLoss;
+use crate::tfhe_nn_builder::encrypted_ops::*;
+use crate::tfhe_nn_builder::encrypted_activations::tanh_activation::*;
+use crate::tfhe_nn_builder::generic_enc_nn::EncryptedNeuralNetworkImpl;
 
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::prelude::FheDecrypt;
@@ -107,13 +107,14 @@ pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
 */
 
 pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
-    (3221225472u32, 3229614080u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
+    (3221225472u32, 4294967295u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
     (3210040661u32, 3221225471u32, 1048576000u32, 3204448256u32, 1048576000u32), // [-2, -0.8333] slope 0.25. intercept -0.5
     (2147483648u32, 3210040660u32, 1062836634u32, 0u32, 1062836634u32), // [-0.833, -0] slope=0.85 intercept = 0
     (0u32, 1062557013u32, 1062836634u32, 0u32, 1062836634u32), //[0, 0.833] slope=0.85 intercept = 0
     (1062557014u32, 1073741824u32, 1048576000u32, 1056964608u32, 1048576000u32), //[0.833, 2] slope = 0.25 intercept 0.5
     (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
+
 /*
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
     fn create() -> Self{
@@ -351,6 +352,7 @@ impl EncryptedNeuralNetworkU16GPU {
 
 }
 */
+
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
     fn create() -> Self{
         let config =
@@ -359,6 +361,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         let client_key = ClientKey::generate(config);
         let compressed_server_key = CompressedServerKey::new(&client_key);
         let server_key = compressed_server_key.decompress_to_gpu();
+        rayon::broadcast(|_| set_server_key(server_key.clone()));
 
         let encrypted_zero = FheUint32::try_encrypt(0u32, &client_key).unwrap();
         //let encrypted_mask = FheUint32::try_encrypt(1023u32, &client_key).unwrap();
@@ -562,7 +565,7 @@ impl EncryptedNeuralNetworkU32GPU {
 
         for i in 0..(input_size * output_size) {
             let sample = normal.sample(&mut rng) as f32;
-            let sample = 1.0 as f32; 
+            let sample = 0.0 as f32; 
             let u_sample = sample.to_bits();
             let encrypted_sample = FheUint32::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");
             encrypted_weights.push(encrypted_sample);

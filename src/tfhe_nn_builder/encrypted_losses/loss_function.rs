@@ -1,8 +1,8 @@
-use crate::encrypted_utils::tensor::EncryptedTensor;
-use crate::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
-use crate::encrypted_ops::*;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
+use crate::tfhe_nn_builder::encrypted_ops::*;
 
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::ClientKey;

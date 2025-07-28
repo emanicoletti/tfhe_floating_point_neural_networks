@@ -1,10 +1,10 @@
-use crate::encrypted_ops::{ops, EncryptedNegate};
-use crate::encrypted_utils::encrypted_types::EncryptedElement;
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax};
+use crate::tfhe_nn_builder::encrypted_ops::{ops, EncryptedNegate};
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptedElement;
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax};
 
-use crate::encrypted_utils::encrypted_types::EncryptableValueType;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptableValueType;
 
 use rayon::prelude::*;
 

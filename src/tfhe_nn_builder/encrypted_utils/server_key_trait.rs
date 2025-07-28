@@ -1,8 +1,6 @@
 use tfhe::{ServerKey, CudaServerKey};
 
-pub trait ServerKeyTrait: Clone + Send + Sync {
-    // Put common methods or markers here if needed
-}
+pub trait ServerKeyTrait: Clone + Send + Sync {}
 
 impl ServerKeyTrait for ServerKey {}
 

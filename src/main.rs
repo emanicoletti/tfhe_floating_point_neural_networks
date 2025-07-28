@@ -4,35 +4,42 @@ use tfhe::shortint::parameters::v1_2::*;
 use tfhe::{set_server_key};
 use tfhe::{ConfigBuilder, ClientKey, generate_keys, CompressedServerKey, CudaServerKey, FheUint8, FheUint16, FheUint32, FheUint64};
 use std::time::Instant;
-use crate::encrypted_ops::add::*;
-use crate::encrypted_ops::div::*;
-use crate::network::*;
-use crate::plain_layers::{dense_plain, PlainNetwork};
 use rand::Rng;
 use half::f16;
 use tfhe::prelude::*;
 
-mod encrypted_layers;
-mod plain_layers;
-mod encrypted_ops;
-mod encrypted_utils;
-mod encrypted_losses;
-mod network;
-mod encrypted_nn;
-mod activations;
+use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU};
+
+
+mod tfhe_nn_builder;
+mod plain_nn_builder;
 
 use rayon::ThreadPoolBuilder;
 
+pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
+    (3221225472u32, 3229614080u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
+    (3210040661u32, 3221225471u32, 1048576000u32, 3204448256u32, 1048576000u32), // [-2, -0.8333] slope 0.25. intercept -0.5
+    (2147483648u32, 3210040660u32, 1062836634u32, 0u32, 1062836634u32), // [-0.833, -0] slope=0.85 intercept = 0
+    (0u32, 1062557013u32, 1062836634u32, 0u32, 1062836634u32), //[0, 0.833] slope=0.85 intercept = 0
+    (1062557014u32, 1073741824u32, 1048576000u32, 1056964608u32, 1048576000u32), //[0.833, 2] slope = 0.25 intercept 0.5
+    (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
+];
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+
     let mut model = EncryptedNeuralNetworkU32GPU::create();
     model.add_max_pooling(vec![4, 4], 2, 2, 0);
     model.add_dense(4, 2);
     model.add_tanh_activation(2);
+    /* 
+    model.add_dense(4, 2);
+    model.add_tanh_activation(2);
     model.add_dense(2, 3);
     model.add_tanh_activation(3);
+    */
     //model.add_dense(10, 3);
-    let id = String::from("Dense2");
-    let id1 = String::from("Dense4");
+    let id = String::from("Dense1");
+    //let id1 = String::from("Dense2");
     model.print_plain_weights(id.clone());
     model.print_plain_biases(id.clone());
     //model.print_plain_grad_weights(id.clone());
@@ -41,10 +48,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     let train_inputs = &[
         vec![0.000778, 0.061168, 0.247278, 0.035494, 0.030891, 0.331023, 0.412921, 0.162872, 0.102673, 0.310408, 0.255427, 0.106880, 0.046329, 0.263268, 0.100277, 0.004832],
-        vec![0.000002, 0.003925, 0.106786, 0.033819, 0.000453, 0.075774, 0.348921, 0.040959, 0.011279, 0.322118, 0.162577, 0.002102, 0.018774, 0.234882, 0.026033, 0.000026],
-        vec![0.001184, 0.055320, 0.134542, 0.013901, 0.011918, 0.289323, 0.455587, 0.062753, 0.099947, 0.424732, 0.436236, 0.146384, 0.058734, 0.134263, 0.032525, 0.019126],
-        vec![0.000843, 0.098897, 0.082685, 0.000508, 0.001346, 0.203403, 0.253636, 0.002771, 0.000555, 0.154521, 0.357554, 0.008308, 0.000074, 0.040729, 0.181102, 0.006945],
-        vec![0.000191, 0.036873, 0.039497, 0.000234, 0.000667, 0.137136, 0.166216, 0.001220, 0.000372, 0.109462, 0.199726, 0.002248, 0.000098, 0.044278, 0.106672, 0.001425]
+        //vec![0.000002, 0.003925, 0.106786, 0.033819, 0.000453, 0.075774, 0.348921, 0.040959, 0.011279, 0.322118, 0.162577, 0.002102, 0.018774, 0.234882, 0.026033, 0.000026],
+        //vec![0.001184, 0.055320, 0.134542, 0.013901, 0.011918, 0.289323, 0.455587, 0.062753, 0.099947, 0.424732, 0.436236, 0.146384, 0.058734, 0.134263, 0.032525, 0.019126],
+        //vec![0.000843, 0.098897, 0.082685, 0.000508, 0.001346, 0.203403, 0.253636, 0.002771, 0.000555, 0.154521, 0.357554, 0.008308, 0.000074, 0.040729, 0.181102, 0.006945],
+        //vec![0.000191, 0.036873, 0.039497, 0.000234, 0.000667, 0.137136, 0.166216, 0.001220, 0.000372, 0.109462, 0.199726, 0.002248, 0.000098, 0.044278, 0.106672, 0.001425]
     ];
 
     /* 
@@ -82,8 +89,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     model.print_plain_weights(id.clone());
     model.print_plain_biases(id.clone());
-    model.print_plain_weights(id1.clone());
-    model.print_plain_biases(id1.clone());
+    //model.print_plain_weights(id1.clone());
+    //model.print_plain_biases(id1.clone());
+
     
     Ok(())
 }

@@ -1,13 +1,13 @@
 use std::time::Instant;
-
-use crate::encrypted_utils::tensor::EncryptedTensor;
-use crate::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_types::{EncryptableValueType, EncryptedElement};
-use crate::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate, EncryptedTanh};
-use crate::encrypted_layers::EncryptedLayer;
-
 use rayon::prelude::*;
+
+use crate::tfhe_nn_builder::encrypted_utils::tensor::*;
+use crate::tfhe_nn_builder::encrypted_context::*;
+use crate::tfhe_nn_builder::encrypted_ops::*;
+use crate::tfhe_nn_builder::encrypted_types::*;
+use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
+use crate::tfhe_nn_builder::server_key_trait::ServerKeyTrait;
+
 
 pub struct EncryptedTanhActivation<T: EncryptedElement> {
     pub id: String,
@@ -34,7 +34,6 @@ where
         let start = Instant::now();
         let (activations, derivatives ) = input.tanh(&ctx);
         self.derivatives = derivatives;
-        println!("Time for tanh: {:?}", start.elapsed());
         activations
     }
 

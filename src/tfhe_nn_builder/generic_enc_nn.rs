@@ -1,11 +1,11 @@
-use crate::encrypted_utils::encrypted_context::{self, EncryptedContext};
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
-use crate::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer};
-use crate::activations::{EncryptedTanhActivation};
-use crate::encrypted_losses::loss_function::LossFunction;
-use crate::encrypted_utils::tensor::EncryptedTensor;
-use crate::encrypted_ops::*;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::{self, EncryptedContext};
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
+use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer};
+use crate::tfhe_nn_builder::encrypted_activations::{EncryptedTanhActivation};
+use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
+use crate::tfhe_nn_builder::encrypted_ops::*;
 
 use half::f16;
 

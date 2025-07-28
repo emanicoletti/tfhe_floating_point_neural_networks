@@ -1,4 +1,4 @@
-use crate::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use tfhe::ClientKey;
 
 pub struct EncryptedContext<K: ServerKeyTrait, T> {
