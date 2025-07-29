@@ -9,24 +9,15 @@ use half::f16;
 use tfhe::prelude::*;
 
 use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU};
-
+use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32};
 
 mod tfhe_nn_builder;
 mod plain_nn_builder;
 
 use rayon::ThreadPoolBuilder;
 
-pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
-    (3221225472u32, 3229614080u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
-    (3210040661u32, 3221225471u32, 1048576000u32, 3204448256u32, 1048576000u32), // [-2, -0.8333] slope 0.25. intercept -0.5
-    (2147483648u32, 3210040660u32, 1062836634u32, 0u32, 1062836634u32), // [-0.833, -0] slope=0.85 intercept = 0
-    (0u32, 1062557013u32, 1062836634u32, 0u32, 1062836634u32), //[0, 0.833] slope=0.85 intercept = 0
-    (1062557014u32, 1073741824u32, 1048576000u32, 1056964608u32, 1048576000u32), //[0.833, 2] slope = 0.25 intercept 0.5
-    (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
-];
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
+    /* 
     let mut model = EncryptedNeuralNetworkU32GPU::create();
     model.add_max_pooling(vec![4, 4], 2, 2, 0);
     model.add_dense(4, 2);
@@ -44,8 +35,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     model.print_plain_biases(id.clone());
     //model.print_plain_grad_weights(id.clone());
     //model.print_plain_grad_biases(id.clone());
-    
-    
+    */
     let train_inputs = &[
         vec![0.000778, 0.061168, 0.247278, 0.035494, 0.030891, 0.331023, 0.412921, 0.162872, 0.102673, 0.310408, 0.255427, 0.106880, 0.046329, 0.263268, 0.100277, 0.004832],
         //vec![0.000002, 0.003925, 0.106786, 0.033819, 0.000453, 0.075774, 0.348921, 0.040959, 0.011279, 0.322118, 0.162577, 0.002102, 0.018774, 0.234882, 0.026033, 0.000026],
@@ -71,27 +61,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let train_labels = &[
         vec![1.000000, 0.000000, 0.000000],
-        vec![0.000000, 1.000000, 0.000000],
-        vec![0.000000, 0.000000, 1.000000],
-        vec![0.000000, 1.000000, 0.000000],
-        vec![0.000000, 1.000000, 0.000000]
+        //vec![0.000000, 1.000000, 0.000000],
+        //vec![0.000000, 0.000000, 1.000000],
+        //vec![0.000000, 1.000000, 0.000000],
+        //vec![0.000000, 1.000000, 0.000000]
     ];
     
+    /* 
     model.train(
         1,                          
-        5,                           
+        1,                           
         0.01,                       
         train_inputs,              
         train_labels,             
-        vec![5, 1, 4, 4],
-        vec![5, 1, 1, 3]          
+        vec![1, 1, 4, 4],
+        vec![1, 1, 1, 3]          
     );
     
     model.print_plain_weights(id.clone());
     model.print_plain_biases(id.clone());
     //model.print_plain_weights(id1.clone());
     //model.print_plain_biases(id1.clone());
+    */
 
-    
+    let mut plain_model = PlainNeuralNetworkU32::create();
+    plain_model.add_max_pooling(vec![4, 4], 2, 2, 0);
+    plain_model.add_dense(4, 2);
+    plain_model.add_tanh_activation(2);
+
+    let id = String::from("Dense2");
+    //let id1 = String::from("Dense2");
+    plain_model.print_plain_weights(id.clone());
+    plain_model.print_plain_biases(id.clone());
+
+
+    plain_model.train(
+        1,                          
+        1,                           
+        0.01,                       
+        train_inputs,              
+        train_labels,             
+        vec![1, 1, 4, 4],
+        vec![1, 1, 1, 3]          
+    );
+
     Ok(())
 }
