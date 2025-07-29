@@ -59,7 +59,7 @@ where
         println!("!Gradient computation started");
     
         for (p, t) in predicted.data.iter().zip(&target.data) {
-            let diff = p.clone().add(t.clone());
+            let diff = p.clone().sub(t.clone());
             let double_diff = diff.clone().mul(T::from_f32(2.0 as f32));
             let grad = double_diff.clone().div(T::from_f32(n));
 

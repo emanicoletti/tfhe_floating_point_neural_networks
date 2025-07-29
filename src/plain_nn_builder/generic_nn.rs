@@ -168,7 +168,6 @@ where
     
         while start < num_samples {
             let end = usize::min(start + batch_size, num_samples);
-            println!("end: {:?}", end);
             // Slice input batch
             let input_start = start * input_sample_size;
             let input_end = end * input_sample_size;

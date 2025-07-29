@@ -142,7 +142,7 @@ pub fn fhe_ldiv32_gpu(
             let y_exp = (&encrypted_b & 2139095040u32) >> 23u8;
             let mut exp = &x_exp - &y_exp;
             exp += 127u32;
-            let d = exp.gt(255u32);
+            let d = exp.gt(255u32) | exp.eq(0u32);
             denorm = Some(d);
         });
 

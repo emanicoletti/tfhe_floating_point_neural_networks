@@ -17,25 +17,8 @@ mod plain_nn_builder;
 use rayon::ThreadPoolBuilder;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /* 
-    let mut model = EncryptedNeuralNetworkU32GPU::create();
-    model.add_max_pooling(vec![4, 4], 2, 2, 0);
-    model.add_dense(4, 2);
-    model.add_tanh_activation(2);
-    /* 
-    model.add_dense(4, 2);
-    model.add_tanh_activation(2);
-    model.add_dense(2, 3);
-    model.add_tanh_activation(3);
-    */
-    //model.add_dense(10, 3);
-    let id = String::from("Dense1");
-    //let id1 = String::from("Dense2");
-    model.print_plain_weights(id.clone());
-    model.print_plain_biases(id.clone());
-    //model.print_plain_grad_weights(id.clone());
-    //model.print_plain_grad_biases(id.clone());
-    */
+
+      
     let train_inputs = &[
         vec![0.000778, 0.061168, 0.247278, 0.035494, 0.030891, 0.331023, 0.412921, 0.162872, 0.102673, 0.310408, 0.255427, 0.106880, 0.046329, 0.263268, 0.100277, 0.004832],
         //vec![0.000002, 0.003925, 0.106786, 0.033819, 0.000453, 0.075774, 0.348921, 0.040959, 0.011279, 0.322118, 0.162577, 0.002102, 0.018774, 0.234882, 0.026033, 0.000026],
@@ -67,7 +50,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         //vec![0.000000, 1.000000, 0.000000]
     ];
     
-    /* 
+    
+    let mut model = EncryptedNeuralNetworkU32GPU::create();
+    model.add_max_pooling(vec![4, 4], 2, 2, 0);
+    model.add_dense(4, 3);
+    model.add_tanh_activation(3);
+    /*
+    model.add_dense(4, 2);
+    model.add_tanh_activation(2);
+    model.add_dense(2, 3);
+    model.add_tanh_activation(3);
+    */
+    //model.add_dense(10, 3);
+    let id = String::from("Dense2");
+    //let id1 = String::from("Dense2");
+    model.print_plain_weights(id.clone());
+    model.print_plain_biases(id.clone());
+    //model.print_plain_grad_weights(id.clone());
+    //model.print_plain_grad_biases(id.clone());
+    
+    
     model.train(
         1,                          
         1,                           
@@ -77,17 +79,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         vec![1, 1, 4, 4],
         vec![1, 1, 1, 3]          
     );
+
+
     
     model.print_plain_weights(id.clone());
     model.print_plain_biases(id.clone());
     //model.print_plain_weights(id1.clone());
     //model.print_plain_biases(id1.clone());
-    */
-
+    
+    
     let mut plain_model = PlainNeuralNetworkU32::create();
     plain_model.add_max_pooling(vec![4, 4], 2, 2, 0);
-    plain_model.add_dense(4, 2);
-    plain_model.add_tanh_activation(2);
+    plain_model.add_dense(4, 3);
+    plain_model.add_tanh_activation(3);
 
     let id = String::from("Dense2");
     //let id1 = String::from("Dense2");

@@ -113,12 +113,12 @@ pub fn ldiv32 (
     let mut sign = &a_sign ^ b_sign;
     sign <<= 31u32;
 
-    let a_exp = (&a &  2139095040u32) >> 23u32;
-    let b_exp = (&b &  2139095040u32) >> 23u32;
-    let exp = &a_exp + &b_exp;
+    let a_exp = (&a & 2139095040u32) >> 23u32;
+    let b_exp = (&b & 2139095040u32) >> 23u32;
+    let exp = &a_exp - &b_exp + 127u32;
 
-    if exp < 127u32 {
-        return 0;
+    if exp > 255u32 || exp == 0u32{
+        return 0u32;
     }
     
     let a_digits = &a & 2147483647u32;

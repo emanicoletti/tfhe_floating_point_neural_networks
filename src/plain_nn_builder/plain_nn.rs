@@ -217,6 +217,7 @@ impl PlainNeuralNetworkU32 {
 
         for i in 0..(input_size * output_size) {
             let sample = normal.sample(&mut rng) as f32;
+            let sample = 0.0 as f32;
             let u_sample = sample.to_bits();
            weights.push(u_sample);
         }
