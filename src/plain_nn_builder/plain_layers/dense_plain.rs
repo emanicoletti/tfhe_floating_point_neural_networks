@@ -28,11 +28,12 @@ impl<T: PlainElement> PlainDenseLayer<T>{
 
 impl<T> PlainLayer<T> for PlainDenseLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + Send + Sync + Clone + PlainElement, 
+    T: PlainAdd + PlainSub + PlainMul + Send + Sync + Clone + PlainElement + PlainValueType + Copy, 
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         let flatten_input = input.flatten_hw_to_1d();
-        let weighted_sum = flatten_input.matmul(&self.weights.transpose()); 
+
+        let mut weighted_sum = flatten_input.matmul(&self.weights.transpose()); 
         // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
@@ -48,7 +49,8 @@ where
             shape: vec![batch_size, 1, 1, output_dim],
         };
 
-        weighted_sum.add(&expanded_biases);
+
+        weighted_sum = weighted_sum.add(&expanded_biases);
         weighted_sum
     }
 
@@ -60,11 +62,12 @@ where
             let mut grad_weights_opt = None;
             let mut grad_biases_opt = None;
             let mut grad_input_opt = None;
+
         
             scope(|s| {
                 s.spawn(|_| {
                     let flatten_input = input.flatten_hw_to_1d();
-                    let grad_weights = grad_output.transpose().matmul(&flatten_input);
+                    let grad_weights = grad_output.transpose().matmul(&flatten_input).sum_axis(0);
                     grad_weights_opt = Some(grad_weights);
                 });
         
@@ -78,7 +81,45 @@ where
                     grad_input_opt = Some(grad_input);
                 });
             });
-        
+            /* 
+            let size = grad_weights_opt.clone().unwrap().shape[0];
+            let rows = grad_weights_opt.clone().unwrap().shape[2];
+            let cols = grad_weights_opt.clone().unwrap().shape[3];
+            let flat = &grad_weights_opt.clone().unwrap().data;
+
+            
+            for b in 0..size {
+                println!("\nGrad Weights {}", b);
+                for i in 0..rows {
+                    print!("[");
+                    for j in 0..cols {
+                        let index = b * rows * cols + i * cols + j;
+                        print!("{:<6} ", flat[index].to_f32());
+                    }
+                    print!("]\n");
+                }
+            }
+
+            
+            let size = grad_biases_opt.clone().unwrap().shape[0];
+            let rows = grad_biases_opt.clone().unwrap().shape[2];
+            let cols = grad_biases_opt.clone().unwrap().shape[3];
+            let flat = &grad_biases_opt.clone().unwrap().data;
+
+            
+            for b in 0..size {
+                println!("\nGrad Bias {}", b);
+                for i in 0..rows {
+                    print!("[");
+                    for j in 0..cols {
+                        let index = b * rows * cols + i * cols + j;
+                        print!("{:<6} ", flat[index].to_f32());
+                    }
+                    print!("]\n");
+                }
+            }
+            */
+
             // Unwrap results (these will always be Some because the spawns run synchronously)
             let grad_weights = grad_weights_opt.expect("grad_weights not computed");
             let grad_biases = grad_biases_opt.expect("grad_biases not computed");
@@ -108,7 +149,7 @@ where
     
             let lr_grad_w = lr_grad_w_opt.expect("lr_grad_w not computed");
             let lr_grad_b = lr_grad_b_opt.expect("lr_grad_b not computed");
-    
+
             let mut new_weights = None;
             let mut new_biases = None;
     
@@ -124,6 +165,7 @@ where
     
             self.weights = new_weights.expect("weights update failed");
             self.biases = new_biases.expect("biases update failed");
+
         }
     }
 

@@ -56,12 +56,14 @@ where
         let two_bits = two.to_bits();
     
         let mut grad_data = Vec::with_capacity(n as usize);
-        println!("!Gradient computation started");
     
         for (p, t) in predicted.data.iter().zip(&target.data) {
             let diff = p.clone().sub(t.clone());
+            //println!("Diff: {:?} - {:?} = {:?}", p.clone().to_f32(), t.clone().to_f32(), diff.clone().to_f32());
             let double_diff = diff.clone().mul(T::from_f32(2.0 as f32));
+            //println!("Double diff: {:?}", double_diff.clone().to_f32());
             let grad = double_diff.clone().div(T::from_f32(n));
+            //println!("Grad: {:?}", grad.clone().to_f32());
 
             grad_data.push(grad);
         }

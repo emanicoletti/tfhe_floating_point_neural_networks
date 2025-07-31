@@ -5,7 +5,9 @@ use crate::plain_nn_builder::plain_layers::*;
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_losses::*;
 
-use rand::thread_rng;
+// for seed_from_u64
+use rand::SeedableRng;      // <- import SeedableRng trait
+use rand_chacha::ChaCha8Rng;
 use rand_distr::{Normal, Distribution};
 use std::time::Instant;
 
@@ -24,6 +26,12 @@ pub trait PlainNeuralNetwork {
         input_shapes: Vec<usize>,
         label_shapes: Vec<usize>
     );
+    fn inference(
+        &mut self,
+        inputs: &[Vec<f32>], 
+        input_shapes: Vec<usize>,
+        label_shapes: Vec<usize>,
+    ) -> Vec<f32>;
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
     fn print_plain_grad_weights(&self, id: String);
@@ -86,7 +94,28 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         let train_labels = self.dataset(train_labels, label_shapes.clone());
         let time = Instant::now();
         self.inner.train(epochs, batch_size, u32_learning_rate.clone(), train_inputs.clone(), train_labels.clone());
-        println!("Training completed in {:?}", time.elapsed());
+    }
+
+    fn inference(&mut self, input: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) -> Vec<f32>{
+        let inf_input = self.dataset(input, input_shapes.clone());
+        let prediction = self.inner.inference(&inf_input.clone());
+        let mut prediction_f32: Vec<f32> = vec![0.0; label_shapes[3]];
+        for i in 0..prediction.data.len() {
+            prediction_f32[i] = f32::from_bits(prediction.data[i]); 
+        }
+
+        let predicted_index = prediction_f32
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+        // 2. Create one-hot encoded vector
+        let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
+        one_hot[predicted_index] = 1.0;
+        
+        one_hot
     }
 
     
@@ -205,24 +234,26 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 
 }
 impl PlainNeuralNetworkU32 {
-    fn init_weights(&mut self, input_size: usize, output_size: usize) -> PlainTensor<u32>{
-        
-        // Xavier Initialization
+    fn init_weights(&mut self, input_size: usize, output_size: usize) -> PlainTensor<u32> {
+        // Xavier Initialization standard deviation
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
-        let normal = Normal::new(0.0, std_dev).unwrap();
-
-        let mut rng = thread_rng();
-        
+        let normal = Normal::new(0.0, 0.5).unwrap();
+    
+        // Use a fixed seed for deterministic results
+        let mut rng = ChaCha8Rng::seed_from_u64(42);
+    
         let mut weights = Vec::with_capacity(input_size * output_size);
-
-        for i in 0..(input_size * output_size) {
+    
+        for _ in 0..(input_size * output_size) {
             let sample = normal.sample(&mut rng) as f32;
-            let sample = 0.0 as f32;
             let u_sample = sample.to_bits();
-           weights.push(u_sample);
+            weights.push(u_sample);
         }
-        
-        PlainTensor { data: (weights), shape: (vec![1, 1, input_size, output_size]) }
+    
+        PlainTensor {
+            data: weights,
+            shape: vec![1, 1, input_size, output_size],
+        }
     }
 
     fn init_biases(&mut self, output_size:usize) -> PlainTensor<u32> {

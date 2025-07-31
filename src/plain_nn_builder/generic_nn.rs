@@ -70,16 +70,15 @@ where
             println!("Epoch {}/{}", epoch + 1, epochs);
             let time = Instant::now();
             let forward_time = Instant::now();
-            println!("input_shapes: {:?}", train_inputs.shape);
-            println!("labels shapes: {:?}", train_labels.shape);
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
-                println!("Forward started...");
+                //println!("Forward started...");
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
-                    println!("Layer passed");
+                    //println!("Layer passed");
                     let prediction = activations.last().unwrap();
+                    /* 
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
                     let cols = prediction.shape[3];
@@ -91,7 +90,7 @@ where
                     }
         
                     for b in 0..size {
-                        println!("\nBatch {}", b);
+                        println!("\nForward {}", b);
                         for i in 0..rows {
                             print!("[");
                             for j in 0..cols {
@@ -101,45 +100,66 @@ where
                             print!("]\n");
                         }
                     }
+                    */
                 }
+
                 let prediction = activations.last().unwrap();
+                /* 
+                let size = prediction.shape[0];
+                let rows = prediction.shape[2];
+                let cols = prediction.shape[3];
+                let flat = &prediction.data;
+    
+                if flat.len() != size * rows * cols {
+                    println!("Shape mismatch: expected {} elements, got {}", size * rows * cols, flat.len());
+                    return;
+                }
+    
+                for b in 0..size {
+                    println!("\nPrediction {}", b);
+                    for i in 0..rows {
+                        print!("[");
+                        for j in 0..cols {
+                            let index = b * rows * cols + i * cols + j;
+                            print!("{:<6} ", flat[index].to_f32());
+                        }
+                        print!("]\n");
+                    }
+                }
+                */
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
                 println!("Batch Loss: {:<6} ", loss_val.data[0].to_f32());
-                println!("Forward pass time: {:?}", forward_time.elapsed());
-                println!("Backward started...");
+                //println!("Forward pass time: {:?}", forward_time.elapsed());
+                //println!("Backward started...");
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
-                    grad = layer.backward(input_to_layer, &grad);
-                    let size = grad.shape[0];
-                    let rows = grad.shape[2];
-                    let cols = grad.shape[3];
-                    let flat = &grad.data;
-        
-                    if flat.len() != size * rows * cols {
-                        println!("Shape mismatch: expected {} elements, got {}", rows * cols, flat.len());
-                        return;
-                    }
-        
-                    for b in 0..size {
-                        println!("\nBatch {}", b);
-                        for i in 0..rows {
-                            print!("[");
-                            for j in 0..cols {
-                                let index = b * rows * cols + i * cols + j;
-                                print!("{:<6} ", flat[index].to_f32());
-                            }
-                            print!("]\n");
-                        }
-                    }
+                    grad = layer.backward(input_to_layer, &grad); 
                 }
-                println!("Backward ended...");
+                //println!("Backward ended...");
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
                 }
             }
-            println!("Epoch {} completed in {:?}", epoch + 1, time.elapsed());
+            //println!("Epoch {} completed in {:?}", epoch + 1, time.elapsed());
         }
+    }
+
+    pub fn inference(
+        &mut self,
+        input: &PlainTensor<T>
+    ) -> PlainTensor<T>{
+        let mut activations = vec![input.clone()];
+        for layer in &mut self.layers {
+            let output = layer.forward(activations.last().unwrap());
+            activations.push(output.clone());
+        }
+        let prediction = PlainTensor{
+            data: activations.last().unwrap().data.clone(),
+            shape: activations.last().unwrap().shape.clone(),
+        };
+
+        prediction
     }
 
     fn iter_batches(
