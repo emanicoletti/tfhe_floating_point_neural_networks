@@ -1,4 +1,5 @@
-/* 
+
+
 pub fn lmul32 (
     a: u32,
     b: u32,
@@ -20,12 +21,14 @@ pub fn lmul32 (
     let a_digits = &a & 2147483647u32;
     let b_digits = &b & 2147483647u32;
     let mut digits = &a_digits + &b_digits;
-    //digits -= 1064828928u32;
-    digits -= 1065353216u32;
+    digits -= 1064828928u32;
+    //digits -= 1065353216u32;
     digits &= 2147483647u32;
 
     return digits | sign
 }
+    
+
 
 
 pub fn add32 (
@@ -143,9 +146,6 @@ pub fn sub32 (
     add32(a, b_negate)
 }
 
-
-
-    
 pub fn tanh32 (
     a: u32
 ) -> (u32, u32) {
@@ -179,14 +179,21 @@ pub fn tanh32 (
     };
     (out, dx)
 }
-*/
 
-pub fn lmul32 (
-    a: u32,
-    b: u32,
- ) -> u32 {
-    (f32::from_bits(a) * f32::from_bits(b)).to_bits()
- }
+ /* 
+
+pub fn tanh32 (
+    a: u32
+) -> (u32, u32) {
+    let f_a = f32::from_bits(a);
+    let tanh_value = f_a.tanh();
+    let derivative = 1.0 - tanh_value * tanh_value;
+    (tanh_value.to_bits(), derivative.to_bits())
+}
+
+
+
+
 
  pub fn sub32 (
     a: u32,
@@ -202,6 +209,17 @@ pub fn ldiv32 (
     (f32::from_bits(a) / f32::from_bits(b)).to_bits()
 }
 
+
+pub fn lmul32 (
+    a: u32,
+    b: u32,
+ ) -> u32 {
+    (f32::from_bits(a) * f32::from_bits(b)).to_bits()
+ }
+
+
+
+
 pub fn add32 (
     a: u32,
     b: u32
@@ -209,11 +227,5 @@ pub fn add32 (
     (f32::from_bits(a) + f32::from_bits(b)).to_bits()
 }
 
-pub fn tanh32 (
-    a: u32
-) -> (u32, u32) {
-    let f_a = f32::from_bits(a);
-    let tanh_value = f_a.tanh();
-    let derivative = 1.0 - tanh_value * tanh_value;
-    (tanh_value.to_bits(), derivative.to_bits())
-}
+
+*/

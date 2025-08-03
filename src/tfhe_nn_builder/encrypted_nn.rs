@@ -553,31 +553,86 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
 
 impl EncryptedNeuralNetworkU32GPU {
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint32>{
+        let mut plain_weights: Vec<u32> = vec![];
+        if output_size == 16 {
+            let fc1_weight: Vec<Vec<u32>> = vec![
+            vec![ 0.1478_f32.to_bits(),  0.2460_f32.to_bits(), (-0.1902_f32).to_bits(),  0.2048_f32.to_bits(), (-0.0094_f32).to_bits(), (-0.1631_f32).to_bits(), (-0.0475_f32).to_bits(), (-0.0258_f32).to_bits(),
+                0.0352_f32.to_bits(),  0.0608_f32.to_bits(),  0.2474_f32.to_bits(),  0.2253_f32.to_bits(),  0.1077_f32.to_bits(),  0.0669_f32.to_bits(), (-0.0140_f32).to_bits(),  0.1992_f32.to_bits()],
+            vec![(-0.0941_f32).to_bits(), (-0.1871_f32).to_bits(), (-0.1587_f32).to_bits(),  0.1157_f32.to_bits(), (-0.2498_f32).to_bits(), (-0.1199_f32).to_bits(),  0.1795_f32.to_bits(), (-0.1308_f32).to_bits(),
+                0.1570_f32.to_bits(), (-0.1353_f32).to_bits(),  0.1298_f32.to_bits(), (-0.2283_f32).to_bits(),  0.1142_f32.to_bits(),  0.0593_f32.to_bits(),  0.0358_f32.to_bits(), (-0.0192_f32).to_bits()],
+            vec![(-0.2092_f32).to_bits(),  0.2381_f32.to_bits(), (-0.1979_f32).to_bits(), (-0.2127_f32).to_bits(), (-0.1407_f32).to_bits(),  0.1909_f32.to_bits(),  0.0236_f32.to_bits(),  0.0435_f32.to_bits(),
+                0.1414_f32.to_bits(),  0.0379_f32.to_bits(), (-0.2027_f32).to_bits(),  0.1000_f32.to_bits(),  0.1482_f32.to_bits(), (-0.1996_f32).to_bits(),  0.1349_f32.to_bits(), (-0.0602_f32).to_bits()],
+            vec![(-0.0248_f32).to_bits(), (-0.0221_f32).to_bits(), (-0.0468_f32).to_bits(),  0.0468_f32.to_bits(),  0.0116_f32.to_bits(),  0.0588_f32.to_bits(), (-0.2422_f32).to_bits(),  0.0707_f32.to_bits(),
+                0.1853_f32.to_bits(), (-0.0841_f32).to_bits(),  0.1562_f32.to_bits(), (-0.0972_f32).to_bits(), (-0.1543_f32).to_bits(), (-0.0157_f32).to_bits(),  0.1084_f32.to_bits(), (-0.2480_f32).to_bits()],
+            ];
+            plain_weights = fc1_weight.into_iter().flatten().collect();
+        }
+        if output_size == 4 {
+            let fc2_weight: Vec<Vec<u32>> = vec![
+            vec![(-0.3546_f32).to_bits(),  0.2355_f32.to_bits(), (-0.2220_f32).to_bits(), (-0.0288_f32).to_bits()],
+            vec![(-0.2830_f32).to_bits(), (-0.4757_f32).to_bits(),  0.1246_f32.to_bits(),  0.0483_f32.to_bits()],
+            ];
+            plain_weights = fc2_weight.into_iter().flatten().collect();
+        }
+        if output_size == 2 {
+            let fc3_weight: Vec<Vec<u32>> = vec![
+                vec![(-0.6488_f32).to_bits(),  0.2701_f32.to_bits()],
+                vec![ 0.1953_f32.to_bits(),  0.1416_f32.to_bits()],
+                vec![(-0.1549_f32).to_bits(), (-0.6687_f32).to_bits()],
+            ];
+            plain_weights = fc3_weight.into_iter().flatten().collect();
+        }
         
-        
+        /* 
         // Xavier Initialization
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
         let normal = Normal::new(0.0, std_dev).unwrap();
 
         let mut rng = thread_rng();
+        */
         
         let mut encrypted_weights = Vec::with_capacity(input_size * output_size);
 
         for i in 0..(input_size * output_size) {
-            let sample = normal.sample(&mut rng) as f32;
-            let sample = 0.0 as f32; 
-            let u_sample = sample.to_bits();
-            let encrypted_sample = FheUint32::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");
+            //let sample = normal.sample(&mut rng) as f32;
+            //let sample = 0.0 as f32; 
+            let sample = plain_weights[i];
+            let encrypted_sample = FheUint32::try_encrypt(sample, &self.inner.context.client_key).expect("Weight initialization failed");
             encrypted_weights.push(encrypted_sample);
         }
         
         EncryptedTensor { data: (encrypted_weights), shape: (vec![1, 1, input_size, output_size]) }
     }
 
-    fn init_biases(&mut self, output_size:usize) -> EncryptedTensor<FheUint32> {
-        let zero_enc = &self.inner.context.encrypted_zero;
-        let biases = vec![zero_enc.clone(); output_size];
-        EncryptedTensor::new(biases, vec![1, 1, 1, output_size])
+    fn init_biases(&mut self, output_size: usize) -> EncryptedTensor<FheUint32> {
+        let mut plain_biases: Vec<u32> = vec![];
+        if output_size == 4 {
+            let fc1_bias: Vec<u32> = vec![
+                (-0.0879_f32).to_bits(), 0.1680_f32.to_bits(), (-0.1631_f32).to_bits(), (-0.0271_f32).to_bits()
+            ];
+            plain_biases = fc1_bias.into_iter().map(|b| b).collect();
+        }
+        if output_size == 2 {
+            let fc2_bias: Vec<u32> = vec![
+                0.4002_f32.to_bits(), (-0.0112_f32).to_bits()
+            ];
+            plain_biases = fc2_bias.into_iter().map(|b| b).collect();
+        }
+        if output_size == 3 {
+            let fc3_bias: Vec<u32> = vec![
+                (-0.1854_f32).to_bits(), (-0.2199_f32).to_bits(), (-0.6619_f32).to_bits()
+            ];
+            plain_biases = fc3_bias.into_iter().map(|b|b).collect();
+        }
+
+        let mut encrypted_biases = Vec::with_capacity(output_size);
+        for bias in plain_biases {
+            let encrypted_bias = FheUint32::try_encrypt(bias, &self.inner.context.client_key)
+                .expect("Bias encryption failed");
+            encrypted_biases.push(encrypted_bias);
+        }
+
+        EncryptedTensor::new(encrypted_biases, vec![1, 1, 1, output_size])
     }
 
     fn init_gradients(&self, shape: &[usize]) -> EncryptedTensor<FheUint32> {

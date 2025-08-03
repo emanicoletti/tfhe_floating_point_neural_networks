@@ -77,8 +77,9 @@ where
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
                     //println!("Layer passed");
-                    let prediction = activations.last().unwrap();
+                
                     /* 
+                    let prediction = activations.last().unwrap();
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
                     let cols = prediction.shape[3];
@@ -90,7 +91,7 @@ where
                     }
         
                     for b in 0..size {
-                        println!("\nForward {}", b);
+                        println!("\nPrediction {}", b);
                         for i in 0..rows {
                             print!("[");
                             for j in 0..cols {
@@ -100,33 +101,12 @@ where
                             print!("]\n");
                         }
                     }
+                    
                     */
                 }
-
+            
                 let prediction = activations.last().unwrap();
-                /* 
-                let size = prediction.shape[0];
-                let rows = prediction.shape[2];
-                let cols = prediction.shape[3];
-                let flat = &prediction.data;
-    
-                if flat.len() != size * rows * cols {
-                    println!("Shape mismatch: expected {} elements, got {}", size * rows * cols, flat.len());
-                    return;
-                }
-    
-                for b in 0..size {
-                    println!("\nPrediction {}", b);
-                    for i in 0..rows {
-                        print!("[");
-                        for j in 0..cols {
-                            let index = b * rows * cols + i * cols + j;
-                            print!("{:<6} ", flat[index].to_f32());
-                        }
-                        print!("]\n");
-                    }
-                }
-                */
+                
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
                 println!("Batch Loss: {:<6} ", loss_val.data[0].to_f32());
                 //println!("Forward pass time: {:?}", forward_time.elapsed());

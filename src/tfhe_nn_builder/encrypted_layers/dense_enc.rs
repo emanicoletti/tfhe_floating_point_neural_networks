@@ -38,7 +38,7 @@ where
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
         let start = Instant::now();
         let flatten_input = input.flatten_hw_to_1d();
-        let weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx); 
+        let mut weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx); 
         // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
@@ -54,7 +54,7 @@ where
             shape: vec![batch_size, 1, 1, output_dim],
         };
 
-        weighted_sum.add(&expanded_biases, ctx);
+        weighted_sum = weighted_sum.add(&expanded_biases, ctx);
         println!("Time: {:?}", start.elapsed());
         weighted_sum
     }
@@ -76,7 +76,7 @@ where
         scope(|s| {
             s.spawn(|_| {
                 let flatten_input = input.flatten_hw_to_1d();
-                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx);
+                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx).sum_axis(0, ctx);
                 grad_weights_opt = Some(grad_weights);
             });
     

@@ -103,6 +103,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         for i in 0..prediction.data.len() {
             prediction_f32[i] = f32::from_bits(prediction.data[i]); 
         }
+        //println!("Prediction: {:?}", prediction_f32);
 
         let predicted_index = prediction_f32
         .iter()
@@ -235,6 +236,38 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 }
 impl PlainNeuralNetworkU32 {
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> PlainTensor<u32> {
+        if output_size == 16 {
+            let fc1_weight: Vec<Vec<u32>> = vec![
+            vec![ 0.1478_f32.to_bits(),  0.2460_f32.to_bits(), (-0.1902_f32).to_bits(),  0.2048_f32.to_bits(), (-0.0094_f32).to_bits(), (-0.1631_f32).to_bits(), (-0.0475_f32).to_bits(), (-0.0258_f32).to_bits(),
+                0.0352_f32.to_bits(),  0.0608_f32.to_bits(),  0.2474_f32.to_bits(),  0.2253_f32.to_bits(),  0.1077_f32.to_bits(),  0.0669_f32.to_bits(), (-0.0140_f32).to_bits(),  0.1992_f32.to_bits()],
+            vec![(-0.0941_f32).to_bits(), (-0.1871_f32).to_bits(), (-0.1587_f32).to_bits(),  0.1157_f32.to_bits(), (-0.2498_f32).to_bits(), (-0.1199_f32).to_bits(),  0.1795_f32.to_bits(), (-0.1308_f32).to_bits(),
+                0.1570_f32.to_bits(), (-0.1353_f32).to_bits(),  0.1298_f32.to_bits(), (-0.2283_f32).to_bits(),  0.1142_f32.to_bits(),  0.0593_f32.to_bits(),  0.0358_f32.to_bits(), (-0.0192_f32).to_bits()],
+            vec![(-0.2092_f32).to_bits(),  0.2381_f32.to_bits(), (-0.1979_f32).to_bits(), (-0.2127_f32).to_bits(), (-0.1407_f32).to_bits(),  0.1909_f32.to_bits(),  0.0236_f32.to_bits(),  0.0435_f32.to_bits(),
+                0.1414_f32.to_bits(),  0.0379_f32.to_bits(), (-0.2027_f32).to_bits(),  0.1000_f32.to_bits(),  0.1482_f32.to_bits(), (-0.1996_f32).to_bits(),  0.1349_f32.to_bits(), (-0.0602_f32).to_bits()],
+            vec![(-0.0248_f32).to_bits(), (-0.0221_f32).to_bits(), (-0.0468_f32).to_bits(),  0.0468_f32.to_bits(),  0.0116_f32.to_bits(),  0.0588_f32.to_bits(), (-0.2422_f32).to_bits(),  0.0707_f32.to_bits(),
+                0.1853_f32.to_bits(), (-0.0841_f32).to_bits(),  0.1562_f32.to_bits(), (-0.0972_f32).to_bits(), (-0.1543_f32).to_bits(), (-0.0157_f32).to_bits(),  0.1084_f32.to_bits(), (-0.2480_f32).to_bits()],
+            ];
+            let flattened_fc1_weight: Vec<u32> = fc1_weight.into_iter().flatten().collect();
+            return PlainTensor::new(flattened_fc1_weight, vec![1, 1, input_size, output_size]);
+        }
+        if output_size == 4 {
+            let fc2_weight: Vec<Vec<u32>> = vec![
+            vec![(-0.3546_f32).to_bits(),  0.2355_f32.to_bits(), (-0.2220_f32).to_bits(), (-0.0288_f32).to_bits()],
+            vec![(-0.2830_f32).to_bits(), (-0.4757_f32).to_bits(),  0.1246_f32.to_bits(),  0.0483_f32.to_bits()],
+            ];
+            let flattened_fc2_weight: Vec<u32> = fc2_weight.into_iter().flatten().collect();
+            return PlainTensor::new(flattened_fc2_weight, vec![1, 1, input_size, output_size]);
+        }
+        if output_size == 2 {
+            let fc3_weight: Vec<Vec<u32>> = vec![
+                vec![(-0.6488_f32).to_bits(),  0.2701_f32.to_bits()],
+                vec![ 0.1953_f32.to_bits(),  0.1416_f32.to_bits()],
+                vec![(-0.1549_f32).to_bits(), (-0.6687_f32).to_bits()],
+            ];
+            let flattened_fc3_weight: Vec<u32> = fc3_weight.into_iter().flatten().collect();
+            return PlainTensor::new(flattened_fc3_weight, vec![1, 1, input_size, output_size]);
+        }
+
         // Xavier Initialization standard deviation
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
         let normal = Normal::new(0.0, 0.5).unwrap();
@@ -257,6 +290,26 @@ impl PlainNeuralNetworkU32 {
     }
 
     fn init_biases(&mut self, output_size:usize) -> PlainTensor<u32> {
+
+        if output_size == 4 {
+            let fc1_bias: Vec<u32> = vec![
+                (-0.0879_f32).to_bits(), 0.1680_f32.to_bits(), (-0.1631_f32).to_bits(), (-0.0271_f32).to_bits()
+            ];
+            return PlainTensor::new(fc1_bias, vec![1, 1, 1, 4]);
+        }
+        if output_size == 2 {
+            let fc2_bias: Vec<u32> = vec![
+                0.4002_f32.to_bits(), (-0.0112_f32).to_bits()
+            ];
+            return PlainTensor::new(fc2_bias, vec![1, 1, 1, 2]);
+        }
+        if output_size == 3 {
+            let fc3_bias: Vec<u32> = vec![
+                (-0.1854_f32).to_bits(), (-0.2199_f32).to_bits(), (-0.6619_f32).to_bits()
+            ];
+            return PlainTensor::new(fc3_bias, vec![1, 1, 1, 3]);
+        }
+        
         let biases = vec![0u32; output_size];
         PlainTensor::new(biases, vec![1, 1, 1, output_size])
     }
