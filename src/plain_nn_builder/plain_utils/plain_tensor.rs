@@ -22,7 +22,7 @@ impl<T: PlainElement> PlainTensor<T> {
     }
 
     /// Returns the flat index from multi-dimensional indices
-    fn flatten_index(&self, indices: &[usize]) -> usize {
+    pub fn flatten_index(&self, indices: &[usize]) -> usize {
         assert_eq!(indices.len(), self.shape.len(), "Dimension mismatch in indexing");
         
         let mut index = 0;
@@ -104,6 +104,7 @@ impl<T: PlainElement> PlainTensor<T> {
                     let a_val = self.get(&[b_self, c, i, k]).clone();
                     let b_val = other.get(&[b_other, c, k, j]).clone();
                     let prod = a_val.clone().mul(b_val.clone());
+                    //println!("Multiplying {} with {} = {}", a_val.to_f32(), b_val.to_f32(), prod.to_f32());
                     products.push(prod);
                 }
     
@@ -113,6 +114,7 @@ impl<T: PlainElement> PlainTensor<T> {
                     for pair in products.chunks(2) {
                         if pair.len() == 2 {
                             next.push(pair[0].clone().add(pair[1].clone()));
+                            //println!("Adding {} and {} = {}", pair[0].to_f32(), pair[1].to_f32(), next.last().unwrap().to_f32());
                         } else {
                             next.push(pair[0].clone());
                         }

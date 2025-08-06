@@ -50,3 +50,33 @@ impl PlainTanh for u32 {
     }
 }
 
+impl PlainAdd for u16 {
+    fn add(self, other: Self) -> Self {
+        add16(self, other)
+    }
+}
+
+impl PlainMul for u16 {
+    fn mul(self, other: Self) -> Self {
+        lmul16(self, other)
+    }
+}
+
+impl PlainDiv for u16 {
+    fn div(self, other: Self) -> Self {
+        ldiv16(self, other)
+    }
+}
+
+impl PlainSub for u16 {
+    fn sub(self, other: Self) -> Self {
+        sub16(self, other)
+    }
+}
+
+impl PlainTanh for u16 {
+    fn tanh(self) -> (Self, Self) {
+        tanh16(self)
+    }
+}
+

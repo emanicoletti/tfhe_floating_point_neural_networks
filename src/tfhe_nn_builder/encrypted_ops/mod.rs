@@ -6,5 +6,6 @@ pub mod tanh;
 pub mod ops;  
 pub mod max;
 pub mod grad_if_equal;
+pub mod same_sign_add;
 
 pub use ops::*; 

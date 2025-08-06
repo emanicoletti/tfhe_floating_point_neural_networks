@@ -8,6 +8,7 @@ pub fn fhe_add8_gpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
     encrypted_mask: FheUint8,
+    encrypted_zero: FheUint8,
     server_keys: CudaServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -97,6 +98,7 @@ pub fn fhe_add16_gpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
+    encrypted_zero: FheUint16,
     server_keys: CudaServerKey,
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -171,8 +173,10 @@ pub fn fhe_add16_gpu(
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 10u16;
+            let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -185,6 +189,7 @@ pub fn fhe_add32_gpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_mask: FheUint32,
+    encrypted_zero: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -260,7 +265,9 @@ pub fn fhe_add32_gpu(
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 23u16;
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let denorm = res_exp.gt(&x_exp);
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -273,6 +280,7 @@ pub fn fhe_add64_gpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_mask: FheUint64,
+    encrypted_zero: FheUint64,
     server_keys: CudaServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -361,6 +369,7 @@ pub fn fhe_add8_cpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
     encrypted_mask: FheUint8,
+    encrypted_zero: FheUint8,
     server_keys: ServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -450,6 +459,7 @@ pub fn fhe_add16_cpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
+    encrypted_zero: FheUint16,
     server_keys: ServerKey,
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -539,6 +549,7 @@ pub fn fhe_add32_cpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_mask: FheUint32,
+    encrypted_zero: FheUint32,
     server_keys: ServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -627,6 +638,7 @@ pub fn fhe_add64_cpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_mask: FheUint64,
+    encrypted_zero: FheUint64,
     server_keys: ServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));

@@ -29,7 +29,7 @@ where
     + EncryptedTanh<K, T>
     + EncryptedMax<K, T> 
     + EncryptedGradIfEqual<K, T>,
-    T: EncryptedElement + Clone + EncryptableValueType<Plain=u32> + 'static,
+    T: EncryptedElement + Clone + EncryptableValueType<Plain=u16> + 'static,
 {
     pub fn add_dense(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
         let id = format!("Dense{}", self.layers.len() + 1);
@@ -88,6 +88,7 @@ where
                     activations.push(output.clone());
                     println!("Layer passed");
                     let prediction = activations.last().unwrap();
+                    /* 
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
                     let cols = prediction.shape[3];
@@ -104,23 +105,27 @@ where
                             print!("[");
                             for j in 0..cols {
                                 let index = b * rows * cols + i * cols + j;
-                                let decrypted: u32 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
-                                print!("{:<6} ", f32::from_bits(decrypted));
+                                let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
+                                print!("{:<6} ", f16::from_bits(decrypted));
                             }
                             print!("]\n");
                         }
                     }
+                    */
                 }
                 let prediction = activations.last().unwrap();
+                /* 
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch, &self.context);
-                let decrypted: u32 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
-                println!("Batch Loss: {:<6} ", f32::from_bits(decrypted));
+                let decrypted: u16 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
+                println!("Batch Loss: {:<6} ", f16::from_bits(decrypted).to_f32());
+                */
                 println!("Forward pass time: {:?}", forward_time.elapsed());
                 println!("Backward started...");
                 let mut grad = self.loss.gradient(&prediction, &label_batch, &self.context);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad, &self.context);
+                    /* 
                     let size = grad.shape[0];
                     let rows = grad.shape[2];
                     let cols = grad.shape[3];
@@ -137,12 +142,13 @@ where
                             print!("[");
                             for j in 0..cols {
                                 let index = b * rows * cols + i * cols + j;
-                                let decrypted: u32 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
-                                print!("{:<6} ", f32::from_bits(decrypted));
+                                let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
+                                print!("{:<6} ", f16::from_bits(decrypted));
                             }
                             print!("]\n");
                         }
                     }
+                    */
                 }
                 println!("Backward ended...");
                 for layer in &mut self.layers{
@@ -151,6 +157,23 @@ where
             }
             println!("Epoch {} completed in {:?}", epoch + 1, time.elapsed());
         }
+    }
+
+    pub fn inference(
+        &mut self,
+        input: &EncryptedTensor<T>
+    ) -> EncryptedTensor<T>{
+        let mut activations = vec![input.clone()];
+        for layer in &mut self.layers {
+            let output = layer.forward(activations.last().unwrap(), &self.context);
+            activations.push(output.clone());
+        }
+        let prediction = EncryptedTensor{
+            data: activations.last().unwrap().data.clone(),
+            shape: activations.last().unwrap().shape.clone(),
+        };
+
+        prediction
     }
 
     fn iter_batches(

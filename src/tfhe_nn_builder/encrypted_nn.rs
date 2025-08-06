@@ -37,6 +37,12 @@ pub trait EncryptedNeuralNetwork{
         input_shapes: Vec<usize>,
         label_shapes: Vec<usize>
     );
+    fn inference(
+        &mut self, 
+        input: &[Vec<f32>], 
+        input_shapes: Vec<usize>, 
+        label_shapes: Vec<usize>) 
+        -> Vec<f32>;
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
     fn print_plain_grad_weights(&self, id: String);
@@ -77,34 +83,13 @@ pub struct EncryptedNeuralNetworkU64GPU {
 
 /// Format: (min_input, max_input, a, b, derivative)
 pub static TANH16_PLA_RANGES: &[(u16, u16, u16, u16, u16)] = &[
-    (50176u16, 65535u16, 48128u16, 0u16,     0u16),     // [-inf, -4], output ~ -1, derivative ≈ 0
-    (49664u16, 50175u16, 9699u16,  15454u16, 9699u16),  // [-4.0, -3.0], slope ≈ 0.023, intercept ≈ -1.092
-    (49152u16, 49663u16, 11960u16, 47802u16, 11960u16), // [-3.0, -2.0], slope ≈ 0.105, intercept ≈ -0.841
-    (48128u16, 49151u16, 13476u16, 46883u16, 13476u16), // [-2.0, -1.0], slope ≈ 0.290, intercept ≈ -0.446
-    (32768u16, 48127u16, 14412u16, 0u16,     14412u16), // [-1.0, -0.0],  slope ≈ 0.537, intercept ≈ 0.0
-    (0u16,     15360u16, 14412u16, 0u16,     14412u16), // [0.0, 1.0],   slope ≈ 0.537, intercept ≈ 0.0
-    (15361u16, 16384u16, 13476u16, 14115u16, 13476u16), // [1.0, 2.0],   slope ≈ 0.290, intercept ≈ 0.446
-    (16385u16, 16896u16, 11960u16, 15034u16, 11960u16), // [2.0, 3.0],   slope ≈ 0.105, intercept ≈ 0.841
-    (16897u16, 17408u16, 9699u16,  15454u16, 9699u16),  // [3.0, 4.0],   slope ≈ 0.023, intercept ≈ 1.092
-    (17409u16, 32767u16, 15360u16, 0u16,     0u16),     // [4.0, +inf], output ~ 1, derivative ≈ 0
+    (49152u16, 65535u16, 48128u16, 0u16, 0u16), // [-inf, -2], output ~ -1, derivative ≈ 0
+    (47787u16, 49151u16, 13312u16, 47104u16, 13312u16), // [-2, -0.8333] slope 0.25. intercept -0.5
+    (32768u16, 47786u16, 15053u16, 0u16, 15053u16), // [-0.833, -0] slope=0.85 intercept = 0
+    (0u16, 15019u16, 15053u16, 0u16, 15053u16), //[0, 0.833] slope=0.85 intercept = 0
+    (15020u16, 16384u16, 13312u16, 14336u16, 13312u16), //[0.833, 2] slope = 0.25 intercept 0.5
+    (16385u16, 32767u16, 15360u16, 0u16, 0u16), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
-
-/* 
-pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
-    (3229614080u32, 4294967295u32, 3212836864u32, 0u32, 0u32), // [-inf, -4], output ~ -1, derivative ≈ 0
-    (3225419776u32, 3229614079u32, 999046974u32, 3212538397u32, 999046974u32), // [-4.0, -3.0], slope ≈ 0.00428, intercept ≈ -0.98221
-    (3221225472u32, 3225419775u32, 1023286696u32, 3211192529u32, 1023286696u32), // [-3.0, -2.0], slope ≈ 0.03102, intercept ≈ -0.90199
-    (3212836864u32, 3221225471u32, 1045384302u32, 3205440628u32, 1045384302u32), // [-2.0, -1.0], slope ≈ 0.20244, intercept ≈ -0.55915
-    (3204448256u32, 3212836863u32, 1058624781u32, 3190197018u32, 1058624781u32), // [-1.0, -0.5], slope ≈ 0.598954, intercept ≈ −0.162640
-    (2147483648u32, 3204448255u32, 1064082073u32, 0u32, 1064082073u32), // [-0.5, -0.0],  slope ≈ 0.924234, intercept ≈ 0.0
-    (0u32, 1056964608u32, 1064082073u32, 0u32, 1064082073u32), // [0.0, 0.5],   slope ≈ 0.924234, intercept ≈ 0.0
-    (1056964609u32, 1065353216u32, 1058624781u32, 1042713370u32, 1058624781u32), // // [0.5, 1], slope ≈ 0.598954, intercept ≈ 0.162640
-    (1065353217u32, 1073741824u32, 1045384302u32, 1057956980u32, 1045384302u32), // [1.0, 2.0],   slope ≈ 0.20244, intercept ≈ 0.55915
-    (1073741825u32, 1077936128u32, 1023286696u32, 1063708881u32, 1023286696u32), // [2.0, 3.0],   slope ≈ 0.03102, intercept ≈ 0.90199
-    (1077936129u32, 1082130432u32, 999046974u32, 1065054749u32, 999046974u32), // [3.0, 4.0],   slope ≈ 0.00428, intercept ≈ 0.98221
-    (1082130433u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [4.0, +inf], output ~ 1, derivative ≈ 0
-];
-*/
 
 pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
     (3221225472u32, 4294967295u32, 3212836864u32, 0u32, 0u32), // [-inf, -2], output ~ -1, derivative ≈ 0
@@ -115,11 +100,11 @@ pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
     (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
 
-/*
+
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
     fn create() -> Self{
         let config =
-        ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        ConfigBuilder::with_custom_parameters(V1_2_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
             .build();
         let client_key = ClientKey::generate(config);
         let compressed_server_key = CompressedServerKey::new(&client_key);
@@ -127,12 +112,27 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
 
         let encrypted_zero = FheUint16::try_encrypt(0u16, &client_key).unwrap();
         let encrypted_mask = FheUint16::try_encrypt(1023u16, &client_key).unwrap();
+
+        let ranges = TANH16_PLA_RANGES
+        .iter()
+        .map(|&(a, b, c, d, e)| {
+            (
+                FheUint16::try_encrypt(a, &client_key).unwrap(),
+                FheUint16::try_encrypt(b, &client_key).unwrap(),
+                FheUint16::try_encrypt(c, &client_key).unwrap(),
+                FheUint16::try_encrypt(d, &client_key).unwrap(),
+                FheUint16::try_encrypt(e, &client_key).unwrap(),
+            )
+        })
+        .collect();
         
         let context = EncryptedContext {
             encrypted_zero,
             encrypted_mask,
             client_key,
             server_key,
+            ranges
+
         };
         let layers: Vec<Box<dyn EncryptedLayer<CudaServerKey, FheUint16>>> = vec![];
 
@@ -158,16 +158,43 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
 
-    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], val_inputs: &[Vec<f32>], val_labels: &[Vec<f32>],) {
-        set_server_key(self.inner.context.server_key.clone());
+    fn add_tanh_activation(&mut self, size: usize) {
+        let derivatives = self.init_derivatives(&[size]);
+        self.inner.add_tanh_activation(derivatives, self.inner.context.ranges.clone());
+    }
+
+    fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize) {
+        self.inner.add_max_pooling(input_dim, kernel_size, stride, padding);
+    }
+
+    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
         let enc_learning_rate = FheUint16::try_encrypt(f16::from_f32(learning_rate).to_bits(), &self.inner.context.client_key).unwrap();
-        let enc_train_inputs = self.encrypt_dataset(batch_size, train_inputs);
-        let enc_train_labels = self.encrypt_dataset(batch_size, train_labels);
-        let enc_val_inputs = self.encrypt_dataset(batch_size, val_inputs);
-        let enc_val_labels = self.encrypt_dataset(batch_size, val_labels);
+        let enc_train_inputs = self.encrypt_dataset(train_inputs, input_shapes.clone());
+        let enc_train_labels = self.encrypt_dataset(train_labels, label_shapes.clone());
         let time = Instant::now();
-        self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone(), enc_val_inputs.clone(), enc_val_labels.clone());
+        self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone());
         println!("Training completed in {:?}", time.elapsed());
+    }
+
+    fn inference(&mut self, input: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) -> Vec<f32>{
+        let inf_input = self.encrypt_dataset(input, input_shapes.clone());
+        let prediction = self.inner.inference(&inf_input.clone());
+
+        let mut prediction_f32: Vec<f32> = self.decrypt_tensor(&prediction);
+        //println!("Prediction: {:?}", prediction_f32);
+
+        let predicted_index = prediction_f32
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+        // 2. Create one-hot encoded vector
+        let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
+        one_hot[predicted_index] = 1.0;
+        
+        one_hot
     }
 
     fn print_plain_weights(&self, id: String) {
@@ -176,13 +203,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let weights = layer.get_weights();
                 let shape = &weights.shape;
     
-                if shape.len() != 2 {
-                    println!("Expected 2D shape for weights, got {:?}", shape);
+                if shape.len() != 4 {
+                    println!("Expected 4D shape for weights, got {:?}", shape);
                     return;
                 }
-    
-                let rows = shape[0];
-                let cols = shape[1];
+
+                let rows = shape[2];
+                let cols = shape[3];
                 let flat = weights.data;
     
                 if flat.len() != rows * cols {
@@ -214,7 +241,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let biases = layer.get_biases();
                 let shape = &biases.shape;
 
-                let columns = shape[1];
+                let columns = shape[3];
                 let flat = biases.data;
 
                 println!("\nDecrypted Biases for Layer \"{}\":", id);
@@ -235,14 +262,14 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
             if layer.get_id() == id {
                 let weights = layer.get_grad_weights();
                 let shape = &weights.shape;
-    
-                if shape.len() != 2 {
-                    println!("Expected 2D shape for grad_weights, got {:?}", shape);
+
+                if shape.len() != 4 {
+                    println!("Expected 4D shape for grad_weights, got {:?}", shape);
                     return;
                 }
     
-                let rows = shape[0];
-                let cols = shape[1];
+                let rows = shape[2];
+                let cols = shape[3];
                 let flat = weights.data;
     
                 if flat.len() != rows * cols {
@@ -274,7 +301,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                 let biases = layer.get_grad_biases();
                 let shape = &biases.shape;
 
-                let columns = shape[1];
+                let columns = shape[3];
                 let flat = biases.data;
 
                 println!("\nDecrypted grad_biases for Layer \"{}\":", id);
@@ -293,31 +320,111 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
 }
 
 impl EncryptedNeuralNetworkU16GPU {
+
+    fn decrypt_tensor(&self, encrypted_tensor: &EncryptedTensor<FheUint16>) -> Vec<f32> {
+    encrypted_tensor.data.iter()
+        .map(|value| f16::from_bits(EncryptableValueType::decrypt(value, &self.inner.context.client_key)).to_f32())
+        .collect()
+    }
+
+
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint16>{
+        let mut plain_weights: Vec<u16> = vec![];
+        if output_size == 16 {
+            let fc1_weight: Vec<Vec<u16>> = vec![
+            vec![
+                f16::from_f32(0.1478_f32).to_bits(), f16::from_f32(0.2460_f32).to_bits(), f16::from_f32(-0.1902_f32).to_bits(), f16::from_f32(0.2048_f32).to_bits(),
+                f16::from_f32(-0.0094_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0475_f32).to_bits(), f16::from_f32(-0.0258_f32).to_bits(),
+                f16::from_f32(0.0352_f32).to_bits(), f16::from_f32(0.0608_f32).to_bits(), f16::from_f32(0.2474_f32).to_bits(), f16::from_f32(0.2253_f32).to_bits(),
+                f16::from_f32(0.1077_f32).to_bits(), f16::from_f32(0.0669_f32).to_bits(), f16::from_f32(-0.0140_f32).to_bits(), f16::from_f32(0.1992_f32).to_bits()
+            ],
+            vec![
+                f16::from_f32(-0.0941_f32).to_bits(), f16::from_f32(-0.1871_f32).to_bits(), f16::from_f32(-0.1587_f32).to_bits(), f16::from_f32(0.1157_f32).to_bits(),
+                f16::from_f32(-0.2498_f32).to_bits(), f16::from_f32(-0.1199_f32).to_bits(), f16::from_f32(0.1795_f32).to_bits(), f16::from_f32(-0.1308_f32).to_bits(),
+                f16::from_f32(0.1570_f32).to_bits(), f16::from_f32(-0.1353_f32).to_bits(), f16::from_f32(0.1298_f32).to_bits(), f16::from_f32(-0.2283_f32).to_bits(),
+                f16::from_f32(0.1142_f32).to_bits(), f16::from_f32(0.0593_f32).to_bits(), f16::from_f32(0.0358_f32).to_bits(), f16::from_f32(-0.0192_f32).to_bits()
+            ],
+            vec![
+                f16::from_f32(-0.2092_f32).to_bits(), f16::from_f32(0.2381_f32).to_bits(), f16::from_f32(-0.1979_f32).to_bits(), f16::from_f32(-0.2127_f32).to_bits(),
+                f16::from_f32(-0.1407_f32).to_bits(), f16::from_f32(0.1909_f32).to_bits(), f16::from_f32(0.0236_f32).to_bits(), f16::from_f32(0.0435_f32).to_bits(),
+                f16::from_f32(0.1414_f32).to_bits(), f16::from_f32(0.0379_f32).to_bits(), f16::from_f32(-0.2027_f32).to_bits(), f16::from_f32(0.1000_f32).to_bits(),
+                f16::from_f32(0.1482_f32).to_bits(), f16::from_f32(-0.1996_f32).to_bits(), f16::from_f32(0.1349_f32).to_bits(), f16::from_f32(-0.0602_f32).to_bits()
+            ],
+            vec![
+                f16::from_f32(-0.0248_f32).to_bits(), f16::from_f32(-0.0221_f32).to_bits(), f16::from_f32(-0.0468_f32).to_bits(), f16::from_f32(0.0468_f32).to_bits(),
+                f16::from_f32(0.0116_f32).to_bits(), f16::from_f32(0.0588_f32).to_bits(), f16::from_f32(-0.2422_f32).to_bits(), f16::from_f32(0.0707_f32).to_bits(),
+                f16::from_f32(0.1853_f32).to_bits(), f16::from_f32(-0.0841_f32).to_bits(), f16::from_f32(0.1562_f32).to_bits(), f16::from_f32(-0.0972_f32).to_bits(),
+                f16::from_f32(-0.1543_f32).to_bits(), f16::from_f32(-0.0157_f32).to_bits(), f16::from_f32(0.1084_f32).to_bits(), f16::from_f32(-0.2480_f32).to_bits()
+            ],
+            ];
+            plain_weights = fc1_weight.into_iter().flatten().collect();
+        }
+        if output_size == 4 {
+            let fc2_weight: Vec<Vec<u16>> = vec![
+            vec![f16::from_f32(-0.3546_f32).to_bits(), f16::from_f32(0.2355_f32).to_bits(), f16::from_f32(-0.2220_f32).to_bits(), f16::from_f32(-0.0288_f32).to_bits()],
+            vec![f16::from_f32(-0.2830_f32).to_bits(), f16::from_f32(-0.4757_f32).to_bits(), f16::from_f32(0.1246_f32).to_bits(), f16::from_f32(0.0483_f32).to_bits()],
+            ];
+            plain_weights = fc2_weight.into_iter().flatten().collect();
+        }
+        if output_size == 2 {
+            let fc3_weight: Vec<Vec<u16>> = vec![
+                vec![f16::from_f32(-0.6488_f32).to_bits(), f16::from_f32(0.2701_f32).to_bits()],
+                vec![f16::from_f32(0.1953_f32).to_bits(), f16::from_f32(0.1416_f32).to_bits()],
+                vec![f16::from_f32(-0.1549_f32).to_bits(), f16::from_f32(-0.6687_f32).to_bits()],
+            ];
+            plain_weights = fc3_weight.into_iter().flatten().collect();
+        }
         
-        
+        /* 
         // Xavier Initialization
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
         let normal = Normal::new(0.0, std_dev).unwrap();
 
         let mut rng = thread_rng();
+        */
         
         let mut encrypted_weights = Vec::with_capacity(input_size * output_size);
 
         for i in 0..(input_size * output_size) {
-            let sample = f16::from_f32(normal.sample(&mut rng) as f32);
-            let u_sample = sample.to_bits();
-            let encrypted_sample = FheUint16::try_encrypt(u_sample, &self.inner.context.client_key).expect("Weight initialization failed");;
+            //let sample = normal.sample(&mut rng) as f32;
+            //let sample = 0.0 as f32; 
+            let sample = plain_weights[i];
+            let encrypted_sample = FheUint16::try_encrypt(sample, &self.inner.context.client_key).expect("Weight initialization failed");
             encrypted_weights.push(encrypted_sample);
         }
         
-        EncryptedTensor { data: (encrypted_weights), shape: (vec![input_size, output_size]) }
+        EncryptedTensor { data: (encrypted_weights), shape: (vec![1, 1, input_size, output_size]) }
     }
 
-    fn init_biases(&mut self, output_size:usize) -> EncryptedTensor<FheUint16> {
-        let zero_enc = &self.inner.context.encrypted_zero;
-        let biases = vec![zero_enc.clone(); output_size];
-        EncryptedTensor::new(biases, vec![1, output_size])
+    fn init_biases(&mut self, output_size: usize) -> EncryptedTensor<FheUint16> {
+        let mut plain_biases: Vec<u16> = vec![];
+        if output_size == 4 {
+            let fc1_bias: Vec<u16> = vec![
+                f16::from_f32(-0.0879_f32).to_bits(), f16::from_f32(0.1680_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0271_f32).to_bits()
+            ];
+            plain_biases = fc1_bias.into_iter().map(|b| b).collect();
+        }
+        if output_size == 2 {
+            let fc2_bias: Vec<u16> = vec![
+                f16::from_f32(0.4002_f32).to_bits(), f16::from_f32(-0.0112_f32).to_bits()
+            ];
+            plain_biases = fc2_bias.into_iter().map(|b| b).collect();
+        }
+        if output_size == 3 {
+            let fc3_bias: Vec<u16> = vec![
+                f16::from_f32(-0.1854_f32).to_bits(), f16::from_f32(-0.2199_f32).to_bits(), f16::from_f32(-0.6619_f32).to_bits()
+            ];
+            plain_biases = fc3_bias.into_iter().map(|b|b).collect();
+        }
+
+        let mut encrypted_biases = Vec::with_capacity(output_size);
+        for bias in plain_biases {
+            let encrypted_bias = FheUint16::try_encrypt(bias, &self.inner.context.client_key)
+                .expect("Bias encryption failed");
+            encrypted_biases.push(encrypted_bias);
+        }
+
+        EncryptedTensor::new(encrypted_biases, vec![1, 1, 1, output_size])
     }
 
     fn init_gradients(&self, shape: &[usize]) -> EncryptedTensor<FheUint16> {
@@ -334,9 +441,22 @@ impl EncryptedNeuralNetworkU16GPU {
         EncryptedTensor::new(zeros, shapes)
     }
 
-    fn encrypt_dataset(&mut self, batch_size: usize, clear_data: &[Vec<f32>]) -> EncryptedTensor<FheUint16> {
+     fn init_derivatives(&self, shape: &[usize]) -> EncryptedTensor<FheUint16> {
+        let zero_enc = &self.inner.context.encrypted_zero;
+        let size = shape.iter().product();
+        let zeros = vec![self.inner.context.encrypted_zero.clone(); size];
+        let shapes: Vec<usize>;
+        if(shape.to_vec().len() == 1){
+            shapes = [1, shape[0]].to_vec();
+        }
+        else{
+            shapes = shape.to_vec();
+        }
+        EncryptedTensor::new(zeros, shapes)
+    }
+
+    fn encrypt_dataset(&mut self, clear_data: &[Vec<f32>], input_shapes: Vec<usize>) -> EncryptedTensor<FheUint16> {
         let mut encrypted_dataset = Vec::new();
-        let feature_size = clear_data[0].len();
 
         for vec in clear_data{
             for sample in vec{
@@ -345,14 +465,13 @@ impl EncryptedNeuralNetworkU16GPU {
                 encrypted_dataset.push(enc_sample);
             }
         }
-
-        EncryptedTensor { data: encrypted_dataset, shape: vec![batch_size, feature_size] }
-
+        let num_channels = 1; 
+        EncryptedTensor { data: encrypted_dataset, shape: vec![input_shapes[0], input_shapes[1], input_shapes[2], input_shapes[3]] }
     }
 
 }
-*/
 
+/* 
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
     fn create() -> Self{
         let config =
@@ -428,6 +547,28 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         self.inner.train(epochs, batch_size, enc_learning_rate.clone(), enc_train_inputs.clone(), enc_train_labels.clone());
         println!("Training completed in {:?}", time.elapsed());
     }
+
+    fn inference(&mut self, input: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) -> Vec<f32>{
+        let inf_input = self.encrypt_dataset(input, input_shapes.clone());
+        let prediction = self.inner.inference(&inf_input.clone());
+
+        let mut prediction_f32: Vec<f32> = self.decrypt_tensor(&prediction);
+        //println!("Prediction: {:?}", prediction_f32);
+
+        let predicted_index = prediction_f32
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+        .map(|(idx, _)| idx)
+        .unwrap();
+
+        // 2. Create one-hot encoded vector
+        let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
+        one_hot[predicted_index] = 1.0;
+        
+        one_hot
+    }
+
 
     fn print_plain_weights(&self, id: String) {
         for layer in &self.inner.layers {
@@ -552,6 +693,13 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
 }
 
 impl EncryptedNeuralNetworkU32GPU {
+
+    fn decrypt_tensor(&self, encrypted_tensor: &EncryptedTensor<FheUint32>) -> Vec<f32> {
+    encrypted_tensor.data.iter()
+        .map(|value| f32::from_bits(EncryptableValueType::decrypt(value, &self.inner.context.client_key)))
+        .collect()
+    }
+
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint32>{
         let mut plain_weights: Vec<u32> = vec![];
         if output_size == 16 {
@@ -681,3 +829,4 @@ impl EncryptedNeuralNetworkU32GPU {
     }
 
 }
+*/

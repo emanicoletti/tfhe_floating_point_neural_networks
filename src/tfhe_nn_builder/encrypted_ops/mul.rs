@@ -118,7 +118,6 @@ pub fn fhe_lmul32_gpu(
     encrypted_zero: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     // Prepare mutable vars for results
@@ -161,7 +160,6 @@ pub fn fhe_lmul32_gpu(
     // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
-
     final_result
 }
 

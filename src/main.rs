@@ -13,8 +13,12 @@ use ndarray_npy::read_npy;
 use std::path::Path;
 use std::error::Error;
 
-use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU};
-use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32};
+use crate::plain_nn_builder::plain_ops::{add16, lmul16, same_sign_add16};
+use crate::tfhe_nn_builder::add::fhe_add16_gpu;
+use crate::tfhe_nn_builder::mul::fhe_lmul16_gpu;
+use crate::tfhe_nn_builder::same_sign_add::fhe_ss_add16_gpu;
+use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU, EncryptedNeuralNetworkU16GPU};
+use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
 
 mod tfhe_nn_builder;
 mod plain_nn_builder;
@@ -23,6 +27,7 @@ use rayon::ThreadPoolBuilder;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
+    
     let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data()?;
 
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -32,8 +37,60 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
+    let mut plain_model = PlainNeuralNetworkU32::create();
+    plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+    plain_model.add_conv(1, 1, 2, 2);
+    plain_model.add_dense(4, 3);
+
+    plain_model.train(
+        1,
+        5,
+        0.1,
+        &train_inputs,
+        &train_labels,
+        vec![5, 1, 16, 16],
+        vec![5, 1, 1, 3],
+    );
+
+    /* 
+    let mut plain_model = PlainNeuralNetworkU16::create();
+    plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+    plain_model.add_dense(16, 4);
+    plain_model.add_tanh_activation(4);
+    plain_model.add_dense(4, 2);
+    plain_model.add_tanh_activation(2);
+    plain_model.add_dense(2, 3);
+    //plain_model.add_tanh_activation(3);
+
+    let id = String::from("Dense2");
+    let id1 = String::from("Dense4");
+    let id2 = String::from("Dense6");
+    plain_model.print_plain_weights(id.clone());
+    plain_model.print_plain_biases(id.clone());
+    plain_model.print_plain_weights(id1.clone());
+    plain_model.print_plain_biases(id1.clone());
+    plain_model.print_plain_weights(id2.clone());
+    plain_model.print_plain_biases(id2.clone());
+
+    plain_model.train(
+        1,
+        5,
+        0.1,
+        &train_inputs,
+        &train_labels,
+        vec![5, 1, 16, 16],
+        vec![5, 1, 1, 3],
+    );
+
+    plain_model.print_plain_weights(id.clone());
+    plain_model.print_plain_biases(id.clone());
+    plain_model.print_plain_weights(id1.clone());
+    plain_model.print_plain_biases(id1.clone());
+    plain_model.print_plain_weights(id2.clone());
+    plain_model.print_plain_biases(id2.clone());
     
-    let mut model = EncryptedNeuralNetworkU32GPU::create();
+    
+    let mut model = EncryptedNeuralNetworkU16GPU::create();
     model.add_max_pooling(vec![16, 16], 4, 4, 0);
     model.add_dense(16, 4);
     model.add_tanh_activation(4);
@@ -56,12 +113,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     model.train(
         1,                          
-        1,                           
+        5,                           
         0.1,                       
         &train_inputs,              
         &train_labels,             
-        vec![1, 1, 16, 16],
-        vec![1, 1, 1, 3]          
+        vec![5, 1, 16, 16],
+        vec![5, 1, 1, 3]          
     );
     
 
@@ -73,45 +130,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     model.print_plain_weights(id2.clone());
     model.print_plain_biases(id2.clone());
     
-    
-    let mut plain_model = PlainNeuralNetworkU32::create();
-    plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
-    plain_model.add_dense(16, 4);
-    plain_model.add_tanh_activation(4);
-    plain_model.add_dense(4, 2);
-    plain_model.add_tanh_activation(2);
-    plain_model.add_dense(2, 3);
-    //plain_model.add_tanh_activation(3);
-
-    let id = String::from("Dense2");
-    let id1 = String::from("Dense4");
-    let id2 = String::from("Dense6");
-    plain_model.print_plain_weights(id.clone());
-    plain_model.print_plain_biases(id.clone());
-    plain_model.print_plain_weights(id1.clone());
-    plain_model.print_plain_biases(id1.clone());
-    plain_model.print_plain_weights(id2.clone());
-    plain_model.print_plain_biases(id2.clone());
-
-    plain_model.train(
-        1,                          
-        1,                           
-        0.1,                       
-        &train_inputs,              
-        &train_labels,             
-        vec![1, 1, 16, 16],
-        vec![1, 1, 1, 3]          
-    );
-
-    plain_model.print_plain_weights(id.clone());
-    plain_model.print_plain_biases(id.clone());
-    plain_model.print_plain_weights(id1.clone());
-    plain_model.print_plain_biases(id1.clone());
-    plain_model.print_plain_weights(id2.clone());
-    plain_model.print_plain_biases(id2.clone());
-
-
-    /* 
     let mut correct = 0;
     let total = val_labels.len();
 
@@ -120,7 +138,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let input_shape = vec![1, 1, 16, 16];
         let label_shape = vec![1, 1, 1, 3];
 
-        let prediction = plain_model.inference(&input_batch, input_shape, label_shape);
+        let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+        //let prediction_enc = model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+
+        //println!("Prediction: {:?}", prediction);
+        //println!("Encrypted Prediction: {:?}", prediction_enc);
 
         // Get predicted class (argmax)
         let predicted_class = prediction
@@ -179,6 +201,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let accuracy = correct as f32 / total as f32;
     println!("Test Accuracy: {:.2}%", accuracy * 100.0);
+
     */
     Ok(())
 }

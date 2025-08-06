@@ -71,7 +71,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     ) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedMul<K, T> + EncryptedAdd<K, T>,
-        T: EncryptableValueType<Plain = u32> + Clone,
+        T: EncryptableValueType<Plain = u16> + Clone,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
@@ -180,7 +180,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                 }
     
                 let idx_other: Vec<usize> = idx
-                    .iter()
+                    .par_iter()
                     .enumerate()
                     .map(|(i, &v)| if other.shape[i] == 1 { 0 } else { v })
                     .collect();
@@ -282,7 +282,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     {
         let (result_data, derivatives): (Vec<_>, Vec<_>) = self
             .data
-            .iter()
+            .par_iter()
             .map(|value| {
                 ctx.server_key.tanh(value.clone(), ctx)
             })

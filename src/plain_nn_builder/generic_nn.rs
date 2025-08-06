@@ -1,4 +1,4 @@
-use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainMaxPoolingLayer}, plain_losses::PlainLossFunction, plain_ops::{PlainAdd, PlainDiv, PlainMul, PlainSub, PlainTanh}, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation}};
+use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer}, plain_losses::PlainLossFunction, plain_ops::{PlainAdd, PlainDiv, PlainMul, PlainSub, PlainTanh}, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation}};
 use std::time::Instant;
 
 
@@ -57,6 +57,18 @@ where
         self.layers.push(Box::new(max_pooling_layer));
     }
 
+    pub fn add_conv(&mut self, weights: PlainTensor<T>, biases: PlainTensor<T>, grad_weights: PlainTensor<T>, grad_biases: PlainTensor<T>) {
+        let id = format!("Conv{}", self.layers.len() + 1);
+        let conv_layer = PlainConv2DLayer {
+            id: id,
+            weights: weights,
+            biases: biases,
+            grad_weights: Some(grad_weights),
+            grad_biases: Some(grad_biases),
+        };
+        self.layers.push(Box::new(conv_layer));
+    }
+
     pub fn train( 
         &mut self,
         epochs: usize,
@@ -78,7 +90,7 @@ where
                     activations.push(output.clone());
                     //println!("Layer passed");
                 
-                    /* 
+                    
                     let prediction = activations.last().unwrap();
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
@@ -102,9 +114,9 @@ where
                         }
                     }
                     
-                    */
+                    
                 }
-            
+                
                 let prediction = activations.last().unwrap();
                 
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
@@ -115,11 +127,34 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad); 
+                    let prediction = grad.clone();
+                    let size = prediction.shape[0];
+                    let rows = prediction.shape[2];
+                    let cols = prediction.shape[3];
+                    let flat = &prediction.data;
+        
+                    if flat.len() != size * rows * cols {
+                        println!("Shape mismatch: expected {} elements, got {}", size * rows * cols, flat.len());
+                        return;
+                    }
+        
+                    for b in 0..size {
+                        println!("\nGrad {}", b);
+                        for i in 0..rows {
+                            print!("[");
+                            for j in 0..cols {
+                                let index = b * rows * cols + i * cols + j;
+                                print!("{:<6} ", flat[index].to_f32());
+                            }
+                            print!("]\n");
+                        }
+                    }
                 }
                 //println!("Backward ended...");
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
                 }
+                
             }
             //println!("Epoch {} completed in {:?}", epoch + 1, time.elapsed());
         }

@@ -3,6 +3,7 @@ use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey,
 
 use crate::tfhe_nn_builder::encrypted_ops::add::*;
 use crate::tfhe_nn_builder::encrypted_ops::mul::*;
+use crate::tfhe_nn_builder::encrypted_ops::same_sign_add::*;
 
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
@@ -26,7 +27,7 @@ pub fn fhe_tanh16_gpu(
             let in_range = gt & lt;
 
             let mul = fhe_lmul16_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add16_gpu(mul, b.clone(), encrypted_mask.clone(), server_keys.clone());
+            let add = fhe_ss_add16_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -63,7 +64,7 @@ pub fn fhe_tanh32_gpu(
             let in_range = gt & lt;
 
             let mul = fhe_lmul32_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add32_gpu(mul, b.clone(), encrypted_mask.clone(), server_keys.clone());
+            let add = fhe_add32_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -110,7 +111,7 @@ pub fn fhe_tanh16_cpu(
             let in_range = gt & lt;
 
             let mul = fhe_lmul16_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add16_cpu(mul, b.clone(), encrypted_mask.clone(), server_keys.clone());
+            let add = fhe_add16_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(),server_keys.clone());
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -147,7 +148,7 @@ pub fn fhe_tanh32_cpu(
             let in_range = gt & lt;
 
             let mul = fhe_lmul32_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add32_cpu(mul, b.clone(), encrypted_mask.clone(), server_keys.clone());
+            let add = fhe_add32_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 

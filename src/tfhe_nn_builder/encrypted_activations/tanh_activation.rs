@@ -33,6 +33,7 @@ where
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
         let start = Instant::now();
         let (activations, derivatives ) = input.tanh(&ctx);
+        println!("Tanh activation forward time: {:?}", start.elapsed());
         self.derivatives = derivatives;
         activations
     }
