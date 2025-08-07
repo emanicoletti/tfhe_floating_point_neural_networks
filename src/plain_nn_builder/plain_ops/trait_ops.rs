@@ -20,6 +20,14 @@ pub trait PlainTanh where Self: Sized {
     fn tanh(self) -> (Self, Self);
 }
 
+pub trait PlainReLU where Self: Sized {
+    fn relu(self) -> (Self, Self);
+}
+
+pub trait PlainBackwardReLU where Self: Sized {
+    fn backward_relu(self, grad_output: Self) -> Self;
+}
+
 impl PlainAdd for u32 {
     fn add(self, other: Self) -> Self {
         add32(self, other)
@@ -50,6 +58,18 @@ impl PlainTanh for u32 {
     }
 }
 
+impl PlainReLU for u32 {
+    fn relu(self) -> (Self, Self) {
+        relu32(self)
+    }
+}
+
+impl PlainBackwardReLU for u32 {
+    fn backward_relu(self, grad_output: Self) -> Self {
+        backward_relu32(self, grad_output)
+    }
+}
+
 impl PlainAdd for u16 {
     fn add(self, other: Self) -> Self {
         add16(self, other)
@@ -77,6 +97,18 @@ impl PlainSub for u16 {
 impl PlainTanh for u16 {
     fn tanh(self) -> (Self, Self) {
         tanh16(self)
+    }
+}
+
+impl PlainReLU for u16 {
+    fn relu(self) -> (Self, Self) {
+        relu16(self)
+    }
+}
+
+impl PlainBackwardReLU for u16 {
+    fn backward_relu(self, grad_output: Self) -> Self {
+        backward_relu16(self, grad_output)
     }
 }
 

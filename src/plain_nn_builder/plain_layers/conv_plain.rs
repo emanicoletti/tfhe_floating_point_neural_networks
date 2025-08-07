@@ -52,8 +52,8 @@ where
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
                                 for kw in 0..kernel_width {
-                                    let ih = oh + kh;
-                                    let iw = ow + kw;
+                                    let ih = oh * stride + kh;
+                                    let iw = ow * stride + kw;
                                     let input_idx = input.flatten_index(&[b, ic, ih, iw]);
                                     let weight_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
                                     let input_val = input.data[input_idx];
@@ -68,7 +68,6 @@ where
                 }
             }
         }
-        println!("Output shape: {:?}", output.shape);
         output
     }
 
@@ -103,7 +102,7 @@ where
             for oc in 0..out_channels {
                 for oh in 0..out_height {
                     for ow in 0..out_width {
-                        let grad_out_idx = grad_output.flatten_index(&[b, oc, 0, oh + ow]);
+                        let grad_out_idx = grad_output.flatten_index(&[b, oc, 0, oh * stride + ow]);
                         let dy = grad_output.data[grad_out_idx];
 
                         // Bias gradient
@@ -112,8 +111,8 @@ where
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
                                 for kw in 0..kernel_width {
-                                    let ih = oh + kh;
-                                    let iw = ow + kw;
+                                    let ih = oh * stride + kh;
+                                    let iw = ow * stride + kw;
 
                                     let input_idx = input.flatten_index(&[b, ic, ih, iw]);
                                     let x_val = input.data[input_idx];

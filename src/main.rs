@@ -22,6 +22,7 @@ use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU3
 
 mod tfhe_nn_builder;
 mod plain_nn_builder;
+mod experiment_1_2;
 
 use rayon::ThreadPoolBuilder;
 
@@ -37,19 +38,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
-    let mut plain_model = PlainNeuralNetworkU32::create();
+    let mut plain_model = PlainNeuralNetworkU16::create();
     plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
     plain_model.add_conv(1, 1, 2, 2);
+    plain_model.add_relu_activation(4);
     plain_model.add_dense(4, 3);
 
+    plain_model.print_plain_weights(String::from("Conv2"));
+    plain_model.print_plain_biases(String::from("Conv2"));
+    plain_model.print_plain_weights(String::from("Dense3"));
+    plain_model.print_plain_biases(String::from("Dense3"));
+
     plain_model.train(
-        1,
-        5,
+        3,
+        2,
         0.1,
         &train_inputs,
         &train_labels,
-        vec![5, 1, 16, 16],
-        vec![5, 1, 1, 3],
+        vec![50, 1, 16, 16],
+        vec![50, 1, 1, 3],
     );
 
     /* 
@@ -129,6 +136,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     model.print_plain_biases(id1.clone());
     model.print_plain_weights(id2.clone());
     model.print_plain_biases(id2.clone());
+
+    */
     
     let mut correct = 0;
     let total = val_labels.len();
@@ -202,18 +211,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let accuracy = correct as f32 / total as f32;
     println!("Test Accuracy: {:.2}%", accuracy * 100.0);
 
-    */
     Ok(())
 }
 
 /// Loads training data from .npy files
 fn load_data() -> Result<(Array2<f32>, Array2<f32>, Array2<f32>, Array2<f32>, Array2<f32>, Array2<f32>), Box<dyn Error>> {
-    let x_train: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/x_train.npy"))?;
-    let y_train: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/y_train.npy"))?;
-    let x_val: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/x_val.npy"))?;
-    let y_val: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/y_val.npy"))?;
-    let x_test: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/x_test.npy"))?;
-    let y_test: Array2<f32> = read_npy(Path::new("src/Experiment_1/dataset/y_test.npy"))?;
+    let x_train: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/x_train.npy"))?;
+    let y_train: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/y_train.npy"))?;
+    let x_val: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/x_val.npy"))?;
+    let y_val: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/y_val.npy"))?;
+    let x_test: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/x_test.npy"))?;
+    let y_test: Array2<f32> = read_npy(Path::new("src/experiment_1_2/dataset/y_test.npy"))?;
     Ok((x_train, y_train, x_val, y_val, x_test, y_test))
 }
 

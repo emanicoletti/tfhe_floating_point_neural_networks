@@ -22,7 +22,7 @@ impl<T: PlainElement> PlainTanhActivation<T> {
 
 impl<T> PlainLayer<T> for PlainTanhActivation<T>
 where
-    T: PlainTanh + PlainMul +  Send + Sync + Clone + PlainElement, 
+    T: PlainTanh + PlainMul + Send + Sync + Clone + PlainElement, 
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> 
     {

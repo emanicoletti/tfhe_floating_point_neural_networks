@@ -147,6 +147,7 @@ pub fn sub32 (
     add32(a, b_negate)
 }
 
+
 pub fn tanh32 (
     a: u32
 ) -> (u32, u32) {
@@ -180,6 +181,28 @@ pub fn tanh32 (
     };
     (out, dx)
 }
+
+pub fn relu32 (
+    a: u32
+) -> (u32, u32) {
+   if a >= 2147483648u32 {
+       (0u32, 0u32)
+   } else {
+       (a, 1u32)
+   }
+}
+
+pub fn backward_relu32 (
+    a: u32,
+    grad_output: u32,
+) -> u32 {
+    if a == 1u32 {
+        grad_output
+    } else {
+        0u32
+    }
+}
+
 
 pub fn lmul16 (
     a: u16,
@@ -423,9 +446,28 @@ pub fn tanh16 (
     (out, dx)
 }
 
+pub fn relu16 (
+    a: u16
+) -> (u16, u16) {
+   if a >= 32768u16 {
+        (0u16, 0u16)
+   } else {
+       (a, 1u16)
+   }
+}
 
- /* 
-
+pub fn backward_relu16 (
+    a: u16,
+    grad_output: u16,
+) -> u16 {
+    if a == 1u16 {
+        grad_output
+    } else {
+        0u16
+    }
+}
+ 
+/* 
  pub fn tanh16 (
     a: u16
 ) -> (u16, u16) {
@@ -435,6 +477,8 @@ pub fn tanh16 (
     (tanh_value.to_bits(), derivative.to_bits())
 }
 
+
+
 pub fn tanh32 (
     a: u32
 ) -> (u32, u32) {
@@ -443,9 +487,6 @@ pub fn tanh32 (
     let derivative = 1.0 - tanh_value * tanh_value;
     (tanh_value.to_bits(), derivative.to_bits())
 }
-
-
-
 
 
  pub fn sub32 (
@@ -479,6 +520,4 @@ pub fn add32 (
 ) -> u32 {
     (f32::from_bits(a) + f32::from_bits(b)).to_bits()
 }
-
-
 */

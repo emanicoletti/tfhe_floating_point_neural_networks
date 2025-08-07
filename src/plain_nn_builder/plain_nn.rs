@@ -4,6 +4,7 @@ use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::*;
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_losses::*;
+use crate::experiment_1_2::initializations::layer_initializations::*;
 
 // for seed_from_u64
 use rand::SeedableRng;      // <- import SeedableRng trait
@@ -16,6 +17,7 @@ pub trait PlainNeuralNetwork {
     fn create() -> Self;
     fn add_dense(&mut self, input_size: usize, output_size: usize);
     fn add_tanh_activation(&mut self, size: usize);
+    fn add_relu_activation(&mut self, size: usize);
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize);
     fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize);
     fn train(
@@ -97,6 +99,10 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         self.inner.add_tanh_activation(derivatives, TANH32_PLA_RANGES.to_vec());
     }
 
+    fn add_relu_activation(&mut self, size: usize) {
+        let derivatives = self.init_derivatives(&[size]);
+        self.inner.add_relu_activation(derivatives);
+    }
     
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize){
         self.inner.add_max_pooling(input_dim, kernel_size, stride, padding);
@@ -258,6 +264,16 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 }
 impl PlainNeuralNetworkU32 {
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> PlainTensor<u32> {
+        if output_size == 4 {
+            let fc_weights = EXP2_W_FC_32.to_vec();
+            let flattened_fc_weights: Vec<u32> = fc_weights.into_iter().flatten().collect();
+            return PlainTensor::new(flattened_fc_weights, vec![1, 1, input_size, output_size]);
+        }
+        else {
+            let conv_weights = EXP2_W_CONV_32.to_vec();
+            let flattened_conv_weights: Vec<u32> = conv_weights.into_iter().flatten().collect();
+            return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
+        }
         /*
         if output_size == 16 {
             let fc1_weight: Vec<Vec<u32>> = vec![
@@ -314,6 +330,16 @@ impl PlainNeuralNetworkU32 {
 
     fn init_biases(&mut self, output_size:usize) -> PlainTensor<u32> {
 
+        if output_size == 3{
+            let fc_bias = EXP2_B_FC_32.to_vec();
+            return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
+        }
+        else {
+            let conv_bias = EXP2_B_CONV_32.to_vec();
+            return PlainTensor::new(conv_bias, vec![1, 1, 1, output_size]);
+        }
+
+        /* 
         if output_size == 4 {
             let fc1_bias: Vec<u32> = vec![
                 (-0.0879_f32).to_bits(), 0.1680_f32.to_bits(), (-0.1631_f32).to_bits(), (-0.0271_f32).to_bits()
@@ -332,6 +358,7 @@ impl PlainNeuralNetworkU32 {
             ];
             return PlainTensor::new(fc3_bias, vec![1, 1, 1, 3]);
         }
+        */
         
         let biases = vec![0u32; output_size];
         PlainTensor::new(biases, vec![1, 1, 1, output_size])
@@ -414,7 +441,11 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         self.inner.add_tanh_activation(derivatives, TANH16_PLA_RANGES.to_vec());
     }
 
-    
+    fn add_relu_activation(&mut self, size: usize) {
+        let derivatives = self.init_derivatives(&[size]);
+        self.inner.add_relu_activation(derivatives);
+    }
+
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize){
         self.inner.add_max_pooling(input_dim, kernel_size, stride, padding);
     }
@@ -576,6 +607,26 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
 }
 impl PlainNeuralNetworkU16 {
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> PlainTensor<u16> {
+
+        if output_size == 4 {
+            let fc_weights = EXP2_W_FC_32.to_vec();
+            let flattened_fc_weights: Vec<u16> = fc_weights
+                .iter()
+                .flatten()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+            return PlainTensor::new(flattened_fc_weights, vec![1, 1, input_size, output_size]);
+        }
+        else {
+            let conv_weights = EXP2_W_CONV_32.to_vec();
+            let flattened_conv_weights: Vec<u16> = conv_weights
+                .iter()
+                .flatten()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+            return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
+        }
+
         /* 
         if output_size == 16 {
             let fc1_weight: Vec<Vec<u16>> = vec![
@@ -641,6 +692,23 @@ impl PlainNeuralNetworkU16 {
 
     fn init_biases(&mut self, output_size:usize) -> PlainTensor<u16> {
 
+        if output_size == 3{
+            let fc_bias = EXP2_B_FC_32.to_vec();
+            let flattened_fc_bias: Vec<u16> = fc_bias
+                .iter()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+            return PlainTensor::new(flattened_fc_bias, vec![1, 1, 1, output_size]);
+        }
+        else {
+            let conv_bias = EXP2_B_CONV_32.to_vec();
+            let bias_val = f16::from_f32(f32::from_bits(conv_bias[0])).to_bits();
+            let bias_tensor = PlainTensor::new(vec![bias_val], vec![1, 1, 1, output_size]);
+            return bias_tensor;
+        }
+
+        /* 
+
         if output_size == 4 {
             let fc1_bias: Vec<u16> = vec![
                 f16::from_f32(-0.0879_f32).to_bits(), f16::from_f32(0.1680_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0271_f32).to_bits()
@@ -659,6 +727,7 @@ impl PlainNeuralNetworkU16 {
             ];
             return PlainTensor::new(fc3_bias, vec![1, 1, 1, 3]);
         }
+        */
 
         let biases = vec![0u16; output_size];
         PlainTensor::new(biases, vec![1, 1, 1, output_size])

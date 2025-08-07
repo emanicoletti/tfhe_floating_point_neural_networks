@@ -286,6 +286,26 @@ impl<T: PlainElement> PlainTensor<T> {
         )
     }
 
+    pub fn relu(
+        &self,
+    ) -> (PlainTensor<T>, PlainTensor<T>)
+    where
+        T: PlainReLU
+    {
+        let (result_data, derivatives): (Vec<_>, Vec<_>) = self
+            .data
+            .iter()
+            .map(|value| {
+                value.clone().relu()
+            })
+            .unzip();
+    
+        (
+            PlainTensor::new(result_data, self.shape.clone()),
+            PlainTensor::new(derivatives, self.shape.clone()),
+        )
+    }
+
     pub fn max(&self) -> T
     where
         T: Copy + Ord, 

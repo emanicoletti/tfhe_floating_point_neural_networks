@@ -1,4 +1,4 @@
-use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer}, plain_losses::PlainLossFunction, plain_ops::{PlainAdd, PlainDiv, PlainMul, PlainSub, PlainTanh}, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation}};
+use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
 use std::time::Instant;
 
 
@@ -14,6 +14,8 @@ where
     + PlainDiv
     + PlainSub
     + PlainTanh
+    + PlainReLU
+    + PlainBackwardReLU
     + PlainElement
     + PlainValueType
     + Clone
@@ -43,6 +45,12 @@ where
             ranges: ranges,
         };
         self.layers.push(Box::new(tanh_layer));
+    }
+
+    pub fn add_relu_activation(&mut self, derivatives: PlainTensor<T>) {
+        let id = format!("ReLU{}", self.layers.len() + 1);
+        let relu_layer = PlainReLUActivation::new(id, derivatives);
+        self.layers.push(Box::new(relu_layer));
     }
 
     pub fn add_max_pooling(
@@ -114,7 +122,6 @@ where
                         }
                     }
                     
-                    
                 }
                 
                 let prediction = activations.last().unwrap();
@@ -127,6 +134,7 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad); 
+                    /* 
                     let prediction = grad.clone();
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
@@ -149,6 +157,7 @@ where
                             print!("]\n");
                         }
                     }
+                    */
                 }
                 //println!("Backward ended...");
                 for layer in &mut self.layers{
