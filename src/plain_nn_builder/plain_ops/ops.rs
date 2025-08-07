@@ -39,7 +39,7 @@ pub fn add32 (
 
     let ns_a = &a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
     let ns_b = &b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
-    let (mut x, mut y);
+    let (x, y);
 
     if ns_a >= ns_b {
         x = a;
@@ -53,7 +53,7 @@ pub fn add32 (
     let x_exp = &x & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
     let y_exp = &y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
 
-    let (mut x_mant, mut y_mant);
+    let (x_mant, mut y_mant);
     y_mant = &y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32;
     if y_exp != 0 {
         y_mant |= 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
@@ -72,7 +72,7 @@ pub fn add32 (
         same_sign = 1u32;
     }
 
-    let mut sum_mant;
+    let sum_mant;
     if same_sign == 1 {
         sum_mant = &x_mant + (&y_mant >> &diff_exp);
     }
@@ -240,7 +240,7 @@ pub fn add16 (
 
     let ns_a = &a & 0b0111_1111_1111_1111u16;
     let ns_b = &b & 0b0111_1111_1111_1111u16;
-    let (mut x, mut y);
+    let (x, y);
 
     if ns_a >= ns_b {
         x = a;
@@ -254,7 +254,7 @@ pub fn add16 (
     let x_exp = &x & 0b0111_1100_0000_0000u16;
     let y_exp = &y & 0b0111_1100_0000_0000u16;
 
-    let (mut x_mant, mut y_mant);
+    let (x_mant, mut y_mant);
     y_mant = &y & 0b0000_0011_1111_1111u16;
     if y_exp != 0 {
         y_mant |= 0b0000_0100_0000_0000u16;
@@ -273,7 +273,7 @@ pub fn add16 (
         same_sign = 1u16;
     }
 
-    let mut sum_mant;
+    let sum_mant;
     if same_sign == 1 {
         sum_mant = &x_mant + (&y_mant >> &diff_exp);
     }
@@ -320,7 +320,7 @@ pub fn same_sign_add16(
 
     let ns_a = &a & 0b0111_1111_1111_1111u16;
     let ns_b = &b & 0b0111_1111_1111_1111u16;
-    let (mut x, mut y);
+    let (x, y);
 
     if ns_a >= ns_b {
         x = a;
@@ -334,7 +334,7 @@ pub fn same_sign_add16(
     let x_exp = &x & 0b0111_1100_0000_0000u16;
     let y_exp = &y & 0b0111_1100_0000_0000u16;
 
-    let (mut x_mant, mut y_mant);
+    let (x_mant, mut y_mant);
     y_mant = &y & 0b0000_0011_1111_1111u16;
     if y_exp != 0 {
         y_mant |= 0b0000_0100_0000_0000u16;
@@ -347,7 +347,7 @@ pub fn same_sign_add16(
     x_mant = (&x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
     let x_sign = &x & 0b1000_0000_0000_0000u16;
 
-    let mut sum_mant = &x_mant + (&y_mant >> &diff_exp);
+    let sum_mant = &x_mant + (&y_mant >> &diff_exp);
 
     let leading_zeros = sum_mant.leading_zeros() as u16;
 

@@ -6,7 +6,7 @@ use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLay
 use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
 use crate::tfhe_nn_builder::encrypted_losses::loss_function::MseLoss;
 use crate::tfhe_nn_builder::encrypted_ops::*;
-use crate::tfhe_nn_builder::encrypted_activations::tanh_activation::*;
+use crate::tfhe_nn_builder::encrypted_activations::{EncryptedReLUActivation, EncryptedTanhActivation};
 use crate::tfhe_nn_builder::generic_enc_nn::EncryptedNeuralNetworkImpl;
 
 use tfhe::prelude::FheTryEncrypt;
@@ -15,8 +15,8 @@ use tfhe::prelude::FheDecrypt;
 use tfhe::shortint::parameters::v1_2::*;
 use tfhe::{generate_keys, set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, CudaServerKey, FheUint16, FheUint32, FheUint64, FheUint8, ServerKey};
 
-use rand::thread_rng;
-use rand_distr::{Normal, Distribution};
+
+use rand_distr::Distribution;
 
 use half::f16;
 
@@ -26,6 +26,7 @@ pub trait EncryptedNeuralNetwork{
     fn create() -> Self;
     fn add_dense(&mut self, input_size: usize, output_size: usize);
     fn add_tanh_activation(&mut self, size: usize);
+    fn add_relu_activation(&mut self, size: usize);
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize);
     fn train(
         &mut self,
@@ -161,6 +162,11 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
     fn add_tanh_activation(&mut self, size: usize) {
         let derivatives = self.init_derivatives(&[size]);
         self.inner.add_tanh_activation(derivatives, self.inner.context.ranges.clone());
+    }
+
+    fn add_relu_activation(&mut self, size: usize) {
+        let derivatives = self.init_derivatives(&[size]);
+        self.inner.add_relu_activation(derivatives);
     }
 
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize) {
@@ -432,7 +438,7 @@ impl EncryptedNeuralNetworkU16GPU {
         let size = shape.iter().product();
         let zeros = vec![zero_enc.clone(); size];
         let shapes: Vec<usize>;
-        if(shape.to_vec().len() == 1){
+        if shape.to_vec().len() == 1 {
             shapes = [1, shape[0]].to_vec();
         }
         else{
@@ -446,7 +452,7 @@ impl EncryptedNeuralNetworkU16GPU {
         let size = shape.iter().product();
         let zeros = vec![self.inner.context.encrypted_zero.clone(); size];
         let shapes: Vec<usize>;
-        if(shape.to_vec().len() == 1){
+        if shape.to_vec().len() == 1{
             shapes = [1, shape[0]].to_vec();
         }
         else{

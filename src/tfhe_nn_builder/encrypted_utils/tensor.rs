@@ -2,7 +2,7 @@ use crate::tfhe_nn_builder::encrypted_ops::{ops, EncryptedNegate};
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptedElement;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax};
+use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax, EncryptedReLU};
 
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptableValueType;
 
@@ -291,6 +291,27 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         (
             EncryptedTensor::new(result_data, self.shape.clone()),
             EncryptedTensor::new(derivatives, self.shape.clone()),
+        )
+    }
+
+    pub fn relu<K>(
+        &self,
+        ctx: &EncryptedContext<K, T>,
+    ) -> (EncryptedTensor<T>, EncryptedTensor<T>)
+    where
+        K: ServerKeyTrait + EncryptedReLU<K, T> + Sync,
+        T: EncryptableValueType + Send + Sync,
+    {
+        let result_data: Vec<_> = self
+            .data
+            .par_iter()
+            .map(|value| {
+                ctx.server_key.relu(value.clone(), ctx)
+            })
+            .collect();
+        (
+            EncryptedTensor::new(result_data.clone(), self.shape.clone()),
+            EncryptedTensor::new(result_data.clone(), self.shape.clone()),
         )
     }
 

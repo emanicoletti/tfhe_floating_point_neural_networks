@@ -6,8 +6,10 @@ use super::tanh::*;
 use super::max::*;
 use super::grad_if_equal::*;
 use super::same_sign_add::*;
+use super::relu::*;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use tfhe::FheBool;
 use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 
@@ -65,6 +67,25 @@ where
     K: ServerKeyTrait + Clone + Send + Sync,
 {
     fn same_sign_add(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
+}
+
+pub trait EncryptedReLU<K, T>
+where
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn relu(&self, a: T, ctx: &EncryptedContext<K, T>) -> T;
+}
+
+pub trait EncryptedBackwardRelu<K, T>
+where
+    K: ServerKeyTrait + Clone + Send + Sync,
+{
+    fn backward_relu(
+        &self,
+        grad_output: T,
+        derivative: T,
+        ctx: &EncryptedContext<K, T>,
+    ) -> T;
 }
 
 impl EncryptedAdd<CudaServerKey, FheUint8> for CudaServerKey {
@@ -322,5 +343,39 @@ impl EncryptedGradIfEqual<ServerKey, FheUint32> for ServerKey {
 impl EncryptedSameSignAdd<CudaServerKey, FheUint16> for CudaServerKey {
     fn same_sign_add(&self, a: FheUint16, b: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
         fhe_ss_add16_gpu(a, b, ctx.encrypted_mask.clone(), ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedReLU<CudaServerKey, FheUint16> for CudaServerKey {
+    fn relu(&self, a: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_relu16_gpu(a, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedReLU<CudaServerKey, FheUint32> for CudaServerKey {
+    fn relu(&self, a: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+        fhe_relu32_gpu(a, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedBackwardRelu<CudaServerKey, FheUint16> for CudaServerKey {
+    fn backward_relu(
+        &self,
+        grad_output: FheUint16,
+        derivative: FheUint16,
+        ctx: &EncryptedContext<Self, FheUint16>,
+    ) -> FheUint16 {
+        backward_relu16_gpu(grad_output, derivative, ctx.encrypted_zero.clone(), self.clone())
+    }
+}
+
+impl EncryptedBackwardRelu<CudaServerKey, FheUint32> for CudaServerKey {
+    fn backward_relu(
+        &self,
+        grad_output: FheUint32,
+        derivative: FheUint32,
+        ctx: &EncryptedContext<Self, FheUint32>,
+    ) -> FheUint32 {
+        backward_relu32_gpu(grad_output, derivative, ctx.encrypted_zero.clone(), self.clone())
     }
 }

@@ -2,7 +2,7 @@ use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::{self, Encrypted
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
 use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer};
-use crate::tfhe_nn_builder::encrypted_activations::{EncryptedTanhActivation};
+use crate::tfhe_nn_builder::encrypted_activations::{EncryptedTanhActivation, EncryptedReLUActivation};
 use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
 use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 use crate::tfhe_nn_builder::encrypted_ops::*;
@@ -28,6 +28,8 @@ where
     + EncryptedNegate<K, T>
     + EncryptedTanh<K, T>
     + EncryptedMax<K, T> 
+    + EncryptedReLU<K, T>
+    + EncryptedBackwardRelu<K, T>
     + EncryptedGradIfEqual<K, T>,
     T: EncryptedElement + Clone + EncryptableValueType<Plain=u16> + 'static,
 {
@@ -53,6 +55,15 @@ where
         self.layers.push(Box::new(tanh_layer));
     }
 
+     pub fn add_relu_activation(&mut self, derivatives: EncryptedTensor<T>) {
+        let id = format!("ReLU{}", self.layers.len() + 1);
+        let relu_layer = EncryptedReLUActivation {
+            id: id,
+            derivatives: derivatives,
+        };
+        self.layers.push(Box::new(relu_layer));
+    }
+
     pub fn add_max_pooling(
         &mut self,
         input_dim: Vec<usize>,
@@ -64,7 +75,7 @@ where
         let max_pooling_layer = EncryptedMaxPoolingLayer::new(id, input_dim, kernel_size, stride, padding);
         self.layers.push(Box::new(max_pooling_layer));
     }
-
+   
     pub fn train( 
         &mut self,
         epochs: usize,
