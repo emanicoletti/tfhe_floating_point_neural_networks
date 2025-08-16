@@ -98,7 +98,7 @@ where
                     activations.push(output.clone());
                     //println!("Layer passed");
                 
-                    
+                    /* 
                     let prediction = activations.last().unwrap();
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
@@ -121,7 +121,7 @@ where
                             print!("]\n");
                         }
                     }
-                    
+                    */
                 }
                 
                 let prediction = activations.last().unwrap();

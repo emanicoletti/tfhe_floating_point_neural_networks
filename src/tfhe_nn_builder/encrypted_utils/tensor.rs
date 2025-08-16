@@ -28,7 +28,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     }
 
     /// Returns the flat index from multi-dimensional indices
-    fn flatten_index(&self, indices: &[usize]) -> usize {
+    pub fn flatten_index(&self, indices: &[usize]) -> usize {
         assert_eq!(indices.len(), self.shape.len(), "Dimension mismatch in indexing");
         
         let mut index = 0;
@@ -71,7 +71,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     ) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedMul<K, T> + EncryptedAdd<K, T>,
-        T: EncryptableValueType<Plain = u16> + Clone,
+        T: EncryptableValueType<Plain = u32> + Clone,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");

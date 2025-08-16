@@ -8,6 +8,7 @@ use crate::tfhe_nn_builder::encrypted_losses::loss_function::MseLoss;
 use crate::tfhe_nn_builder::encrypted_ops::*;
 use crate::tfhe_nn_builder::encrypted_activations::{EncryptedReLUActivation, EncryptedTanhActivation};
 use crate::tfhe_nn_builder::generic_enc_nn::EncryptedNeuralNetworkImpl;
+use crate::experiment_1_2::initializations::layer_initializations::*;
 
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::prelude::FheDecrypt;
@@ -28,6 +29,7 @@ pub trait EncryptedNeuralNetwork{
     fn add_tanh_activation(&mut self, size: usize);
     fn add_relu_activation(&mut self, size: usize);
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize);
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize);
     fn train(
         &mut self,
         epochs: usize,
@@ -101,7 +103,7 @@ pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
     (1073741825u32, 2147483647u32, 1065353217u32, 0u32, 0u32), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
 
-
+/* 
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
     fn create() -> Self{
         let config =
@@ -157,6 +159,14 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         let encrypted_grad_weights = self.init_gradients(&[output_size, input_size]);
         let encrypted_grad_biases = self.init_gradients(&[output_size]);
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
+    }
+
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize) {
+        let encrypted_weights = self.init_weights(kernel_width, kernel_height);
+        let encrypted_biases = self.init_biases(out_channels);
+        let encrypted_grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
+        let encrypted_grad_biases = self.init_gradients(&[out_channels]);
+        self.inner.add_conv(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
 
     fn add_tanh_activation(&mut self, size: usize) {
@@ -336,6 +346,26 @@ impl EncryptedNeuralNetworkU16GPU {
 
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint16>{
         let mut plain_weights: Vec<u16> = vec![];
+        if output_size == 4 {
+            let fc_weights = EXP2_W_FC_32.to_vec();
+            plain_weights = fc_weights
+                .iter()
+                .flatten()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+        }
+        else {
+            let conv_weights = EXP2_W_CONV_32.to_vec();
+            plain_weights = conv_weights
+                .iter()
+                .flatten()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+        }
+
+
+
+        /* 
         if output_size == 16 {
             let fc1_weight: Vec<Vec<u16>> = vec![
             vec![
@@ -380,6 +410,7 @@ impl EncryptedNeuralNetworkU16GPU {
             ];
             plain_weights = fc3_weight.into_iter().flatten().collect();
         }
+        */
         
         /* 
         // Xavier Initialization
@@ -404,6 +435,20 @@ impl EncryptedNeuralNetworkU16GPU {
 
     fn init_biases(&mut self, output_size: usize) -> EncryptedTensor<FheUint16> {
         let mut plain_biases: Vec<u16> = vec![];
+
+        if output_size == 3{
+            let fc_bias = EXP2_B_FC_32.to_vec();
+            plain_biases = fc_bias
+                .iter()
+                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+                .collect();
+        }
+        else {
+            let conv_bias = EXP2_B_CONV_32.to_vec();
+            plain_biases = vec![f16::from_f32(f32::from_bits(conv_bias[0])).to_bits()];
+        }
+
+        /* 
         if output_size == 4 {
             let fc1_bias: Vec<u16> = vec![
                 f16::from_f32(-0.0879_f32).to_bits(), f16::from_f32(0.1680_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0271_f32).to_bits()
@@ -422,6 +467,7 @@ impl EncryptedNeuralNetworkU16GPU {
             ];
             plain_biases = fc3_bias.into_iter().map(|b|b).collect();
         }
+        */
 
         let mut encrypted_biases = Vec::with_capacity(output_size);
         for bias in plain_biases {
@@ -476,8 +522,8 @@ impl EncryptedNeuralNetworkU16GPU {
     }
 
 }
+*/
 
-/* 
 impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
     fn create() -> Self{
         let config =
@@ -536,9 +582,22 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
 
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize) {
+        let encrypted_weights = self.init_weights(kernel_width, kernel_height);
+        let encrypted_biases = self.init_biases(out_channels);
+        let encrypted_grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
+        let encrypted_grad_biases = self.init_gradients(&[out_channels]);
+        self.inner.add_conv(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
+    }
+
     fn add_tanh_activation(&mut self, size: usize) {
         let derivatives = self.init_derivatives(&[size]);
         self.inner.add_tanh_activation(derivatives, self.inner.context.ranges.clone());
+    }
+
+    fn add_relu_activation(&mut self, size: usize) {
+        let derivatives = self.init_derivatives(&[size]);
+        self.inner.add_relu_activation(derivatives);
     }
 
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize){
@@ -708,6 +767,23 @@ impl EncryptedNeuralNetworkU32GPU {
 
     fn init_weights(&mut self, input_size: usize, output_size: usize) -> EncryptedTensor<FheUint32>{
         let mut plain_weights: Vec<u32> = vec![];
+        if output_size == 4 {
+            let fc_weights = EXP2_W_FC_32.to_vec();
+            plain_weights = fc_weights
+                .iter()
+                .flatten()
+                .map(|&f| f)
+                .collect();
+        }
+        else {
+            let conv_weights = EXP2_W_CONV_32.to_vec();
+            plain_weights = conv_weights
+                .iter()
+                .flatten()
+                .map(|&f| f)
+                .collect();
+        }
+        /* 
         if output_size == 16 {
             let fc1_weight: Vec<Vec<u32>> = vec![
             vec![ 0.1478_f32.to_bits(),  0.2460_f32.to_bits(), (-0.1902_f32).to_bits(),  0.2048_f32.to_bits(), (-0.0094_f32).to_bits(), (-0.1631_f32).to_bits(), (-0.0475_f32).to_bits(), (-0.0258_f32).to_bits(),
@@ -737,7 +813,7 @@ impl EncryptedNeuralNetworkU32GPU {
             plain_weights = fc3_weight.into_iter().flatten().collect();
         }
         
-        /* 
+        
         // Xavier Initialization
         let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
         let normal = Normal::new(0.0, std_dev).unwrap();
@@ -760,6 +836,21 @@ impl EncryptedNeuralNetworkU32GPU {
 
     fn init_biases(&mut self, output_size: usize) -> EncryptedTensor<FheUint32> {
         let mut plain_biases: Vec<u32> = vec![];
+
+        if output_size == 3{
+            let fc_bias = EXP2_B_FC_32.to_vec();
+            plain_biases = fc_bias
+                .iter()
+                .map(|&f| f)
+                .collect();
+        }
+        else {
+            let conv_bias = EXP2_B_CONV_32.to_vec();
+            plain_biases = vec![conv_bias[0]];
+        }
+
+        /* 
+        let mut plain_biases: Vec<u32> = vec![];
         if output_size == 4 {
             let fc1_bias: Vec<u32> = vec![
                 (-0.0879_f32).to_bits(), 0.1680_f32.to_bits(), (-0.1631_f32).to_bits(), (-0.0271_f32).to_bits()
@@ -778,6 +869,7 @@ impl EncryptedNeuralNetworkU32GPU {
             ];
             plain_biases = fc3_bias.into_iter().map(|b|b).collect();
         }
+        */
 
         let mut encrypted_biases = Vec::with_capacity(output_size);
         for bias in plain_biases {
@@ -787,6 +879,7 @@ impl EncryptedNeuralNetworkU32GPU {
         }
 
         EncryptedTensor::new(encrypted_biases, vec![1, 1, 1, output_size])
+        
     }
 
     fn init_gradients(&self, shape: &[usize]) -> EncryptedTensor<FheUint32> {
@@ -835,4 +928,4 @@ impl EncryptedNeuralNetworkU32GPU {
     }
 
 }
-*/
+

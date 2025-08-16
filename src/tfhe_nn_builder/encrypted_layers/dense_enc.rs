@@ -33,7 +33,7 @@ impl<T: EncryptedElement> EncryptedDenseLayer<T> {
 impl<K, T> EncryptedLayer<K, T> for EncryptedDenseLayer<T>
 where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedNegate<K, T>,
-    T: Clone + EncryptedElement + EncryptableValueType<Plain = u16>,
+    T: Clone + EncryptedElement + EncryptableValueType<Plain = u32>,
 {
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
         let start = Instant::now();

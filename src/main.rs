@@ -1,8 +1,10 @@
+use rand_distr::num_traits::float;
 use tfhe::boolean::backward_compatibility::server_key;
 use tfhe::shortint::parameters::*;
 use tfhe::shortint::parameters::v1_2::*;
-use tfhe::{set_server_key};
-use tfhe::{ConfigBuilder, ClientKey, generate_keys, CompressedServerKey, CudaServerKey, FheUint8, FheUint16, FheUint32, FheUint64};
+use tfhe::prelude::*;
+use tfhe::shortint::client_key;
+use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
 use std::time::Instant;
 use rand::Rng;
 use half::f16;
@@ -13,10 +15,11 @@ use ndarray_npy::read_npy;
 use std::path::Path;
 use std::error::Error;
 
-use crate::plain_nn_builder::plain_ops::{add16, lmul16, same_sign_add16};
+use crate::plain_nn_builder::plain_ops::{add16, lmul16, same_sign_add16, log2_u16, ldiv16, log2_u32, sqrt_u16, sqrt_u32};
 use crate::tfhe_nn_builder::add::fhe_add16_gpu;
 use crate::tfhe_nn_builder::mul::fhe_lmul16_gpu;
 use crate::tfhe_nn_builder::same_sign_add::fhe_ss_add16_gpu;
+use crate::tfhe_nn_builder::sqrt::*;
 use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU, EncryptedNeuralNetworkU16GPU};
 use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
 
@@ -24,11 +27,51 @@ mod tfhe_nn_builder;
 mod plain_nn_builder;
 mod experiment_1_2;
 
-use rayon::ThreadPoolBuilder;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    
+    let config =
+        ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+            .build();
+    let client_key = ClientKey::generate(config);
+    let compressed_server_key = CompressedServerKey::new(&client_key);
+    let gpu_key = compressed_server_key.decompress_to_gpu();
+
+    let mut total_duration = std::time::Duration::new(0, 0);
+
+    let mut rng = rand::thread_rng();
+    for _ in 0..1{
+
+        //let float_a: f32 = rng.gen_range(0.0..5.0);
+        let float_a: f32 = 0.00000005; // Fixed value for testing
+
+        let float_a_f16 = f16::from_f32(float_a);
+
+        // Convert f16 to u16 (bit pattern)
+        let clear_a: u16 = float_a_f16.to_bits();
+
+        // Encrypting the input data using the (private) client_key
+        let encrypted_a = FheUint16::try_encrypt(clear_a, &client_key)?; 
+        let encrypted_zero = FheUint16::try_encrypt(0u16, &client_key)?;
+
+        let start = Instant::now();
+
+        //let encrypted_multiply = fhe_lmul16_parallel(encrypted_a, encrypted_b, encrypted_zero.clone(), gpu_key.clone());
+        let encrypted_accumulate = fhe_sqrt16_gpu(encrypted_a.clone(), encrypted_zero.clone(), gpu_key.clone());
+
+        // Add the execution time to the total
+        total_duration += start.elapsed();
+
+        let clear_res: u16 = encrypted_accumulate.decrypt(&client_key);
+
+        let float_res = f16::from_bits(clear_res).to_f32();
+
+        println!("sqrt({:?}) = {:?}, real: {:?}", float_a, float_res, f16::from_bits(sqrt_u16(clear_a)));
+        println!("Execution time: {:?}", total_duration);
+
+    }
+
+    /* 
     let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data()?;
 
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -38,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
-    let mut plain_model = PlainNeuralNetworkU16::create();
+    let mut plain_model = PlainNeuralNetworkU32::create();
     plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
     plain_model.add_conv(1, 1, 2, 2);
     plain_model.add_relu_activation(4);
@@ -46,20 +89,52 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     plain_model.print_plain_weights(String::from("Conv2"));
     plain_model.print_plain_biases(String::from("Conv2"));
-    plain_model.print_plain_weights(String::from("Dense3"));
-    plain_model.print_plain_biases(String::from("Dense3"));
+    plain_model.print_plain_weights(String::from("Dense4"));
+    plain_model.print_plain_biases(String::from("Dense4"));
 
     plain_model.train(
-        3,
-        2,
+        1,
+        5,
         0.1,
         &train_inputs,
         &train_labels,
-        vec![50, 1, 16, 16],
-        vec![50, 1, 1, 3],
+        vec![5, 1, 16, 16],
+        vec![5, 1, 1, 3],
     );
 
-    /* 
+    plain_model.print_plain_weights(String::from("Conv2"));
+    plain_model.print_plain_biases(String::from("Conv2"));
+    plain_model.print_plain_weights(String::from("Dense4"));
+    plain_model.print_plain_biases(String::from("Dense4"));
+
+    
+
+    let mut model = EncryptedNeuralNetworkU32GPU::create();
+    model.add_max_pooling(vec![16, 16], 4, 4, 0);
+    model.add_conv(1, 1, 2, 2);
+    model.add_relu_activation(4);
+    model.add_dense(4, 3);
+
+    model.print_plain_weights(String::from("Conv2"));
+    model.print_plain_biases(String::from("Conv2"));
+    model.print_plain_weights(String::from("Dense4"));
+    model.print_plain_biases(String::from("Dense4"));
+
+    model.train(
+        1,
+        5,
+        0.1,
+        &train_inputs,
+        &train_labels,
+        vec![5, 1, 16, 16],
+        vec![5, 1, 1, 3],
+    );
+
+    model.print_plain_weights(String::from("Conv2"));
+    model.print_plain_biases(String::from("Conv2"));
+    model.print_plain_weights(String::from("Dense4"));
+    model.print_plain_biases(String::from("Dense4"));
+    
     let mut plain_model = PlainNeuralNetworkU16::create();
     plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
     plain_model.add_dense(16, 4);
@@ -136,8 +211,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     model.print_plain_biases(id1.clone());
     model.print_plain_weights(id2.clone());
     model.print_plain_biases(id2.clone());
-
-    */
     
     let mut correct = 0;
     let total = val_labels.len();
@@ -210,6 +283,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let accuracy = correct as f32 / total as f32;
     println!("Test Accuracy: {:.2}%", accuracy * 100.0);
+    */
 
     Ok(())
 }

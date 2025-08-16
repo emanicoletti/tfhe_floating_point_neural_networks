@@ -1,7 +1,7 @@
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::{self, EncryptedContext};
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
-use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer};
+use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer, EncryptedConvLayer};
 use crate::tfhe_nn_builder::encrypted_activations::{EncryptedTanhActivation, EncryptedReLUActivation};
 use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
 use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
@@ -31,7 +31,7 @@ where
     + EncryptedReLU<K, T>
     + EncryptedBackwardRelu<K, T>
     + EncryptedGradIfEqual<K, T>,
-    T: EncryptedElement + Clone + EncryptableValueType<Plain=u16> + 'static,
+    T: EncryptedElement + Clone + EncryptableValueType<Plain=u32> + 'static,
 {
     pub fn add_dense(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
         let id = format!("Dense{}", self.layers.len() + 1);
@@ -43,6 +43,18 @@ where
             grad_biases: Some(grad_biases),
         };
         self.layers.push(Box::new(dense_layer));
+    }
+
+    pub fn add_conv(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
+        let id = format!("Conv{}", self.layers.len() + 1);
+        let conv_layer = EncryptedConvLayer {
+            id: id,
+            weights: weights,
+            biases: biases,
+            grad_weights: Some(grad_weights),
+            grad_biases: Some(grad_biases),
+        };
+        self.layers.push(Box::new(conv_layer));
     }
 
     pub fn add_tanh_activation(&mut self, derivatives: EncryptedTensor<T>, ranges: Vec<(T, T, T, T, T)>) {
@@ -98,8 +110,9 @@ where
                     let output = layer.forward(activations.last().unwrap(), &self.context);
                     activations.push(output.clone());
                     println!("Layer passed");
-                    let prediction = activations.last().unwrap();
                     /* 
+                    let prediction = activations.last().unwrap();
+                    
                     let size = prediction.shape[0];
                     let rows = prediction.shape[2];
                     let cols = prediction.shape[3];
@@ -136,6 +149,7 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad, &self.context);
+                    
                     /* 
                     let size = grad.shape[0];
                     let rows = grad.shape[2];

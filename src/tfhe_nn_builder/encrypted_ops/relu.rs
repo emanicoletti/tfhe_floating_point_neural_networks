@@ -35,8 +35,8 @@ pub fn backward_relu16_gpu(
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u16);
     pos.select(
-        &encrypted_grad_output,
         &encrypted_zero,
+        &encrypted_grad_output,
     )
 }
 
@@ -49,8 +49,8 @@ pub fn backward_relu32_gpu(
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u32);
     pos.select(
-        &encrypted_grad_output,
         &encrypted_zero,
+        &encrypted_grad_output,
     )
 }
 

@@ -8,5 +8,6 @@ pub mod max;
 pub mod relu;
 pub mod grad_if_equal;
 pub mod same_sign_add;
+pub mod sqrt;
 
 pub use ops::*; 
