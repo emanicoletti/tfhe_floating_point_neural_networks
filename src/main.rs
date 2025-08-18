@@ -17,7 +17,7 @@ use std::error::Error;
 
 use crate::plain_nn_builder::plain_ops::{add16, lmul16, same_sign_add16, log2_u16, ldiv16, log2_u32, sqrt_u16, sqrt_u32};
 use crate::tfhe_nn_builder::add::fhe_add16_gpu;
-use crate::tfhe_nn_builder::log2::fhe_log2_32_gpu;
+use crate::tfhe_nn_builder::log2::*;
 use crate::tfhe_nn_builder::mul::fhe_lmul16_gpu;
 use crate::tfhe_nn_builder::same_sign_add::fhe_ss_add16_gpu;
 use crate::tfhe_nn_builder::sqrt::*;
@@ -43,31 +43,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = rand::thread_rng();
     for _ in 0..5{
 
-        let float_a: f32 = rng.gen_range(0.0..1.0);
+        let float_a: f32 = rng.gen_range(0.0..10.0);
         //let float_a: f32 = 1.2956715; // Fixed value for testing
 
-        //let float_a_f16 = f16::from_f32(float_a);
+        let float_a_f16 = f16::from_f32(float_a);
 
         // Convert f16 to u16 (bit pattern)
-        let clear_a: u32 = float_a.to_bits();
+        let clear_a: u16 = float_a_f16.to_bits();
 
         // Encrypting the input data using the (private) client_key
-        let encrypted_a = FheUint32::try_encrypt(clear_a, &client_key)?;
-        let encrypted_zero = FheUint32::try_encrypt(0u32, &client_key)?;
+        let encrypted_a = FheUint16::try_encrypt(clear_a, &client_key)?;
+        let encrypted_zero = FheUint16::try_encrypt(0u16, &client_key)?;
 
         let start = Instant::now();
 
         //let encrypted_multiply = fhe_lmul16_parallel(encrypted_a, encrypted_b, encrypted_zero.clone(), gpu_key.clone());
-        let encrypted_accumulate = fhe_log2_32_gpu(encrypted_a.clone(), encrypted_zero.clone(), gpu_key.clone());
+        let encrypted_accumulate = fhe_log2_16_gpu(encrypted_a.clone(), encrypted_zero.clone(), gpu_key.clone());
 
         // Add the execution time to the total
         total_duration += start.elapsed();
 
-        let clear_res: u32 = encrypted_accumulate.decrypt(&client_key);
+        let clear_res: u16 = encrypted_accumulate.decrypt(&client_key);
 
-        let float_res = f32::from_bits(clear_res);
+        let float_res = f16::from_bits(clear_res);
 
-        println!("log2({:?}) = {:?}, real: {:?}", float_a, float_res, f32::from_bits(log2_u32(clear_a)));
+        println!("log2({:?}) = {:?}, real: {:?}", float_a, float_res, f16::from_bits(log2_u16(clear_a)));
         println!("Execution time: {:?}", total_duration);
 
     }
