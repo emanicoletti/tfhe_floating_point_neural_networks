@@ -10,6 +10,7 @@ use crate::tfhe_nn_builder::encrypted_activations::{EncryptedReLUActivation, Enc
 use crate::tfhe_nn_builder::generic_enc_nn::EncryptedNeuralNetworkImpl;
 use crate::experiment_1_2::initializations::layer_initializations::*;
 
+use tfhe::array::stride;
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::prelude::FheDecrypt;
 
@@ -29,7 +30,7 @@ pub trait EncryptedNeuralNetwork{
     fn add_tanh_activation(&mut self, size: usize);
     fn add_relu_activation(&mut self, size: usize);
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize, padding: usize);
-    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize);
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize);
     fn train(
         &mut self,
         epochs: usize,
@@ -582,12 +583,12 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         self.inner.add_dense(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
     }
 
-    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize) {
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
         let encrypted_weights = self.init_weights(kernel_width, kernel_height);
         let encrypted_biases = self.init_biases(out_channels);
         let encrypted_grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
         let encrypted_grad_biases = self.init_gradients(&[out_channels]);
-        self.inner.add_conv(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases);
+        self.inner.add_conv(encrypted_weights, encrypted_biases, encrypted_grad_weights, encrypted_grad_biases, stride, padding);
     }
 
     fn add_tanh_activation(&mut self, size: usize) {

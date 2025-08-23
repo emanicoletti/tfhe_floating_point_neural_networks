@@ -197,18 +197,22 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     pub fn transpose(&self) -> EncryptedTensor<T> {
         assert_eq!(self.shape.len(), 4, "Transpose supports 4D tensors only");
         let batches = self.shape[0];
+        let channels = self.shape[1];
         let rows = self.shape[2];
         let cols = self.shape[3];
 
         let mut transposed_data = Vec::with_capacity(self.data.len());
 
         for b in 0..batches {
-            for col in 0..cols {
-                for row in 0..rows {
-                    transposed_data.push(self.get(&[b, 0, row, col]).clone());
+            for c in 0..channels {
+                for col in 0..cols {
+                    for row in 0..rows {
+                        transposed_data.push(self.get(&[b, c, row, col]).clone());
+                    }
                 }
             }
         }
+
         EncryptedTensor::new(transposed_data, vec![self.shape[0], self.shape[1], cols, rows])
     }
 
@@ -353,7 +357,45 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
             shape: vec![batch, channel, 1, height * width],
         }
     }
-    
+
+     pub fn unflatten_1d_to_hw<K>(&self, original_shape: &[usize; 4], ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> 
+     where
+        K: ServerKeyTrait 
+     {
+        let [batch, channel, height, width] = *original_shape;
+
+        assert_eq!(self.shape.len(), 4, "Flattened tensor must be 4D [B,1,1,C*H*W]");
+        assert_eq!(
+            self.shape[0], batch,
+            "Batch size must match the original shape"
+        );
+        assert_eq!(
+            self.shape[3],
+            channel * height * width,
+            "Flattened dimension does not match C*H*W"
+        );
+
+        let mut result_data = vec![ctx.encrypted_zero.clone(); batch * channel * height * width];
+
+        for b in 0..batch {
+            for c in 0..channel {
+                for h in 0..height {
+                    for w in 0..width {
+                        let flat_idx = c * height * width + h * width + w;
+                        let val = self.get(&[b, 0, 0, flat_idx]).clone();
+                        let dst_idx = b * channel * height * width + c * height * width + h * width + w;
+                        result_data[dst_idx] = val;
+                    }
+                }
+            }
+        }
+
+        EncryptedTensor {
+            data: result_data,
+            shape: vec![batch, channel, height, width],
+        }
+    }
+  
 }
 
 

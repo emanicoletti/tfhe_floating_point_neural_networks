@@ -72,7 +72,7 @@ where
         let mut grad_weights_opt = None;
         let mut grad_biases_opt = None;
         let mut grad_input_opt = None;
-    
+
         scope(|s| {
             s.spawn(|_| {
                 let flatten_input = input.flatten_hw_to_1d();
@@ -96,8 +96,8 @@ where
         let grad_biases = grad_biases_opt.expect("grad_biases not computed");
         let grad_input = grad_input_opt.expect("grad_input not computed");
     
-        self.grad_weights = Some(grad_weights);
-        self.grad_biases = Some(grad_biases);
+        self.grad_weights = Some(grad_weights.clone());
+        self.grad_biases = Some(grad_biases.clone());
 
         grad_input
     }

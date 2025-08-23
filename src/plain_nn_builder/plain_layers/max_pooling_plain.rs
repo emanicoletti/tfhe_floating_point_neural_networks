@@ -80,71 +80,58 @@ where
         &mut self,
         input: &PlainTensor<T>,
         grad_output: &PlainTensor<T>,
-    ) -> PlainTensor<T> 
-    where 
+    ) -> PlainTensor<T>
+    where
         T: Default,
     {
         let kernel = self.kernel_size;
         let stride = self.stride;
-        let shape = &input.shape;
-        let (batch, channels, height, width) = (shape[0], shape[1], shape[2], shape[3]);
-    
+        let (batch, channels, height, width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+
+        let out_h = (height - kernel) / stride + 1;
+        let out_w = (width - kernel) / stride + 1;
+
+        let mut grad_output = grad_output.unflatten_1d_to_hw(&[batch, channels, out_h, out_w]);
+
         let mut grad_input = PlainTensor::new(
             vec![T::default(); batch * channels * height * width],
             vec![batch, channels, height, width],
         );
-    
-        let out_shape = [
-            grad_output.shape[0],              // batch size
-            grad_output.shape[1],              // channels
-            grad_output.shape[3] / kernel,     // output height after pooling
-            grad_output.shape[3] / kernel,     // output width after pooling
-          ]; // [B, C, OH, OW]
-        
-        
+
         for n in 0..batch {
             for c in 0..channels {
-                for h in 0..out_shape[2] {
-                    for w in 0..out_shape[3] {
-                        let mut patch = Vec::new();
-                        let mut indices = Vec::new();
-    
+                for h in 0..out_h {
+                    for w in 0..out_w {
+                        // get pooling region
+                        let mut max_val = T::default();
+                        let mut max_idx = (0, 0);
+                        let mut first = true;
+
                         for kh in 0..kernel {
                             for kw in 0..kernel {
                                 let ih = h * stride + kh;
                                 let iw = w * stride + kw;
                                 let val = input.get(&[n, c, ih, iw]).clone();
-                                patch.push(val);
-                                indices.push((ih, iw));
+
+                                if first || val > max_val {
+                                    max_val = val;
+                                    max_idx = (ih, iw);
+                                    first = false;
+                                }
                             }
                         }
-    
-                        let patch_tensor = PlainTensor {
-                            data: patch.clone(),
-                            shape: vec![kernel * kernel],
-                        };
-                        let max_val = patch_tensor.max();
-                        let reshaped_grad_output = PlainTensor{
-                            data: grad_output.data.clone(),
-                            shape: out_shape.to_vec()
-                        };
-                        let grad = reshaped_grad_output.get(&[n, c, h, w]).clone();
-                        for (idx, (ih, iw)) in indices.into_iter().enumerate() {
-                            let val = patch[idx];
-                            let flat_index = ((n * channels + c) * height + ih) * width + iw;
-                        
-                            grad_input.data[flat_index] = if val == max_val {
-                                grad
-                            } else {
-                                T::default()
-                            };
-                        }
+
+                        // assign grad to the max location only
+                        let grad = grad_output.get(&[n, c, h, w]).clone();
+                        let flat_index = ((n * channels + c) * height + max_idx.0) * width + max_idx.1;
+                        grad_input.data[flat_index] = grad;
                     }
                 }
             }
         }
+
         grad_input
-    }
+}
 
     fn update_parameters(
         &mut self,

@@ -1,4 +1,4 @@
-mod plain_utils;
+pub mod plain_utils;
 pub mod plain_ops;
 mod plain_layers;
 mod plain_activations;

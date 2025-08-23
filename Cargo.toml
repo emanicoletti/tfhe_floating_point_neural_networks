@@ -14,3 +14,8 @@ ndarray = "0.15"
 ndarray-npy = "0.8"
 rand_chacha = "0.3"
 
+[features]
+exact = []
+lmul = []
+pam = []
+default = []  

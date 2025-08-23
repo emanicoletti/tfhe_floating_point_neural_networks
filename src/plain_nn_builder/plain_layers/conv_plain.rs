@@ -12,16 +12,20 @@ pub struct PlainConv2DLayer<T: PlainElement> {
     pub biases: PlainTensor<T>,        
     pub grad_weights: Option<PlainTensor<T>>,
     pub grad_biases: Option<PlainTensor<T>>,
+    pub stride: usize,
+    pub padding: usize,
 }
 
 impl<T: PlainElement> PlainConv2DLayer<T> {
-    pub fn new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>) -> Self {
+    pub fn new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>, stride: usize, padding: usize) -> Self {
         Self {
             id,
             weights,
             biases,
             grad_weights: None,
             grad_biases: None,
+            stride,
+            padding,
         }
     }
 }
@@ -32,36 +36,66 @@ where
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
 
-        let (batch_size, in_channels, in_height, in_width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
-        let (out_channels, _, kernel_height, kernel_width) = (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
-        // Assuming stride of 2 for both height and width
-        let stride = 2;
-        let out_height = (in_height - kernel_height) / stride + 1;
-        let out_width = (in_width - kernel_width) / stride + 1;
+        let (batch_size, in_channels, in_height, in_width) =
+            (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (out_channels, _, kernel_height, kernel_width) =
+            (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
 
-        let mut output = PlainTensor{
+        let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
+        let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
+
+        // --- Create padded input ---
+        let padded_height = in_height + 2 * self.padding;
+        let padded_width = in_width + 2 * self.padding;
+
+        let mut padded_input = PlainTensor {
+            data: vec![T::default(); batch_size * in_channels * padded_height * padded_width],
+            shape: vec![batch_size, in_channels, padded_height, padded_width],
+        };
+
+        // Copy original input into padded tensor
+        for b in 0..batch_size {
+            for c in 0..in_channels {
+                for h in 0..in_height {
+                    for w in 0..in_width {
+                        let src_idx = input.flatten_index(&[b, c, h, w]);
+                        let dst_idx = padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
+                        padded_input.data[dst_idx] = input.data[src_idx];
+                    }
+                }
+            }
+        }
+
+        // --- Output tensor ---
+        let mut output = PlainTensor {
             data: vec![T::default(); batch_size * out_channels * out_height * out_width],
             shape: vec![batch_size, out_channels, out_height, out_width],
         };
 
+        // --- Convolution loop ---
         for b in 0..batch_size {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
                     for ow in 0..out_width {
                         let mut acc: T = self.biases.data[oc];
+
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
                                 for kw in 0..kernel_width {
-                                    let ih = oh * stride + kh;
-                                    let iw = ow * stride + kw;
-                                    let input_idx = input.flatten_index(&[b, ic, ih, iw]);
+                                    let ih = oh * self.stride + kh;
+                                    let iw = ow * self.stride + kw;
+
+                                    let input_idx = padded_input.flatten_index(&[b, ic, ih, iw]);
                                     let weight_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
-                                    let input_val = input.data[input_idx];
+
+                                    let input_val = padded_input.data[input_idx];
                                     let weight_val = self.weights.data[weight_idx];
+
                                     acc = acc.add(input_val.mul(weight_val));
                                 }
                             }
                         }
+
                         let out_idx = output.flatten_index(&[b, oc, oh, ow]);
                         output.data[out_idx] = acc;
                     }
@@ -76,14 +110,17 @@ where
         input: &PlainTensor<T>,
         grad_output: &PlainTensor<T>,
     ) -> PlainTensor<T> {
-        let (batch_size, in_channels, in_height, in_width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
-        let (out_channels, _, kernel_height, kernel_width) = (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
-        
-        let stride = 2;
-        let out_height = (in_height - kernel_height) / stride + 1;
-        let out_width = (in_width - kernel_width) / stride + 1;
+        let (batch_size, in_channels, in_height, in_width) =
+            (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (out_channels, _, kernel_height, kernel_width) =
+            (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
 
-        // 1. Initialize gradients
+        let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
+        let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
+
+        let mut grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width]);
+
+        // --- Initialize gradients ---
         let mut grad_input = PlainTensor {
             data: vec![T::default(); input.data.len()],
             shape: input.shape.clone(),
@@ -98,34 +135,65 @@ where
             data: vec![T::default(); out_channels],
             shape: vec![out_channels],
         };
+
+        // --- Padded input for convenience ---
+        let padded_height = in_height + 2 * self.padding;
+        let padded_width = in_width + 2 * self.padding;
+
+        let mut grad_input_padded = PlainTensor {
+            data: vec![T::default(); batch_size * in_channels * padded_height * padded_width],
+            shape: vec![batch_size, in_channels, padded_height, padded_width],
+        };
+
+                // --- build padded_input once (same as your forward)
+        let mut padded_input = PlainTensor {
+            data: vec![T::default(); batch_size * in_channels * padded_height * padded_width],
+            shape: vec![batch_size, in_channels, padded_height, padded_width],
+        };
+
+        for b in 0..batch_size {
+            for c in 0..in_channels {
+                for h in 0..in_height {
+                    for w in 0..in_width {
+                        let src = input.flatten_index(&[b, c, h, w]);
+                        let dst = padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
+                        padded_input.data[dst] = input.data[src];
+                    }
+                }
+            }
+        }
+
+        // --- main backward loops (no per-element bounds checks)
         for b in 0..batch_size {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
                     for ow in 0..out_width {
-                        let grad_out_idx = grad_output.flatten_index(&[b, oc, 0, oh * stride + ow]);
-                        let dy = grad_output.data[grad_out_idx];
+                        let grad_out_val = grad_output.data[grad_output.flatten_index(&[b, oc, oh, ow])];
 
                         // Bias gradient
-                        grad_biases.data[oc] = grad_biases.data[oc].add(dy);
+                        grad_biases.data[oc] = grad_biases.data[oc].add(grad_out_val);
 
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
                                 for kw in 0..kernel_width {
-                                    let ih = oh * stride + kh;
-                                    let iw = ow * stride + kw;
+                                    let ih = oh * self.stride + kh; // padded coord
+                                    let iw = ow * self.stride + kw; // padded coord
 
-                                    let input_idx = input.flatten_index(&[b, ic, ih, iw]);
-                                    let x_val = input.data[input_idx];
+                                    // read directly from padded_input
+                                    let inp_idx = padded_input.flatten_index(&[b, ic, ih, iw]);
+                                    let x_val = padded_input.data[inp_idx];
 
-                                    let weight_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
-                                    let w_val = self.weights.data[weight_idx];
+                                    let w_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
+                                    let w_val = self.weights.data[w_idx];
 
-                                    // Gradient w.r.t. input
-                                    let dx_idx = grad_input.flatten_index(&[b, ic, ih, iw]);
-                                    grad_input.data[dx_idx] = grad_input.data[dx_idx].add(dy.mul(w_val));
+                                    // grad wrt weights
+                                    grad_weights.data[w_idx] =
+                                        grad_weights.data[w_idx].add(grad_out_val.mul(x_val));
 
-                                    // Gradient w.r.t. weights
-                                    grad_weights.data[weight_idx] = grad_weights.data[weight_idx].add(dy.mul(x_val));
+                                    // grad wrt input (into padded grad buffer)
+                                    let gip_idx = grad_input_padded.flatten_index(&[b, ic, ih, iw]);
+                                    grad_input_padded.data[gip_idx] =
+                                        grad_input_padded.data[gip_idx].add(grad_out_val.mul(w_val));
                                 }
                             }
                         }
@@ -133,13 +201,27 @@ where
                 }
             }
         }
+        
+        // --- Remove padding from grad_input ---
+        for b in 0..batch_size {
+            for ic in 0..in_channels {
+                for h in 0..in_height {
+                    for w in 0..in_width {
+                        let padded_idx = grad_input_padded.flatten_index(&[b, ic, h + self.padding, w + self.padding]);
+                        let idx = grad_input.flatten_index(&[b, ic, h, w]);
+                        grad_input.data[idx] = grad_input_padded.data[padded_idx];
+                    }
+                }
+            }
+        }
 
-        // Save gradients for optimizer
+        // --- Store gradients for optimizer ---
         self.grad_weights = Some(grad_weights);
         self.grad_biases = Some(grad_biases);
 
         grad_input
     }
+
 
     fn update_parameters(&mut self, learning_rate: T)
         where

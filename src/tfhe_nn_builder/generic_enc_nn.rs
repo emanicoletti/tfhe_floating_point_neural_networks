@@ -8,6 +8,7 @@ use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 use crate::tfhe_nn_builder::encrypted_ops::*;
 
 use half::f16;
+use tfhe::array::stride;
 
 use std::time::Instant;
 
@@ -45,7 +46,7 @@ where
         self.layers.push(Box::new(dense_layer));
     }
 
-    pub fn add_conv(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
+    pub fn add_conv(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>, stride: usize, padding: usize) {
         let id = format!("Conv{}", self.layers.len() + 1);
         let conv_layer = EncryptedConvLayer {
             id: id,
@@ -53,6 +54,8 @@ where
             biases: biases,
             grad_weights: Some(grad_weights),
             grad_biases: Some(grad_biases),
+            stride,
+            padding,
         };
         self.layers.push(Box::new(conv_layer));
     }
@@ -138,11 +141,11 @@ where
                     */
                 }
                 let prediction = activations.last().unwrap();
-                /* 
+                
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch, &self.context);
-                let decrypted: u16 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
-                println!("Batch Loss: {:<6} ", f16::from_bits(decrypted).to_f32());
-                */
+                let decrypted: u32 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
+                println!("Batch Loss: {:<6} ", f32::from_bits(decrypted));
+                
                 println!("Forward pass time: {:?}", forward_time.elapsed());
                 println!("Backward started...");
                 let mut grad = self.loss.gradient(&prediction, &label_batch, &self.context);

@@ -30,7 +30,7 @@ impl<T: PlainElement> PlainTensor<T> {
         for i in (0..self.shape.len()).rev() {
             let dim_size = self.shape[i];
             let idx = indices[i];
-    
+            
             // This assertion fails when index is invalid
             assert!(
                 idx < dim_size,
@@ -192,15 +192,18 @@ impl<T: PlainElement> PlainTensor<T> {
     pub fn transpose(&self) -> PlainTensor<T> {
         assert_eq!(self.shape.len(), 4, "Transpose supports 4D tensors only");
         let batches = self.shape[0];
+        let channels = self.shape[1];
         let rows = self.shape[2];
         let cols = self.shape[3];
 
         let mut transposed_data = Vec::with_capacity(self.data.len());
 
         for b in 0..batches {
-            for col in 0..cols {
-                for row in 0..rows {
-                    transposed_data.push(self.get(&[b, 0, row, col]).clone());
+            for c in 0..channels {
+                for col in 0..cols {
+                    for row in 0..rows {
+                        transposed_data.push(self.get(&[b, c, row, col]).clone());
+                    }
                 }
             }
         }
@@ -318,7 +321,7 @@ impl<T: PlainElement> PlainTensor<T> {
     }
 
     pub fn flatten_hw_to_1d(&self) -> PlainTensor<T> {
-        assert_eq!(self.shape.len(), 4, "Tensor must be 4D [B, C, H, W]");
+         assert_eq!(self.shape.len(), 4, "Tensor must be 4D [B, C, H, W]");
         let [batch, channel, height, width] = self.shape[..] else {
             panic!("Invalid shape length");
         };
@@ -327,20 +330,81 @@ impl<T: PlainElement> PlainTensor<T> {
 
         for b in 0..batch {
             for c in 0..channel {
-                let mut flattened = Vec::with_capacity(height * width);
                 for h in 0..height {
                     for w in 0..width {
                         let val = self.get(&[b, c, h, w]).clone();
-                        flattened.push(val);
+                        result_data.push(val);
                     }
                 }
-                result_data.extend(flattened);
             }
         }
 
         PlainTensor {
             data: result_data,
-            shape: vec![batch, channel, 1, height * width],
+            shape: vec![batch, 1, 1, channel * height * width],
+        }
+    }
+
+    pub fn unflatten_1d_to_hw(&self, original_shape: &[usize; 4]) -> PlainTensor<T> where T: Default {
+        let [batch, channel, height, width] = *original_shape;
+
+        assert_eq!(self.shape.len(), 4, "Flattened tensor must be 4D [B,1,1,C*H*W]");
+        assert_eq!(
+            self.shape[0], batch,
+            "Batch size must match the original shape"
+        );
+        assert_eq!(
+            self.shape[3],
+            channel * height * width,
+            "Flattened dimension does not match C*H*W"
+        );
+
+        let mut result_data = vec![T::default(); batch * channel * height * width];
+
+        for b in 0..batch {
+            for c in 0..channel {
+                for h in 0..height {
+                    for w in 0..width {
+                        let flat_idx = c * height * width + h * width + w;
+                        let val = self.get(&[b, 0, 0, flat_idx]).clone();
+                        let dst_idx = b * channel * height * width + c * height * width + h * width + w;
+                        result_data[dst_idx] = val;
+                    }
+                }
+            }
+        }
+
+        PlainTensor {
+            data: result_data,
+            shape: vec![batch, channel, height, width],
+        }
+    }
+
+    pub fn print_tensor(&self) where T: PlainValueType + Copy {
+        let prediction = self.clone();
+        let size = prediction.shape[0];
+        let channel = prediction.shape[1];
+        let rows = prediction.shape[2];
+        let cols = prediction.shape[3];
+        let flat = &prediction.data;
+
+        if flat.len() != size * channel * rows * cols {
+            println!("Shape mismatch: expected {} elements, got {}", size * channel * rows * cols, flat.len());
+            return;
+        }
+
+        for b in 0..size {
+            for c in 0..channel {
+                println!("\nPrediction for Batch {}, Channel {}", b, c);
+                for i in 0..rows {
+                    print!("[");
+                    for j in 0..cols {
+                        let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
+                        print!("{:<6} ", flat[index].to_f32());
+                    }
+                    print!("]\n");
+                }
+            }
         }
     }
 
