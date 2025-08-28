@@ -131,7 +131,11 @@ where
         }
 
         grad_input
-}
+    }
+
+    fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
 
     fn update_parameters(
         &mut self,

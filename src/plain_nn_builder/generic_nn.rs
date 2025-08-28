@@ -106,93 +106,44 @@ where
             println!("Epoch {}/{}", epoch + 1, epochs);
             let time = Instant::now();
             let forward_time = Instant::now();
+            let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
-                //println!("Forward started...");
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
-                    //println!("Layer passed");
-                    
+                    for j in 0..output.data.len(){
+                        /* 
+                        if output.data[j].to_f32() > 100.0{
+                            panic!("Gradient too large at layer - forward {}: {:?}", layer.get_id(), output.data[j].to_f32());
+                        }
+                        */
+                    }
                 }
                 
                 let prediction = activations.last().unwrap();
-                /*
-                let size = prediction.shape[0];
-                let channel = prediction.shape[1];
-                let rows = prediction.shape[2];
-                let cols = prediction.shape[3];
-                let flat = &prediction.data;
-    
-                if flat.len() != size * channel * rows * cols {
-                    println!("Shape mismatch: expected {} elements, got {}", size * channel * rows * cols, flat.len());
-                    return;
-                }
-                
-                for b in 0..size {
-                    for c in 0..channel {
-                        println!("\nPrediction for Batch {}, Channel {}", b, c);
-                        for i in 0..rows {
-                            print!("[");
-                            for j in 0..cols {
-                                let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
-                                print!("{:<6} ", flat[index].to_f32());
-                            }
-                            print!("]\n");
-                        }
-                    }
-                }
-                */
-                
+                prediction.print_tensor();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch Loss: {:<6} ", loss_val.data[0].to_f32());
-                //println!("Forward pass time: {:?}", forward_time.elapsed());
-                //println!("Backward started...");
+                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
-                    grad = layer.backward(input_to_layer, &grad); 
-                    
-                    /* 
-                    if i == 0 {  // Only for the last layer (first iteration in reverse)
-                        let prediction = grad.clone();
-                        let size = prediction.shape[0];
-                        let channel = prediction.shape[1];
-                        let rows = prediction.shape[2];
-                        let cols = prediction.shape[3];
-                        let flat = &prediction.data;
-
-                        if flat.len() != size * channel * rows * cols {
-                            println!("Shape mismatch: expected {} elements, got {}", size * channel * rows * cols, flat.len());
-                            return;
+                    grad = layer.backward(input_to_layer, &grad);
+                    for j in 0..grad.data.len(){
+                        /* 
+                        if grad.data[j].to_f32() > 5.0{
+                            panic!("Gradient too large at layer - backward {}: {:?}", layer.get_id(), grad.data[j].to_f32());
                         }
-                        
-                        for b in 0..size {
-                            println!("\nGrad {}", b);
-                            for c in 0..channel {
-                                println!("Channel {}", c);
-                                for i in 0..rows {
-                                    print!("[");
-                                    for j in 0..cols {
-                                        let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
-                                        print!("{:<6} ", flat[index].to_f32());
-                                    }
-                                    print!("]\n");
-                                }
-                            }
-                        }
+                        */
                     }
-                    */
-
                 }
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
                 }
-                
-                
+                i_batch += 1;
+
             }
-            //println!("Epoch {} completed in {:?}", epoch + 1, time.elapsed());
         }
     }
 
@@ -202,7 +153,7 @@ where
     ) -> PlainTensor<T>{
         let mut activations = vec![input.clone()];
         for layer in &mut self.layers {
-            let output = layer.forward(activations.last().unwrap());
+            let output = layer.inference(activations.last().unwrap());
             activations.push(output.clone());
         }
         let prediction = PlainTensor{
@@ -211,6 +162,105 @@ where
         };
 
         prediction
+    }
+
+    pub fn train_and_validate(
+        &mut self,
+        epochs: usize,
+        batch_size: usize,
+        learning_rate: T,
+        train_inputs: PlainTensor<T>,
+        train_labels: PlainTensor<T>,
+        val_inputs: PlainTensor<T>,
+        val_labels: PlainTensor<T>,
+    )
+    {
+        for epoch in 0..epochs{
+            println!("Epoch {}/{}", epoch + 1, epochs);
+            let time = Instant::now();
+            let forward_time = Instant::now();
+            let mut i_batch = 1;
+            for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+                let mut activations = vec![input_batch.clone()];
+                for layer in &mut self.layers {
+                    let output = layer.forward(activations.last().unwrap());
+                    activations.push(output.clone());
+                    for j in 0..output.data.len(){
+                        /* 
+                        if output.data[j].to_f32() > 1000.0{
+                            panic!("Gradient too large at layer - forward {}: {:?}", layer.get_id(), output.data[j].to_f32());
+                        }
+                        */
+                    }
+                }
+                let prediction = activations.last().unwrap();
+                let loss_val = self.loss.compute_loss(&prediction, &label_batch);
+                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                
+                let mut grad = self.loss.gradient(&prediction, &label_batch);
+                for (i, layer) in self.layers.iter_mut().rev().enumerate() {
+                    let input_to_layer = &activations[activations.len() - 2 - i];
+                    grad = layer.backward(input_to_layer, &grad);
+                    for j in 0..grad.data.len(){
+                        /* 
+                        if grad.data[j].to_f32() > 5.0{
+                            panic!("Gradient too large at layer - backward {}: {:?}", layer.get_id(), grad.data[j].to_f32());
+                        }
+                        */
+                    }
+                }
+                for layer in &mut self.layers{
+                    layer.update_parameters(learning_rate.clone());
+                }
+                i_batch += 1;
+
+            }
+
+            let mut correct = 0;
+            let mut total = val_labels.shape[0];
+
+            for (input_batch, label_batch) in self.iter_batches(&val_inputs, &val_labels, 1){
+                let prediction = self.inference(&input_batch);
+                let mut prediction_f32: Vec<f32> = vec![0.0; label_batch.shape[3]];
+                for i in 0..prediction.data.len() {
+                    prediction_f32[i] = prediction.data[i].to_f32();
+                }
+
+                let predicted_index = prediction_f32
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .map(|(idx, _)| idx)
+                .unwrap();
+
+                // 2. Create one-hot encoded vector
+                let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
+                one_hot[predicted_index] = 1.0;
+
+                 // Get predicted class (argmax)
+                let predicted_class = prediction_f32
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .map(|(idx, _)| idx)
+                    .unwrap();
+
+                let label: Vec<f32> = label_batch.data.iter().map(|x| x.to_f32()).collect();
+
+                // Get actual class from one-hot label
+                let actual_class = label
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .map(|(idx, _)| idx)
+                    .unwrap();
+
+                if predicted_class == actual_class {
+                    correct += 1;
+                }
+            }
+            println!("Epoch {:?} Validation Accuracy: {:.2}%", epoch, (correct as f32 / total as f32) * 100.0);
+        }
     }
 
     fn iter_batches(
@@ -236,12 +286,13 @@ where
     
         let mut batches = Vec::new();
         let mut start = 0;
-    
+
         while start < num_samples {
             let end = usize::min(start + batch_size, num_samples);
             // Slice input batch
             let input_start = start * input_sample_size;
             let input_end = end * input_sample_size;
+
             let input_batch_data = inputs.data[input_start..input_end].to_vec();
             let input_batch_shape = vec![
                 end - start,

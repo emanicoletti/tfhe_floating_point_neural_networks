@@ -32,7 +32,7 @@ where
     + EncryptedReLU<K, T>
     + EncryptedBackwardRelu<K, T>
     + EncryptedGradIfEqual<K, T>,
-    T: EncryptedElement + Clone + EncryptableValueType<Plain=u32> + 'static,
+    T: EncryptedElement + Clone + EncryptableValueType + 'static,
 {
     pub fn add_dense(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
         let id = format!("Dense{}", self.layers.len() + 1);
@@ -142,9 +142,6 @@ where
                 }
                 let prediction = activations.last().unwrap();
                 
-                let loss_val = self.loss.compute_loss(&prediction, &label_batch, &self.context);
-                let decrypted: u32 = EncryptableValueType::decrypt(&loss_val.data[0], &self.context.client_key);
-                println!("Batch Loss: {:<6} ", f32::from_bits(decrypted));
                 
                 println!("Forward pass time: {:?}", forward_time.elapsed());
                 println!("Backward started...");

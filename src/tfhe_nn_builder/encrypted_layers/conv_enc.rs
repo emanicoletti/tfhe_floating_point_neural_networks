@@ -37,7 +37,7 @@ impl<T: EncryptedElement> EncryptedConvLayer<T> {
 impl<K, T> EncryptedLayer<K, T> for EncryptedConvLayer<T>
 where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedNegate<K, T>,
-    T: Clone + EncryptedElement + EncryptableValueType<Plain = u32>,
+    T: Clone + EncryptedElement + EncryptableValueType,
 {
     fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
         let (batch_size, in_channels, in_height, in_width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);

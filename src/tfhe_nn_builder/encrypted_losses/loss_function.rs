@@ -73,15 +73,15 @@ where
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T> {
         let n = predicted.data.len() as f32;
-        /* 
+         
         let n_f16 = f16::from_f32(n);
         let n_bits: usize = n_f16.to_bits().into();
-        */
-        let n_bits = n.to_bits() as usize;  
+        
+        //let n_bits = n.to_bits() as usize;  
 
         let n_enc = T::try_encrypt_plain(n_bits, &ctx.client_key).expect("Failed to encrypt float length");
         //let two: f16 = f16::from_f32(2.0);
-        let two = (2.0 as f32);
+        let two = f16::from_f32(2.0 as f32);
 ;
         let two = T::try_encrypt_plain(two.to_bits() as usize, &ctx.client_key)
             .expect("Failed to encrypt scalar 2");

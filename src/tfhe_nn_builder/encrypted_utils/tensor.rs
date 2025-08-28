@@ -71,7 +71,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     ) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedMul<K, T> + EncryptedAdd<K, T>,
-        T: EncryptableValueType<Plain = u32> + Clone,
+        T: EncryptableValueType + Clone,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");

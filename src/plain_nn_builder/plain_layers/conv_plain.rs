@@ -226,28 +226,31 @@ where
     fn update_parameters(&mut self, learning_rate: T)
         where
             T: Send + Sync + Copy,
-        {
-            if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-                // Update weights in parallel
-                self.weights.data
-                    .par_iter_mut()
-                    .zip(grad_w.data.par_iter())
-                    .for_each(|(w, &gw)| {
-                        *w = w.sub(gw.mul(learning_rate.clone()));
-                    });
+    {
+        if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
+            // Update weights in parallel
+            self.weights.data
+                .par_iter_mut()
+                .zip(grad_w.data.par_iter())
+                .for_each(|(w, &gw)| {
+                    *w = w.sub(gw.mul(learning_rate.clone()));
+                });
 
-                // Update biases in parallel
-                self.biases.data
-                    .par_iter_mut()
-                    .zip(grad_b.data.par_iter())
-                    .for_each(|(b, &gb)| {
-                        *b = b.sub(gb.mul(learning_rate.clone()));
-                    });
-            } else {
-                panic!("Missing gradients for weights or biases");
-            }
+            // Update biases in parallel
+            self.biases.data
+                .par_iter_mut()
+                .zip(grad_b.data.par_iter())
+                .for_each(|(b, &gb)| {
+                    *b = b.sub(gb.mul(learning_rate.clone()));
+                });
+        } else {
+            panic!("Missing gradients for weights or biases");
         }
+    }
 
+    fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
 
     fn get_weights(&self) -> PlainTensor<T> {
         self.weights.clone()

@@ -612,8 +612,8 @@ pub fn lmul32 (
     let b_exp = (&b &  2139095040u32) >> 23u32;
     let exp = &a_exp + &b_exp;
 
-    if exp < 127u32 {
-        return 0;
+    if exp < 127u32 || a == 0u32 || b == 0u32 {
+        return 0u32;
     }
     
     let a_digits = &a & 2147483647u32;
@@ -704,7 +704,7 @@ pub fn pam_mul32 (
     let b_exp = (&b &  2139095040u32) >> 23u32;
     let exp = &a_exp + &b_exp;
 
-    if exp < 127u32 {
+    if exp < 127u32 || a == 0u32 || b == 0u32 {
         return 0;
     }
     
@@ -794,7 +794,7 @@ pub fn lmul16 (
     let b_exp = (&b &  31744u16) >> 10u32;
     let exp = &a_exp + &b_exp;
 
-    if exp < 15u16 {
+    if exp < 15u16 || a == 0u16 || b == 0u16 {
         return 0;
     }
     
@@ -802,7 +802,6 @@ pub fn lmul16 (
     let b_digits = &b & 32767u16;
     let mut digits = &a_digits + &b_digits;
     digits -= 15296u16;
-    //digits -= 15360u16;
     digits &= 32767u16;
 
     return digits | sign
@@ -886,7 +885,7 @@ pub fn pam_mul16 (
     let b_exp = (&b &  31744u16) >> 10u32;
     let exp = &a_exp + &b_exp;
 
-    if exp < 15u16 {
+    if exp < 15u16 || a == 0u16 || b == 0u16 {
         return 0;
     }
     

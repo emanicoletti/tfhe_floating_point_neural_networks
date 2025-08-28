@@ -18,6 +18,8 @@ where
         learning_rate: T
     );
 
+    fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;
+
     fn get_weights(&self) -> PlainTensor<T>;
     
     fn get_biases(&self) -> PlainTensor<T>;

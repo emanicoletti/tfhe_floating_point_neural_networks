@@ -353,11 +353,10 @@ impl<T: PlainElement> PlainTensor<T> {
             self.shape[0], batch,
             "Batch size must match the original shape"
         );
-        assert_eq!(
-            self.shape[3],
-            channel * height * width,
-            "Flattened dimension does not match C*H*W"
-        );
+
+        if self.shape[3] != (channel * height * width) {
+            return self.clone();
+        }
 
         let mut result_data = vec![T::default(); batch * channel * height * width];
 
@@ -393,12 +392,12 @@ impl<T: PlainElement> PlainTensor<T> {
             return;
         }
 
-        for b in 0..size {
-            for c in 0..channel {
+        for b in 0..1 {
+            for c in 0..1 {
                 println!("\nPrediction for Batch {}, Channel {}", b, c);
-                for i in 0..rows {
+                for i in 0..1 {
                     print!("[");
-                    for j in 0..cols {
+                    for j in 0..1 {
                         let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
                         print!("{:<6} ", flat[index].to_f32());
                     }

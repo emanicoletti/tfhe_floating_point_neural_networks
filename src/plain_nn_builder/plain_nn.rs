@@ -43,6 +43,20 @@ pub trait PlainNeuralNetwork {
         input_shapes: Vec<usize>,
         label_shapes: Vec<usize>,
     ) -> Vec<f32>;
+    fn train_and_validate(
+        &mut self,
+        epochs: usize,
+        batch_size: usize,
+        learning_rate: f32,
+        train_inputs: &[Vec<f32>],
+        train_labels: &[Vec<f32>],
+        val_inputs: &[Vec<f32>],
+        val_labels: &[Vec<f32>],
+        input_shapes: Vec<usize>,
+        label_shapes: Vec<usize>,
+        val_input_shapes: Vec<usize>,
+        val_label_shapes: Vec<usize>,
+    );
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
     fn print_plain_grad_weights(&self, id: String);
@@ -125,14 +139,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
     }
 
     fn add_batch_norm(&mut self, size:usize) {
-        /* 
-        let x_hat = self.init_derivatives(&[size]);
-        let mean = self.init_derivatives(&[size]);
-        let variance = self.init_derivatives(&[size]);
-        let gamma = self.init_derivatives(&[size]);
-        let beta = self.init_derivatives(&[size]);
-        self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
-        */
         let (x_hat, mean, variance, gamma, beta) = self.init_batch_norm(&[size]);
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
     }
@@ -141,7 +147,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         let u32_learning_rate = learning_rate.to_bits();
         let train_inputs = self.dataset(train_inputs, input_shapes.clone());
         let train_labels = self.dataset(train_labels, label_shapes.clone());
-        let time = Instant::now();
         self.inner.train(epochs, batch_size, u32_learning_rate.clone(), train_inputs.clone(), train_labels.clone());
     }
 
@@ -152,7 +157,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         for i in 0..prediction.data.len() {
             prediction_f32[i] = f32::from_bits(prediction.data[i]); 
         }
-        //println!("Prediction: {:?}", prediction_f32);
 
         let predicted_index = prediction_f32
         .iter()
@@ -168,6 +172,27 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         one_hot
     }
 
+    fn train_and_validate(
+            &mut self,
+            epochs: usize,
+            batch_size: usize,
+            learning_rate: f32,
+            train_inputs: &[Vec<f32>],
+            train_labels: &[Vec<f32>],
+            val_inputs: &[Vec<f32>],
+            val_labels: &[Vec<f32>],
+            input_shapes: Vec<usize>,
+            label_shapes: Vec<usize>,
+            val_input_shapes: Vec<usize>,
+            val_label_shapes: Vec<usize>,
+        ) 
+    {
+        let train_inputs = self.dataset(train_inputs, input_shapes.clone());
+        let train_labels = self.dataset(train_labels, label_shapes.clone());
+        let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
+        let val_labels = self.dataset(val_labels, val_label_shapes.clone());
+        self.inner.train_and_validate(epochs, batch_size, learning_rate.to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+    }
     
     fn print_plain_weights(&self, id: String) {
         for layer in &self.inner.layers {
@@ -551,7 +576,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
     
     fn add_dense(&mut self, input_size: usize, output_size: usize) {
         let weights = self.init_weights(output_size, input_size, 1, 1, self.experiment);
-        let biases = self.init_biases(output_size);
+        let biases = self.init_biases(output_size, self.experiment);
         let grad_weights = self.init_gradients(&[output_size, input_size]);
         let grad_biases = self.init_gradients(&[output_size]);
         self.inner.add_dense(weights, biases, grad_weights, grad_biases);
@@ -573,18 +598,14 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
 
     fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
         let weights = self.init_weights(kernel_height, kernel_width, in_channels, out_channels, self.experiment);
-        let biases = self.init_biases(out_channels);
+        let biases = self.init_biases(out_channels, self.experiment);
         let grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
         let grad_biases = self.init_gradients(&[out_channels]);
         self.inner.add_conv(weights, biases, grad_weights, grad_biases, stride, padding);
     }
 
     fn add_batch_norm(&mut self, size:usize) {
-        let x_hat = self.init_derivatives(&[size]);
-        let mean = self.init_derivatives(&[size]);
-        let variance = self.init_derivatives(&[size]);
-        let gamma = self.init_derivatives(&[size]);
-        let beta = self.init_derivatives(&[size]);
+        let (x_hat, mean, variance, gamma, beta) = self.init_batch_norm(&[size]);
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
     }
 
@@ -604,7 +625,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         for i in 0..prediction.data.len() {
             prediction_f16[i] = f16::from_bits(prediction.data[i]); 
         }
-        //println!("Prediction: {:?}", prediction_f32);
 
         let predicted_index = prediction_f16
         .iter()
@@ -620,6 +640,27 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         one_hot
     }
 
+    fn train_and_validate(
+            &mut self,
+            epochs: usize,
+            batch_size: usize,
+            learning_rate: f32,
+            train_inputs: &[Vec<f32>],
+            train_labels: &[Vec<f32>],
+            val_inputs: &[Vec<f32>],
+            val_labels: &[Vec<f32>],
+            input_shapes: Vec<usize>,
+            label_shapes: Vec<usize>,
+            val_input_shapes: Vec<usize>,
+            val_label_shapes: Vec<usize>,
+        ) 
+    {
+        let train_inputs = self.dataset(train_inputs, input_shapes.clone());
+        let train_labels = self.dataset(train_labels, label_shapes.clone());
+        let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
+        let val_labels = self.dataset(val_labels, val_label_shapes.clone());
+        self.inner.train_and_validate(epochs, batch_size, f16::from_f32(learning_rate).to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+    }
     
     fn print_plain_weights(&self, id: String) {
         for layer in &self.inner.layers {
@@ -738,129 +779,184 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
 impl PlainNeuralNetworkU16 {
     fn init_weights(&mut self, input_size: usize, output_size: usize, in_channels: usize, out_channels: usize, experiment: Option<i8>) -> PlainTensor<u16> {
 
-        if output_size == 4 {
-            let fc_weights = EXP2_W_FC_32.to_vec();
-            let flattened_fc_weights: Vec<u16> = fc_weights
-                .iter()
-                .flatten()
-                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
-                .collect();
-            return PlainTensor::new(flattened_fc_weights, vec![1, 1, input_size, output_size]);
+       if experiment == Some(1) {
+            // Initialize weights for experiment 1
+            if output_size == 16 {
+                let fc1_weights = EXP1_W_FC1_32.to_vec();
+                let flattened_fc1_weight: Vec<u16> = fc1_weights
+                    .into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(flattened_fc1_weight, vec![1, 1, input_size, output_size]);
+            }
+            else if output_size == 4 {
+                let fc2_weights = EXP1_W_FC2_32.to_vec();
+                let flattened_fc2_weight: Vec<u16> = fc2_weights.into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(flattened_fc2_weight, vec![1, 1, input_size, output_size]);
+            }
+            else if output_size == 2 {
+                let fc3_weights = EXP1_W_FC3_32.to_vec();
+                let flattened_fc3_weight: Vec<u16> = fc3_weights.into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(flattened_fc3_weight, vec![1, 1, input_size, output_size]);
+            }
+            else {
+                panic!("No matching weight file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(2) {
+            if output_size == 4 {
+                let fc_weights = EXP2_W_FC_32.to_vec();
+                let flattened_fc_weights: Vec<u16> = fc_weights.into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();         
+                return PlainTensor::new(flattened_fc_weights, vec![1, 1, input_size, output_size]);
+            }
+            else if output_size == 2 {
+                let conv_weights = EXP2_W_CONV_32.to_vec();
+                let flattened_conv_weights: Vec<u16> = conv_weights.into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
+            }
+            else {
+                panic!("No matching weight file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(3) {
+            let weights_file: Array2<f32> = if output_size == 6272 && input_size == 256 {
+                read_npy(Path::new("src/experiment_3/initializations/fc1_weight.npy"))
+                    .expect("Failed to read fc1 weights")
+            } else if output_size == 256 && input_size == 10 {
+                read_npy(Path::new("src/experiment_3/initializations/fc2_weight.npy"))
+                    .expect("Failed to read fc2 weights")
+            } else if in_channels == 1 && out_channels == 32 {
+                read_npy(Path::new("src/experiment_3/initializations/conv1_weight.npy"))
+                    .expect("Failed to read conv1 weights")
+            } else if in_channels == 32 && out_channels == 64 {
+                read_npy(Path::new("src/experiment_3/initializations/conv2_weight.npy"))
+                    .expect("Failed to read conv2 weights")
+            } else if in_channels == 64 && out_channels == 128 {
+                read_npy(Path::new("src/experiment_3/initializations/conv3_weight.npy"))
+                    .expect("Failed to read conv3 weights")
+            } else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u16> = vec_vec_weights
+                .into_iter()
+                    .flatten()
+                    .map(|f| f16::from_f32(f).to_bits())
+                    .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
         }
         else {
-            let conv_weights = EXP2_W_CONV_32.to_vec();
-            let flattened_conv_weights: Vec<u16> = conv_weights
-                .iter()
-                .flatten()
-                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
-                .collect();
-            return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
-        }
-
-        /* 
-        if output_size == 16 {
-            let fc1_weight: Vec<Vec<u16>> = vec![
-            vec![
-                f16::from_f32(0.1478_f32).to_bits(), f16::from_f32(0.2460_f32).to_bits(), f16::from_f32(-0.1902_f32).to_bits(), f16::from_f32(0.2048_f32).to_bits(), f16::from_f32(-0.0094_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0475_f32).to_bits(), f16::from_f32(-0.0258_f32).to_bits(),
-                f16::from_f32(0.0352_f32).to_bits(), f16::from_f32(0.0608_f32).to_bits(), f16::from_f32(0.2474_f32).to_bits(), f16::from_f32(0.2253_f32).to_bits(), f16::from_f32(0.1077_f32).to_bits(), f16::from_f32(0.0669_f32).to_bits(), f16::from_f32(-0.0140_f32).to_bits(), f16::from_f32(0.1992_f32).to_bits()
-            ],
-            vec![
-                f16::from_f32(-0.0941_f32).to_bits(), f16::from_f32(-0.1871_f32).to_bits(), f16::from_f32(-0.1587_f32).to_bits(), f16::from_f32(0.1157_f32).to_bits(), f16::from_f32(-0.2498_f32).to_bits(), f16::from_f32(-0.1199_f32).to_bits(), f16::from_f32(0.1795_f32).to_bits(), f16::from_f32(-0.1308_f32).to_bits(),
-                f16::from_f32(0.1570_f32).to_bits(), f16::from_f32(-0.1353_f32).to_bits(), f16::from_f32(0.1298_f32).to_bits(), f16::from_f32(-0.2283_f32).to_bits(), f16::from_f32(0.1142_f32).to_bits(), f16::from_f32(0.0593_f32).to_bits(), f16::from_f32(0.0358_f32).to_bits(), f16::from_f32(-0.0192_f32).to_bits()
-            ],
-            vec![
-                f16::from_f32(-0.2092_f32).to_bits(), f16::from_f32(0.2381_f32).to_bits(), f16::from_f32(-0.1979_f32).to_bits(), f16::from_f32(-0.2127_f32).to_bits(), f16::from_f32(-0.1407_f32).to_bits(), f16::from_f32(0.1909_f32).to_bits(), f16::from_f32(0.0236_f32).to_bits(), f16::from_f32(0.0435_f32).to_bits(),
-                f16::from_f32(0.1414_f32).to_bits(), f16::from_f32(0.0379_f32).to_bits(), f16::from_f32(-0.2027_f32).to_bits(), f16::from_f32(0.1000_f32).to_bits(), f16::from_f32(0.1482_f32).to_bits(), f16::from_f32(-0.1996_f32).to_bits(), f16::from_f32(0.1349_f32).to_bits(), f16::from_f32(-0.0602_f32).to_bits()
-            ],
-            vec![
-                f16::from_f32(-0.0248_f32).to_bits(), f16::from_f32(-0.0221_f32).to_bits(), f16::from_f32(-0.0468_f32).to_bits(), f16::from_f32(0.0468_f32).to_bits(), f16::from_f32(0.0116_f32).to_bits(), f16::from_f32(0.0588_f32).to_bits(), f16::from_f32(-0.2422_f32).to_bits(), f16::from_f32(0.0707_f32).to_bits(),
-                f16::from_f32(0.1853_f32).to_bits(), f16::from_f32(-0.0841_f32).to_bits(), f16::from_f32(0.1562_f32).to_bits(), f16::from_f32(-0.0972_f32).to_bits(), f16::from_f32(-0.1543_f32).to_bits(), f16::from_f32(-0.0157_f32).to_bits(), f16::from_f32(0.1084_f32).to_bits(), f16::from_f32(-0.2480_f32).to_bits()
-            ],
-            ];
-            let flattened_fc1_weight: Vec<u16> = fc1_weight.into_iter().flatten().collect();
-            return PlainTensor::new(flattened_fc1_weight, vec![1, 1, input_size, output_size]);
-        }
-        if output_size == 4 {
-            let fc2_weight: Vec<Vec<u16>> = vec![
-            vec![f16::from_f32(-0.3546_f32).to_bits(),  f16::from_f32(0.2355_f32).to_bits(), f16::from_f32(-0.2220_f32).to_bits(), f16::from_f32(-0.0288_f32).to_bits()],
-            vec![f16::from_f32(-0.2830_f32).to_bits(), f16::from_f32(-0.4757_f32).to_bits(),  f16::from_f32(0.1246_f32).to_bits(),  f16::from_f32(0.0483_f32).to_bits()],
-            ];
-            let flattened_fc2_weight: Vec<u16> = fc2_weight.into_iter().flatten().collect();
-            return PlainTensor::new(flattened_fc2_weight, vec![1, 1, input_size, output_size]);
-        }
-        if output_size == 2 {
-            let fc3_weight: Vec<Vec<u16>> = vec![
-                vec![f16::from_f32(-0.6488_f32).to_bits(), f16::from_f32(0.2701_f32).to_bits()],
-                vec![f16::from_f32(0.1953_f32).to_bits(), f16::from_f32(0.1416_f32).to_bits()],
-                vec![f16::from_f32(-0.1549_f32).to_bits(), f16::from_f32(-0.6687_f32).to_bits()],
-            ];
-            let flattened_fc3_weight: Vec<u16> = fc3_weight.into_iter().flatten().collect();
-            return PlainTensor::new(flattened_fc3_weight, vec![1, 1, input_size, output_size]);
-        }
-        */
-        // Xavier Initialization standard deviation
         
-        let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
-        let normal = Normal::new(0.0, 0.5).unwrap();
-    
-        // Use a fixed seed for deterministic results
-        let mut rng = ChaCha8Rng::seed_from_u64(42);
+            let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
+            let normal = Normal::new(0.0, 0.5).unwrap();
+        
+            // Use a fixed seed for deterministic results
+            let mut rng = ChaCha8Rng::seed_from_u64(42);
 
-        let mut weights = Vec::with_capacity(in_channels * out_channels * input_size * output_size);
+            let mut weights = Vec::with_capacity(in_channels * out_channels * input_size * output_size);
 
-        for _ in 0..(in_channels * out_channels * input_size * output_size) {
-            let sample = f16::from_f32(normal.sample(&mut rng) as f32);
-            let u_sample = sample.to_bits();
-            weights.push(u_sample);
-        }
-    
-        PlainTensor {
-            data: weights,
-            shape: vec![in_channels, out_channels, input_size, output_size],
+            for _ in 0..(in_channels * out_channels * input_size * output_size) {
+                let sample = f16::from_f32(normal.sample(&mut rng) as f32);
+                let u_sample = sample.to_bits();
+                weights.push(u_sample);
+            }
+        
+            PlainTensor {
+                data: weights,
+                shape: vec![in_channels, out_channels, input_size, output_size],
+            }
         }
     }
 
-    fn init_biases(&mut self, output_size:usize) -> PlainTensor<u16> {
+    fn init_biases(&mut self, output_size:usize, experiment: Option<i8>) -> PlainTensor<u16> {
 
-        if output_size == 3{
-            let fc_bias = EXP2_B_FC_32.to_vec();
-            let flattened_fc_bias: Vec<u16> = fc_bias
-                .iter()
-                .map(|&f| f16::from_f32(f32::from_bits(f)).to_bits())
+        if experiment == Some(1) {
+            if output_size == 4 {
+                let fc_bias = EXP1_B_FC1_32.to_vec().into_iter()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
+            }
+            else if output_size == 2 {
+                let fc_bias = EXP1_B_FC2_32.to_vec().into_iter()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
+            }
+            else if output_size == 3 {
+                let fc_bias = EXP1_B_FC3_32.to_vec().into_iter()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
+            }
+            else {
+                panic!("No matching bias file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(2) {
+            if output_size == 3 {
+                let fc_bias = EXP2_B_FC_32.to_vec().into_iter()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
+            }
+            else if output_size == 1 {
+                let conv_bias = EXP2_B_CONV_32.to_vec().into_iter()
+                    .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
+                    .collect();
+                return PlainTensor::new(conv_bias, vec![1, 1, 1, output_size]);
+            }
+            else {
+                panic!("No matching bias file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(3) {
+            let biases_file: Array2<f32> = if output_size == 256 {
+            read_npy(Path::new("src/experiment_3/initializations/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 10 {
+                read_npy(Path::new("src/experiment_3/initializations/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else if output_size == 32 {
+                read_npy(Path::new("src/experiment_3/initializations/conv1_bias.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if output_size == 64 {
+                read_npy(Path::new("src/experiment_3/initializations/conv2_bias.npy"))
+                    .expect("Failed to read conv2 biases")
+            } else if output_size == 128 {
+                read_npy(Path::new("src/experiment_3/initializations/conv3_bias.npy"))
+                    .expect("Failed to read conv3 biases")
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            };
+
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u16> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| f16::from_f32(x).to_bits())
                 .collect();
-            return PlainTensor::new(flattened_fc_bias, vec![1, 1, 1, output_size]);
-        }
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } 
         else {
-            let conv_bias = EXP2_B_CONV_32.to_vec();
-            let bias_val = f16::from_f32(f32::from_bits(conv_bias[0])).to_bits();
-            let bias_tensor = PlainTensor::new(vec![bias_val], vec![1, 1, 1, output_size]);
-            return bias_tensor;
+            let biases = vec![0u16; output_size];
+            PlainTensor::new(biases, vec![1, 1, 1, output_size])
         }
-
-        /* 
-
-        if output_size == 4 {
-            let fc1_bias: Vec<u16> = vec![
-                f16::from_f32(-0.0879_f32).to_bits(), f16::from_f32(0.1680_f32).to_bits(), f16::from_f32(-0.1631_f32).to_bits(), f16::from_f32(-0.0271_f32).to_bits()
-            ];
-            return PlainTensor::new(fc1_bias, vec![1, 1, 1, 4]);
-        }
-        if output_size == 2 {
-            let fc2_bias: Vec<u16> = vec![
-                f16::from_f32(0.4002_f32).to_bits(), f16::from_f32(-0.0112_f32).to_bits()
-            ];
-            return PlainTensor::new(fc2_bias, vec![1, 1, 1, 2]);
-        }
-        if output_size == 3 {
-            let fc3_bias: Vec<u16> = vec![
-                f16::from_f32(-0.1854_f32).to_bits(), f16::from_f32(-0.2199_f32).to_bits(), f16::from_f32(-0.6619_f32).to_bits()
-            ];
-            return PlainTensor::new(fc3_bias, vec![1, 1, 1, 3]);
-        }
-        */
-
-        let biases = vec![0u16; output_size];
-        PlainTensor::new(biases, vec![1, 1, 1, output_size])
     }
 
     fn init_gradients(&self, shape: &[usize]) ->PlainTensor<u16> {
@@ -903,6 +999,43 @@ impl PlainNeuralNetworkU16 {
 
        PlainTensor { data: dataset, shape: vec![input_shapes[0], input_shapes[1], input_shapes[2], input_shapes[3]] }
 
+    }
+
+    fn init_batch_norm(&self, shape: &[usize]) -> (PlainTensor<u16>, PlainTensor<u16>, PlainTensor<u16>, PlainTensor<u16>, PlainTensor<u16>) {
+        let size = shape.iter().product();
+        let zeros = vec![0u16; size];
+        let ones = vec![15360u16; size];
+        let x_hat = PlainTensor::new(zeros.clone(), [1, 1, 1, shape[0]].to_vec());
+        let mean = PlainTensor::new(zeros.clone(), [1, 1, 1, shape[0]].to_vec());
+        let variance = PlainTensor::new(ones.clone(), [1, 1, 1, shape[0]].to_vec());
+
+        let (beta_file, gamma_file): (Array2<f32>, Array2<f32>) = if shape[0] == 32{
+            (read_npy(Path::new("src/experiment_3/initializations/bn1_bias.npy")).expect("Failed to read batch norm 32"), 
+            read_npy(Path::new("src/experiment_3/initializations/bn1_weight.npy")).expect("Failed to read batch norm 32"))
+        } else if shape[0] == 64 {
+            (read_npy(Path::new("src/experiment_3/initializations/bn2_bias.npy")).expect("Failed to read batch norm 64"), 
+            read_npy(Path::new("src/experiment_3/initializations/bn2_weight.npy")).expect("Failed to read batch norm 64"))
+        } else if shape[0] == 128 {
+            (read_npy(Path::new("src/experiment_3/initializations/bn3_bias.npy")).expect("Failed to read batch norm 128"), 
+            read_npy(Path::new("src/experiment_3/initializations/bn3_weight.npy")).expect("Failed to read batch norm 128"))
+        } else {
+            panic!("No matching weight file for given layer dimensions");
+        };
+        let vec_vec_beta = array2_to_vecvec(&beta_file);
+        let vec_vec_gamma = array2_to_vecvec(&gamma_file);
+        let beta_vec: Vec<u16> = vec_vec_beta
+            .into_iter()
+            .flatten()
+            .map(|x| f16::from_f32(x).to_bits())
+            .collect();
+        let gamma_vec: Vec<u16> = vec_vec_gamma
+            .into_iter()
+            .flatten()
+            .map(|x| f16::from_f32(x).to_bits())
+            .collect();
+        let beta = PlainTensor::new(beta_vec, [1, 1, 1, shape[0]].to_vec());
+        let gamma = PlainTensor::new(gamma_vec, [1, 1, 1, shape[0]].to_vec());
+        (x_hat, mean, variance, gamma, beta)
     }
 
 }

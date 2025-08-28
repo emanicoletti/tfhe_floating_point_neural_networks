@@ -104,7 +104,6 @@ pub fn fhe_lmul16_gpu(
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 

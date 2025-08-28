@@ -134,6 +134,10 @@ where
         }
     }
 
+    fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
+
     fn get_weights(&self) -> PlainTensor<T> 
     {
         self.weights.clone()

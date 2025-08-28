@@ -55,6 +55,10 @@ where
     // No parameters to update in tanh activation
     }
 
+    fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
+
     fn get_biases(&self) -> PlainTensor<T> {
         // No biases in tanh activation
         self.derivatives.clone()
