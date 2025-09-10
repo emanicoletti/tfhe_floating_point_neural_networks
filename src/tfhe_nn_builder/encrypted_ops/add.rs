@@ -84,8 +84,10 @@ pub fn fhe_add8_gpu(
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 3u8;
+            let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -342,8 +344,8 @@ pub fn fhe_add64_gpu(
 
     let ((ov_result, overflow), result) = rayon::join(
         ||{
-            let overflow = leading_zeros.clone().eq(10u8);
-            let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u8;
+            let overflow = leading_zeros.clone().eq(10u64);
+            let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u64;
             let res_exp = &x_exp + 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
@@ -352,9 +354,11 @@ pub fn fhe_add64_gpu(
             let diff = &leading_zeros - 11u64;
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
-            let sub_exp = &diff << 52u8;
+            let sub_exp = &diff << 52u64;
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let denorm = res_exp.gt(&x_exp);
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -445,8 +449,10 @@ pub fn fhe_add8_cpu(
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 3u8;
+            let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -462,7 +468,7 @@ pub fn fhe_add16_cpu(
     encrypted_zero: FheUint16,
     server_keys: ServerKey,
 ) -> FheUint16 {
-    rayon::broadcast(|_| set_server_key(server_keys.clone()));
+    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
     let ns_a = &encrypted_a & 0b0111_1111_1111_1111u16;
@@ -535,8 +541,10 @@ pub fn fhe_add16_cpu(
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 10u16;
+            let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -552,7 +560,7 @@ pub fn fhe_add32_cpu(
     encrypted_zero: FheUint32,
     server_keys: ServerKey,
 ) -> FheUint32 {
-    rayon::broadcast(|_| set_server_key(server_keys.clone()));
+    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     
     let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
@@ -625,7 +633,9 @@ pub fn fhe_add32_cpu(
             let mant = (&op_mant & &mask) << &diff;
             let sub_exp = &diff << 23u16;
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let denorm = res_exp.gt(&x_exp);
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );
@@ -710,9 +720,11 @@ pub fn fhe_add64_cpu(
             let diff = &leading_zeros - 11u64;
             let mask = &encrypted_mask >> &diff;
             let mant = (&op_mant & &mask) << &diff;
-            let sub_exp = &diff << 52u8;
+            let sub_exp = &diff << 52u64;
             let res_exp = &x_exp - &sub_exp;
-            let result = &x_sign | &res_exp | &mant;
+            let denorm = res_exp.gt(&x_exp);
+            let final_exp = denorm.select(&encrypted_zero, &res_exp);
+            let result = &x_sign | &final_exp | &mant;
             result
         }
     );

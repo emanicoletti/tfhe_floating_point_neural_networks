@@ -648,7 +648,6 @@ pub fn ldiv32 (
     let b_digits = &b & 2147483647u32;
     let mut digits = &a_digits - &b_digits;
     digits += 1064828928u32;
-    //digits += 1065353216u32;
     digits &= 2147483647u32;
 
     return digits | sign
@@ -830,7 +829,6 @@ pub fn ldiv16 (
     let b_digits = &b & 32767u16;
     let mut digits = &a_digits - &b_digits;
     digits += 15296u16;
-    //digits += 15360u16;
     digits &= 32767u16;
 
     return digits | sign

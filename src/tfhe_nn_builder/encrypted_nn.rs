@@ -83,12 +83,12 @@ pub struct EncryptedNeuralNetworkU32GPU {
 
 /// Format: (min_input, max_input, a, b, derivative)
 pub static TANH16_PLA_RANGES: &[(u16, u16, u16, u16, u16)] = &[
-    (49152u16, 65535u16, 48128u16, 0u16, 0u16), // [-inf, -2], output ~ -1, derivative ≈ 0
+    (49152u16, 65535u16, 0u16, 48128u16, 0u16), // [-inf, -2], output ~ -1, derivative ≈ 0
     (47787u16, 49151u16, 13312u16, 47104u16, 13312u16), // [-2, -0.8333] slope 0.25. intercept -0.5
     (32768u16, 47786u16, 15053u16, 0u16, 15053u16), // [-0.833, -0] slope=0.85 intercept = 0
     (0u16, 15019u16, 15053u16, 0u16, 15053u16), //[0, 0.833] slope=0.85 intercept = 0
     (15020u16, 16384u16, 13312u16, 14336u16, 13312u16), //[0.833, 2] slope = 0.25 intercept 0.5
-    (16385u16, 32767u16, 15360u16, 0u16, 0u16), // [2.0, +inf], output ~ 1, derivative ≈ 0
+    (16385u16, 32767u16, 0u16, 15360u16, 0u16), // [2.0, +inf], output ~ 1, derivative ≈ 0
 ];
 
 pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[

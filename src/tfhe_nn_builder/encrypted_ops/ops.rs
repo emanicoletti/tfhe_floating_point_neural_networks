@@ -282,25 +282,25 @@ impl EncryptedNegate<ServerKey, FheUint64> for ServerKey {
 
 impl EncryptedTanh<CudaServerKey, FheUint16> for CudaServerKey {
     fn tanh(&self, a: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> (FheUint16, FheUint16) {
-        fhe_tanh16_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+        fhe_lmul_tanh16_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
     }
 }
 
 impl EncryptedTanh<ServerKey, FheUint16> for ServerKey {
     fn tanh(&self, a: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> (FheUint16, FheUint16) {
-        fhe_tanh16_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+        fhe_lmul_tanh16_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
     }
 }
 
 impl EncryptedTanh<CudaServerKey, FheUint32> for CudaServerKey {
     fn tanh(&self, a: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> (FheUint32, FheUint32) {
-        fhe_tanh32_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+        fhe_lmul_tanh32_gpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
     }
 }
 
 impl EncryptedTanh<ServerKey, FheUint32> for ServerKey {
     fn tanh(&self, a: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> (FheUint32, FheUint32) {
-        fhe_tanh32_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
+        fhe_lmul_tanh32_cpu(a, self.clone(), ctx.encrypted_zero.clone(), ctx.encrypted_mask.clone(), &ctx.ranges)
     }
 }
 
