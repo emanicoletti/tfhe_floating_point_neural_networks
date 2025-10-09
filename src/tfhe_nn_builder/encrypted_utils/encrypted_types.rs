@@ -2,6 +2,8 @@ use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64};
 use tfhe::prelude::*;
 use tfhe::ClientKey;
 
+use half::f16;
+
 pub trait EncryptedElement: Clone + Send + Sync {}
 
 impl EncryptedElement for FheUint8 {}
@@ -17,6 +19,8 @@ pub trait EncryptableValueType {
         Self: Sized;
 
     fn decrypt(&self, key: &ClientKey) -> Self::Plain;
+
+    fn n_bits(n: f32) -> usize;
 }
 
 impl EncryptableValueType for FheUint8 {
@@ -28,6 +32,10 @@ impl EncryptableValueType for FheUint8 {
 
     fn decrypt(&self, key: &ClientKey) -> Self::Plain {
         FheDecrypt::decrypt(self, key)
+    }
+
+    fn n_bits(n: f32) -> usize {
+        unimplemented!()
     }
 }
 
@@ -41,6 +49,11 @@ impl EncryptableValueType for FheUint16 {
     fn decrypt(&self, key: &ClientKey) -> Self::Plain {
         FheDecrypt::decrypt(self, key)
     }
+
+    fn n_bits(n: f32) -> usize {
+        let n_f16 = f16::from_f32(n);
+        n_f16.to_bits() as usize
+    }
 }
 
 impl EncryptableValueType for FheUint32 {
@@ -53,6 +66,10 @@ impl EncryptableValueType for FheUint32 {
     fn decrypt(&self, key: &ClientKey) -> Self::Plain {
         FheDecrypt::decrypt(self, key)
     }
+
+    fn n_bits(n: f32) -> usize {
+        n.to_bits() as usize
+    }
 }
 
 impl EncryptableValueType for FheUint64 {
@@ -64,5 +81,9 @@ impl EncryptableValueType for FheUint64 {
 
     fn decrypt(&self, key: &ClientKey) -> Self::Plain {
         FheDecrypt::decrypt(self, key)
+    }
+
+    fn n_bits(n: f32) -> usize {
+        unimplemented!()
     }
 }

@@ -41,7 +41,7 @@ pub fn experiment_3_fp32(train_plain_network: bool, test_plain_network: bool, ve
     plain_model.add_dense(256, 10);
 
     plain_model.train_and_validate(
-        25,
+        50,
         64,
         0.01,
         &train_inputs,
@@ -53,6 +53,42 @@ pub fn experiment_3_fp32(train_plain_network: bool, test_plain_network: bool, ve
         vec![1000, 1, 28, 28],
         vec![1000, 1, 1, 10],
     );
+
+    /* 
+    let mut correct = 0;
+    let mut total = test_labels.len();
+
+    for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
+        let input_batch = vec![input.clone()]; // batch size = 1
+        let input_shape = vec![1, 1, 28, 28];
+        let label_shape = vec![1, 1, 1, 10];
+
+        let prediction = plain_model.inference(&input_batch, input_shape, label_shape);
+
+        // Get predicted class (argmax)
+        let predicted_class = prediction
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(idx, _)| idx)
+            .unwrap();
+
+        // Get actual class from one-hot label
+        let actual_class = label
+            .iter()
+            .enumerate()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+            .map(|(idx, _)| idx)
+            .unwrap();
+
+        if predicted_class == actual_class {
+            correct += 1;
+        }
+    }
+
+    let accuracy = correct as f32 / total as f32;
+    println!("Test Accuracy: {:.2}%", accuracy * 100.0);
+    */
 
     Ok(())
 }

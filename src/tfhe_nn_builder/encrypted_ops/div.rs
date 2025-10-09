@@ -41,7 +41,6 @@ pub fn fhe_ldiv8_gpu(
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_0111u8;
-            digits &= 0b0111_1111u8;
             result_digits = Some(digits);
         });
     });
@@ -96,7 +95,6 @@ pub fn fhe_ldiv16_gpu(
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 15296u16;
-            digits &= 32767u16;
             result_digits = Some(digits);
         });
     });
@@ -205,7 +203,6 @@ pub fn fhe_ldiv64_gpu(
             let y_digits = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_1111_1110_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            digits &= 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             result_digits = Some(digits);
         });
     });
@@ -262,7 +259,6 @@ pub fn fhe_ldiv8_cpu(
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_0111u8;
-            digits &= 0b0111_1111u8;
             result_digits = Some(digits);
         });
     });
@@ -317,7 +313,6 @@ pub fn fhe_ldiv16_cpu(
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 15296u16;
-            digits &= 32767u16;
             result_digits = Some(digits);
         });
     });
@@ -372,7 +367,6 @@ pub fn fhe_ldiv32_cpu(
             let y_digits = &encrypted_b & 2147483647u32;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 1064828928u32;
-            digits &= 2147483647u32;
             result_digits = Some(digits);
         });
     });
@@ -427,7 +421,6 @@ pub fn fhe_ldiv64_cpu(
             let y_digits = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_1111_1110_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            digits &= 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             result_digits = Some(digits);
         });
     });
@@ -482,7 +475,6 @@ pub fn fhe_pam_div8_gpu(
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_1000u8;
-            digits &= 0b0111_1111u8;
             result_digits = Some(digits);
         });
     });
@@ -537,7 +529,6 @@ pub fn fhe_pam_div16_gpu(
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 15360u16;
-            digits &= 32767u16;
             result_digits = Some(digits);
         });
     });
@@ -646,7 +637,6 @@ pub fn fhe_pam_div64_gpu(
             let y_digits = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            digits &= 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             result_digits = Some(digits);
         });
     });
@@ -703,7 +693,6 @@ pub fn fhe_pam_div8_cpu(
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_0111u8;
-            digits &= 0b0111_1111u8;
             result_digits = Some(digits);
         });
     });
@@ -758,7 +747,6 @@ pub fn fhe_pam_div16_cpu(
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 15360u16;
-            digits &= 32767u16;
             result_digits = Some(digits);
         });
     });
@@ -813,7 +801,6 @@ pub fn fhe_pam_div32_cpu(
             let y_digits = &encrypted_b & 2147483647u32;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 1065353216u32;
-            digits &= 2147483647u32;
             result_digits = Some(digits);
         });
     });
@@ -868,7 +855,6 @@ pub fn fhe_pam_div64_cpu(
             let y_digits = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             let mut digits = &x_digits - &y_digits;
             digits = digits + 0b0011_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            digits &= 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
             result_digits = Some(digits);
         });
     });

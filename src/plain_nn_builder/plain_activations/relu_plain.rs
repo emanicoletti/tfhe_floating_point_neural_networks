@@ -57,6 +57,10 @@ where
         self.forward(input)
     }
 
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
+
     fn get_biases(&self) -> PlainTensor<T> {
         // No biases in relu activation
         PlainTensor::new(vec![], vec![])

@@ -16,6 +16,7 @@ pub fn fhe_lmul_tanh16_gpu(
     encrypted_mask: FheUint16,
     ranges: &[(FheUint16, FheUint16, FheUint16, FheUint16, FheUint16)],
 ) -> (FheUint16, FheUint16) {
+    set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     // Collect partial outputs and derivatives separately

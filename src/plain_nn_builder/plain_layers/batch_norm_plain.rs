@@ -51,7 +51,7 @@ impl<T: PlainElement> PlainBatchNormLayer<T> {
 
 impl<T> PlainLayer<T> for PlainBatchNormLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + PlainDiv + PlainSqrt + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default,
+    T: PlainAdd + PlainSub + PlainMul + PlainDiv + PlainSqrt + PlainMulInf + PlainDivInf + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         let batch_size = input.shape[0];
@@ -261,6 +261,32 @@ where
                         let idx = input.flatten_index(&[i, j, k, l]);
                         let x = input.data[idx];
                         normalized.data[idx] = (x.sub(mean).div(std)).mul(gamma).add(beta);
+                    }
+                }
+            }
+        }
+
+        normalized
+    }
+
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        let batch_size = input.shape[0];
+        let mut normalized = input.clone();
+
+        for j in 0..input.shape[1] { // loop over channels
+            let mean = self.mean.data[j];
+            let var = self.variance.data[j];
+            let gamma = self.gamma.data[j];
+            let beta = self.beta.data[j];
+
+            let std = (var.add(T::from_f32(1e-5))).sqrt();
+
+            for i in 0..batch_size {
+                for k in 0..input.shape[2] {
+                    for l in 0..input.shape[3] {
+                        let idx = input.flatten_index(&[i, j, k, l]);
+                        let x = input.data[idx];
+                        normalized.data[idx] = (x.sub(mean).div_inf(std)).mul_inf(gamma).add(beta);
                     }
                 }
             }

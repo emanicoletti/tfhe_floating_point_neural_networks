@@ -32,19 +32,24 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(4, 2);
         plain_model.add_tanh_activation(2);
         plain_model.add_dense(2, 3);
+        plain_model.add_tanh_activation(3);
 
         /*
         if verbose -> Print a summary
         */
 
-        plain_model.train(
-            1,
-            1,
-            0.1,
+        plain_model.train_and_validate(
+            10,
+            5,
+            0.05,
             &train_inputs,
             &train_labels,
-            vec![1, 1, 16, 16],
-            vec![1, 1, 1, 3],
+            &val_inputs,
+            &val_labels,
+            vec![50, 1, 16, 16],
+            vec![50, 1, 1, 3],
+            vec![5000, 1, 16, 16],
+            vec![5000, 1, 1, 3],
         );
 
         plain_model.print_plain_weights("Dense2".to_string());
@@ -64,6 +69,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         encrypted_model.add_dense(4, 2);
         encrypted_model.add_tanh_activation(2);
         encrypted_model.add_dense(2, 3);
+        encrypted_model.add_tanh_activation(3);
 
         /*
         if verbose -> Print a summary
@@ -190,6 +196,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(4, 2);
         plain_model.add_tanh_activation(2);
         plain_model.add_dense(2, 3);
+        plain_model.add_tanh_activation(3);
 
         /*
         if verbose -> Print a summary
@@ -222,6 +229,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         encrypted_model.add_dense(4, 2);
         encrypted_model.add_tanh_activation(2);
         encrypted_model.add_dense(2, 3);
+        encrypted_model.add_tanh_activation(3);
 
         /*
         if verbose -> Print a summary
@@ -229,7 +237,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
 
         encrypted_model.train(
             1,
-            15,
+            1,
             0.1,
             &train_inputs,
             &train_labels,

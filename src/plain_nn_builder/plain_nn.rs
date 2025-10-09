@@ -218,7 +218,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
                     return;
                 }
     
-                println!("\nDecrypted Weights for Layer \"{}\":", id);
+                println!("\nPlain Weights for Layer \"{}\":", id);
                 for c in 0..out_channels {
                     for k in 0..in_channels {
                         for i in 0..rows {
@@ -248,7 +248,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
                 let columns = shape[3];
                 let flat = biases.data;
 
-                println!("\nDecrypted Biases for Layer \"{}\":", id);
+                println!("\nPlain Biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
                     print!("{:<6} ", f32::from_bits(flat[i]));
@@ -279,7 +279,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
                     return;
                 }
     
-                println!("\nDecrypted grad_weights for Layer \"{}\":", id);
+                println!("\nPlain grad_weights for Layer \"{}\":", id);
                 for i in 0..rows {
                     print!("\n[");
                     for j in 0..cols {
@@ -304,7 +304,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
                 let columns = shape[3];
                 let flat = biases.data;
 
-                println!("\nDecrypted grad_biases for Layer \"{}\":", id);
+                println!("\nPlain grad_biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
                     print!("{:<6} ", f32::from_bits(flat[i]));
@@ -342,7 +342,7 @@ impl PlainNeuralNetworkU32 {
             }
         }
         else if experiment == Some(2) {
-            if output_size == 4 {
+            if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u32> = fc_weights.into_iter().flatten().collect();
                 return PlainTensor::new(flattened_fc_weights, vec![1, 1, input_size, output_size]);
@@ -350,7 +350,7 @@ impl PlainNeuralNetworkU32 {
             else if output_size == 2 {
                 let conv_weights = EXP2_W_CONV_32.to_vec();
                 let flattened_conv_weights: Vec<u32> = conv_weights.into_iter().flatten().collect();
-                return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
+                return PlainTensor::new(flattened_conv_weights, vec![out_channels, in_channels, input_size, output_size]);
             }
             else {
                 panic!("No matching weight file for given layer dimensions");
@@ -386,9 +386,12 @@ impl PlainNeuralNetworkU32 {
             return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
         }
         else {
+            // Compute std_dev like PyTorch (Glorot / Xavier normal)
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
-            let normal = Normal::new(0.0, 0.5).unwrap();
-        
+
+            // Create a normal distribution with mean=0 and std=std_dev
+            let normal = Normal::new(0.0, std_dev).unwrap();
+
             let mut rng = ChaCha8Rng::seed_from_u64(42);
 
             let mut weights = Vec::with_capacity(in_channels * out_channels * input_size * output_size);
@@ -430,7 +433,7 @@ impl PlainNeuralNetworkU32 {
                 let fc_bias = EXP2_B_FC_32.to_vec();
                 return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
             }
-            else if output_size == 1 {
+            else if output_size == 2 {
                 let conv_bias = EXP2_B_CONV_32.to_vec();
                 return PlainTensor::new(conv_bias, vec![1, 1, 1, output_size]);
             }
@@ -682,7 +685,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
                     return;
                 }
     
-                println!("\nDecrypted Weights for Layer \"{}\":", id);
+                println!("\nPlain Weights for Layer \"{}\":", id);
                 for i in 0..rows {
                     print!("\n[");
                     for j in 0..cols {
@@ -708,7 +711,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
                 let columns = shape[3];
                 let flat = biases.data;
 
-                println!("\nDecrypted Biases for Layer \"{}\":", id);
+                println!("\nPlain Biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
                     print!("{:<6} ", f16::from_bits(flat[i]));
@@ -739,7 +742,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
                     return;
                 }
     
-                println!("\nDecrypted grad_weights for Layer \"{}\":", id);
+                println!("\nPlain grad_weights for Layer \"{}\":", id);
                 for i in 0..rows {
                     print!("\n[");
                     for j in 0..cols {
@@ -764,7 +767,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
                 let columns = shape[3];
                 let flat = biases.data;
 
-                println!("\nDecrypted grad_biases for Layer \"{}\":", id);
+                println!("\nPlain grad_biases for Layer \"{}\":", id);
                 print!("\n[");
                 for i in 0..columns {
                     print!("{:<6} ", f16::from_bits(flat[i]));
@@ -811,7 +814,7 @@ impl PlainNeuralNetworkU16 {
             }
         }
         else if experiment == Some(2) {
-            if output_size == 4 {
+            if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u16> = fc_weights.into_iter()
                     .flatten()
@@ -825,7 +828,7 @@ impl PlainNeuralNetworkU16 {
                     .flatten()
                     .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
                     .collect();
-                return PlainTensor::new(flattened_conv_weights, vec![1, 1, input_size, output_size]);
+                return PlainTensor::new(flattened_conv_weights, vec![out_channels, in_channels, input_size, output_size]);
             }
             else {
                 panic!("No matching weight file for given layer dimensions");
@@ -915,7 +918,7 @@ impl PlainNeuralNetworkU16 {
                     .collect();
                 return PlainTensor::new(fc_bias, vec![1, 1, 1, output_size]);
             }
-            else if output_size == 1 {
+            else if output_size == 2 {
                 let conv_bias = EXP2_B_CONV_32.to_vec().into_iter()
                     .map(|f| f16::from_f32(f32::from_bits(f)).to_bits())
                     .collect();

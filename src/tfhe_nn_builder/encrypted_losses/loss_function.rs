@@ -6,6 +6,7 @@ use crate::tfhe_nn_builder::encrypted_ops::*;
 
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::ClientKey;
+use tfhe::{FheUint16, FheUint32};
 
 use half::*;
 
@@ -26,7 +27,10 @@ where
         predicted: &EncryptedTensor<T>,
         target: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
-    ) -> EncryptedTensor<T>;
+    ) -> EncryptedTensor<T> 
+    {
+        unimplemented!("Gradient computation not implemented for this loss function");
+    }
 }
 
 pub struct MseLoss;
@@ -71,20 +75,16 @@ where
         predicted: &EncryptedTensor<T>,
         target: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
-    ) -> EncryptedTensor<T> {
+    ) -> EncryptedTensor<T> 
+    {
         let n = predicted.data.len() as f32;
          
-        let n_f16 = f16::from_f32(n);
-        let n_bits: usize = n_f16.to_bits().into();
-        
-        //let n_bits = n.to_bits() as usize;  
+        let n_bits = T::n_bits(n);
 
         let n_enc = T::try_encrypt_plain(n_bits, &ctx.client_key).expect("Failed to encrypt float length");
-        //let two: f16 = f16::from_f32(2.0);
-        let two = f16::from_f32(2.0 as f32);
-;
-        let two = T::try_encrypt_plain(two.to_bits() as usize, &ctx.client_key)
-            .expect("Failed to encrypt scalar 2");
+
+        let two = T::n_bits(2.0 as f32);
+        let two = T::try_encrypt_plain(two, &ctx.client_key).expect("Failed to encrypt scalar 2");
     
         let mut grad_data = Vec::with_capacity(n as usize);
         println!("!Gradient computation started");

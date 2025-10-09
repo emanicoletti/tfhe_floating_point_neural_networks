@@ -142,7 +142,6 @@ where
                 }
                 let prediction = activations.last().unwrap();
                 
-                
                 println!("Forward pass time: {:?}", forward_time.elapsed());
                 println!("Backward started...");
                 let mut grad = self.loss.gradient(&prediction, &label_batch, &self.context);

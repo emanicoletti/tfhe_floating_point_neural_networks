@@ -109,6 +109,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         let compressed_server_key = CompressedServerKey::new(&client_key);
         let server_key = compressed_server_key.decompress_to_gpu();
 
+        rayon::broadcast(|_| set_server_key(server_key.clone()));
+
         let encrypted_zero = FheUint16::try_encrypt(0u16, &client_key).unwrap();
         let encrypted_mask = FheUint16::try_encrypt(1023u16, &client_key).unwrap();
 
@@ -374,7 +376,7 @@ impl EncryptedNeuralNetworkU16GPU {
             }
         }
         else if experiment == Some(2) {
-            if output_size == 4 {
+            if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u16> = fc_weights.into_iter()
                     .flatten()
@@ -475,7 +477,7 @@ impl EncryptedNeuralNetworkU16GPU {
                 let biases_u32 = EXP2_B_FC_32.to_vec();
                 plain_biases = biases_u32.iter().map(|&x| f16::from_f32(f32::from_bits(x)).to_bits()).collect();
             }
-            else if output_size == 1 {
+            else if output_size == 2 {
                 let biases_u32 = EXP2_B_CONV_32.to_vec();
                 plain_biases = biases_u32.iter().map(|&x| f16::from_f32(f32::from_bits(x)).to_bits()).collect();
             }
@@ -842,7 +844,7 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
         else if experiment == Some(2) {
-            if output_size == 4 {
+            if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u32> = fc_weights.into_iter().flatten().collect();
                 plain_weights = flattened_fc_weights;
@@ -932,7 +934,7 @@ impl EncryptedNeuralNetworkU32GPU {
             if output_size == 3 {
                 plain_biases = EXP2_B_FC_32.to_vec();
             }
-            else if output_size == 1 {
+            else if output_size == 2 {
                 plain_biases = EXP2_B_CONV_32.to_vec();
             }
             else {

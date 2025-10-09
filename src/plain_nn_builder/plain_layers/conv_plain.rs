@@ -32,7 +32,7 @@ impl<T: PlainElement> PlainConv2DLayer<T> {
 
 impl<T> PlainLayer<T> for PlainConv2DLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default,
+    T: PlainAdd + PlainSub + PlainMul + PlainMulInf + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
 
@@ -250,6 +250,77 @@ where
 
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         self.forward(input)
+    }
+    
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+
+        let (batch_size, in_channels, in_height, in_width) =
+            (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (out_channels, _, kernel_height, kernel_width) =
+            (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
+
+        let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
+        let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
+
+        // --- Create padded input ---
+        let padded_height = in_height + 2 * self.padding;
+        let padded_width = in_width + 2 * self.padding;
+
+        let mut padded_input = PlainTensor {
+            data: vec![T::default(); batch_size * in_channels * padded_height * padded_width],
+            shape: vec![batch_size, in_channels, padded_height, padded_width],
+        };
+
+        // Copy original input into padded tensor
+        for b in 0..batch_size {
+            for c in 0..in_channels {
+                for h in 0..in_height {
+                    for w in 0..in_width {
+                        let src_idx = input.flatten_index(&[b, c, h, w]);
+                        let dst_idx = padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
+                        padded_input.data[dst_idx] = input.data[src_idx];
+                    }
+                }
+            }
+        }
+
+        // --- Output tensor ---
+        let mut output = PlainTensor {
+            data: vec![T::default(); batch_size * out_channels * out_height * out_width],
+            shape: vec![batch_size, out_channels, out_height, out_width],
+        };
+
+        // --- Convolution loop ---
+        for b in 0..batch_size {
+            for oc in 0..out_channels {
+                for oh in 0..out_height {
+                    for ow in 0..out_width {
+                        let mut acc: T = self.biases.data[oc];
+
+                        for ic in 0..in_channels {
+                            for kh in 0..kernel_height {
+                                for kw in 0..kernel_width {
+                                    let ih = oh * self.stride + kh;
+                                    let iw = ow * self.stride + kw;
+
+                                    let input_idx = padded_input.flatten_index(&[b, ic, ih, iw]);
+                                    let weight_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
+
+                                    let input_val = padded_input.data[input_idx];
+                                    let weight_val = self.weights.data[weight_idx];
+
+                                    acc = acc.add(input_val.mul_inf(weight_val));
+                                }
+                            }
+                        }
+
+                        let out_idx = output.flatten_index(&[b, oc, oh, ow]);
+                        output.data[out_idx] = acc;
+                    }
+                }
+            }
+        }
+        output
     }
 
     fn get_weights(&self) -> PlainTensor<T> {

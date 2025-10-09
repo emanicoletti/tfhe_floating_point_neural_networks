@@ -23,7 +23,7 @@ use half::f16;
 use rayon::prelude::*;
 use rayon::{join, scope};
 use std::thread;
-use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
+use tfhe::shortint::prelude::*;
 
 use crate::plain_nn_builder::plain_ops::ops::*;
 use crate::ops_playground::test_ops::*;
@@ -31,7 +31,9 @@ use crate::ops_playground::test_ops::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    test_encrypted_ops("same_sign_add", 64, false, 10, -5.0, 5.0)?;
+    //test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
+    experiment_1_fp32(true, false, true, false)?;
+
     Ok(())
 }
 

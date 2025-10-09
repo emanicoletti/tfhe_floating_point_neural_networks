@@ -129,6 +129,77 @@ impl<T: PlainElement> PlainTensor<T> {
         PlainTensor::new(result_data, result_shape)
     }
 
+    pub fn approx_matmul(
+        &self,
+        other: &PlainTensor<T>,
+    )-> PlainTensor<T>
+    where 
+        T: PlainAdd + PlainMulInf + PlainValueType + Copy,
+    {
+        assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
+        assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
+    
+        let [batch, channel, h1, w1] = self.shape[..] else {
+            panic!("Left tensor shape must be [B, C, H1, W1]");
+        };
+    
+        let [b2, c2, h2, w2] = other.shape[..] else {
+            panic!("Right tensor shape must be [B, C, H2, W2]");
+        };
+    
+        assert_eq!(channel, c2, "Channel dimensions must match");
+        assert_eq!(w1, h2, "Inner dimensions must match for matmul");
+    
+        let result_shape = vec![batch, channel, h1, w2];
+    
+        let result_data = (0..batch * channel * h1 * w2)
+            .into_par_iter()
+            .map(|flat_index| {
+                let b = (flat_index / (channel * h1 * w2)) % batch;
+                let mut b_self = b;
+                let mut b_other = b;
+                if other.shape[0] == 1 {
+                    b_other = 0;
+                }
+                if self.shape[0] == 1 {
+                    b_self = 0;
+                }
+                let c = (flat_index / (h1 * w2)) % channel;
+                let i = (flat_index / w2) % h1;
+                let j = flat_index % w2;
+    
+                // Collect all multiplications first
+                let mut products = Vec::with_capacity(w1);
+                for k in 0..w1 {
+                    let a_val = self.get(&[b_self, c, i, k]).clone();
+                    let b_val = other.get(&[b_other, c, k, j]).clone();
+                    let prod = a_val.clone().mul_inf(b_val.clone());
+                    //println!("Multiplying {} with {} = {}", a_val.to_f32(), b_val.to_f32(), prod.to_f32());
+                    products.push(prod);
+                }
+    
+                // Tree-reduced addition of the products
+                while products.len() > 1 {
+                    let mut next = Vec::with_capacity((products.len() + 1) / 2);
+                    for pair in products.chunks(2) {
+                        if pair.len() == 2 {
+                            next.push(pair[0].clone().add(pair[1].clone()));
+                            //println!("Adding {} and {} = {}", pair[0].to_f32(), pair[1].to_f32(), next.last().unwrap().to_f32());
+                        } else {
+                            next.push(pair[0].clone());
+                        }
+                    }
+                    products = next;
+                }
+    
+                products.pop().unwrap()
+            })
+            .collect();
+    
+        PlainTensor::new(result_data, result_shape)
+    }
+
+
     /// Element-wise addition of two tensors with the same shape.
     pub fn add(
         &self,

@@ -49,31 +49,40 @@ pub static EXP1_B_FC3_32: [u32; 3] = [
 
 /* Experiment 2: Layer Initializations */
 
-pub static EXP2_W_CONV_32: [[u32; 2]; 2] = [
+pub static EXP2_W_CONV_32: [[u32; 4]; 2] = [
     [
-        0.1053_f32.to_bits(), 0.2747_f32.to_bits()
+        (-0.3530_f32).to_bits(), (-0.1346_f32).to_bits(), (-0.4294_f32).to_bits(), (0.0095_f32).to_bits()
     ],
     [
-        (-0.2619_f32).to_bits(), (-0.0588_f32).to_bits()
+        (0.3344_f32).to_bits(), (-0.3591_f32).to_bits(), (-0.4967_f32).to_bits(), (-0.0329_f32).to_bits()
     ]
 ];
 
-pub static EXP2_B_CONV_32: [u32; 1] = [
-    0.4239_f32.to_bits()
+pub static EXP2_B_CONV_32: [u32; 2] = [
+   (0.4315_f32).to_bits(), (0.3426_f32).to_bits()
 ];
 
-pub static EXP2_W_FC_32: [[u32; 4]; 3] = [
+pub static EXP2_W_FC_32: [[u32; 32]; 3] = [
     [
-        (-0.3837_f32).to_bits(), (0.3933_f32).to_bits(), (-0.0095_f32).to_bits(), (-0.2881_f32).to_bits()
+        (-0.1080_f32).to_bits(), (-0.0467_f32).to_bits(), (-0.1571_f32).to_bits(), (-0.0295_f32).to_bits(),  (0.0575_f32).to_bits(),  (0.0514_f32).to_bits(), (-0.1226_f32).to_bits(), (-0.0744_f32).to_bits(),
+        (0.0440_f32).to_bits(),  (0.0313_f32).to_bits(),  (0.1492_f32).to_bits(), (0.0735_f32).to_bits(), (-0.1097_f32).to_bits(), (0.1764_f32).to_bits(), (-0.1467_f32).to_bits(), (-0.0109_f32).to_bits(),
+        (-0.1452_f32).to_bits(),  (0.0486_f32).to_bits(), (-0.0444_f32).to_bits(), (-0.0793_f32).to_bits(), (-0.0331_f32).to_bits(),  (0.0478_f32).to_bits(), (-0.1178_f32).to_bits(), (-0.1386_f32).to_bits(),
+        (-0.1762_f32).to_bits(), (-0.0290_f32).to_bits(), (-0.0647_f32).to_bits(), (-0.1212_f32).to_bits(),  (0.0568_f32).to_bits(), (-0.1003_f32).to_bits(), (-0.1331_f32).to_bits(),  (0.0803_f32).to_bits()
     ],
     [
-        0.0716_f32.to_bits(), (-0.0016_f32).to_bits(), 0.0192_f32.to_bits(), 0.2232_f32.to_bits()
+        (0.0230_f32).to_bits(), (-0.1334_f32).to_bits(), (0.0799_f32).to_bits(), (0.0548_f32).to_bits(), (0.1597_f32).to_bits(), (-0.0273_f32).to_bits(), (0.0720_f32).to_bits(), (-0.0403_f32).to_bits(),
+        (-0.0005_f32).to_bits(),  (0.0950_f32).to_bits(), (-0.0553_f32).to_bits(),  (0.0618_f32).to_bits(), (-0.1023_f32).to_bits(),  (0.1024_f32).to_bits(), (-0.0521_f32).to_bits(), (-0.1109_f32).to_bits(),
+        (0.0641_f32).to_bits(), (-0.1506_f32).to_bits(),  (0.0586_f32).to_bits(), (-0.1346_f32).to_bits(), (-0.0253_f32).to_bits(), (-0.0531_f32).to_bits(),  (0.0484_f32).to_bits(), (-0.0186_f32).to_bits(),
+        (-0.1399_f32).to_bits(),  (0.1726_f32).to_bits(), (-0.0364_f32).to_bits(),  (0.1599_f32).to_bits(),  (0.0657_f32).to_bits(), (-0.1089_f32).to_bits(),  (0.1140_f32).to_bits(), (-0.0728_f32).to_bits()
     ],
     [
-        0.3044_f32.to_bits(), (-0.2469_f32).to_bits(), (-0.3236_f32).to_bits(), (-0.2331_f32).to_bits()
+        (0.0179_f32).to_bits(), (-0.1506_f32).to_bits(), (-0.1107_f32).to_bits(), (0.0530_f32).to_bits(), (0.1704_f32).to_bits(), (-0.1007_f32).to_bits(), (-0.1562_f32).to_bits(), (-0.0034_f32).to_bits(),
+        (0.0296_f32).to_bits(), (-0.0540_f32).to_bits(), (-0.0647_f32).to_bits(), (0.1399_f32).to_bits(), (-0.0627_f32).to_bits(), (-0.0787_f32).to_bits(), (0.0602_f32).to_bits(), (-0.1117_f32).to_bits(),
+        (0.0761_f32).to_bits(), (0.0057_f32).to_bits(), (0.1213_f32).to_bits(), (-0.0973_f32).to_bits(), (-0.1132_f32).to_bits(), (0.0301_f32).to_bits(), (-0.1713_f32).to_bits(), (-0.0555_f32).to_bits(),
+        (0.1276_f32).to_bits(), (0.0343_f32).to_bits(), (-0.1384_f32).to_bits(), (-0.1223_f32).to_bits(), (0.1393_f32).to_bits(), (-0.0778_f32).to_bits(), (0.0590_f32).to_bits(), (0.0405_f32).to_bits()
     ]
 ];
 
 pub static EXP2_B_FC_32: [u32; 3] = [
-    0.4578_f32.to_bits(), (-0.0027_f32).to_bits(), (-0.1728_f32).to_bits()
+    (0.0335_f32).to_bits(), (0.0322_f32).to_bits(), (-0.0740_f32).to_bits()
 ];

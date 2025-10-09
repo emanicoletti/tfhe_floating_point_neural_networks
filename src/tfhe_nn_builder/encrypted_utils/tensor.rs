@@ -341,20 +341,18 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
 
         for b in 0..batch {
             for c in 0..channel {
-                let mut flattened = Vec::with_capacity(height * width);
                 for h in 0..height {
                     for w in 0..width {
                         let val = self.get(&[b, c, h, w]).clone();
-                        flattened.push(val);
+                        result_data.push(val);
                     }
                 }
-                result_data.extend(flattened);
             }
         }
 
         EncryptedTensor {
             data: result_data,
-            shape: vec![batch, channel, 1, height * width],
+            shape: vec![batch, 1, 1, channel * height * width],
         }
     }
 

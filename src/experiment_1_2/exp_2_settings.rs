@@ -27,23 +27,27 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
 
     if train_plain_network {
         // Definition of the plain network architecture
-        plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
-        plain_model.add_conv(1, 1, 2, 2, 2, 0);
-        plain_model.add_relu_activation(4);
-        plain_model.add_dense(4, 3);
+        plain_model.add_max_pooling(vec![16, 16], 2, 2, 0);
+        plain_model.add_conv(1, 2, 2, 2, 2, 0);
+        plain_model.add_relu_activation(32);
+        plain_model.add_dense(32, 3);
 
         /*
         if verbose -> Print a summary
          */
 
-        plain_model.train(
-            1,
-            1,
+        plain_model.train_and_validate(
+            10,
+            2,
             0.1,
             &train_inputs,
             &train_labels,
-            vec![1, 1, 16, 16],
-            vec![1, 1, 1, 3],
+            &val_inputs,
+            &val_labels,
+            vec![50, 1, 16, 16],
+            vec![50, 1, 1, 3],
+            vec![5000, 1, 16, 16],
+            vec![5000, 1, 1, 3],
         );
 
         plain_model.print_plain_weights("Conv2".to_string());
@@ -57,19 +61,19 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
         println!("WARNING: The encrypted training could require days to be completed");
 
         let mut model = EncryptedNeuralNetworkU32GPU::create(Some(2));
-        model.add_max_pooling(vec![16, 16], 4, 4, 0);
-        model.add_conv(1, 1, 2, 2, 2, 0);
-        model.add_relu_activation(4);
-        model.add_dense(4, 3);
+        model.add_max_pooling(vec![16, 16], 2, 2, 0);
+        model.add_conv(1, 2, 2, 2, 2, 0);
+        model.add_relu_activation(32);
+        model.add_dense(32, 3);
 
         model.train(
             1,
-            1,
-            0.1,
+            2,
+            0.3,
             &train_inputs,
             &train_labels,
-            vec![1, 1, 16, 16],
-            vec![1, 1, 1, 3],
+            vec![2, 1, 16, 16],
+            vec![2, 1, 1, 3],
         );
 
         model.print_plain_weights("Conv2".to_string());
@@ -179,29 +183,29 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
 
     if train_plain_network {
         // Definition of the plain network architecture
-        plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
-        plain_model.add_conv(1, 1, 2, 2, 2, 0);
-        plain_model.add_relu_activation(4);
-        plain_model.add_dense(4, 3);
+        plain_model.add_max_pooling(vec![16, 16], 2, 2, 0);
+        plain_model.add_conv(1, 2, 2, 2, 2, 0);
+        plain_model.add_relu_activation(32);
+        plain_model.add_dense(32, 3);
 
         /*
         if verbose -> Print a summary
          */
 
-        plain_model.print_plain_weights("Conv2".to_string());
-        plain_model.print_plain_biases("Conv2".to_string());
-        plain_model.print_plain_weights("Dense4".to_string());
-        plain_model.print_plain_biases("Dense4".to_string());
-
-        plain_model.train(
-            1,
-            1,
-            0.1,
+        plain_model.train_and_validate(
+            3,
+            2,
+            0.3,
             &train_inputs,
             &train_labels,
-            vec![1, 1, 16, 16],
-            vec![1, 1, 1, 3],
+            &val_inputs,
+            &val_labels,
+            vec![50, 1, 16, 16],
+            vec![50, 1, 1, 3],
+            vec![5000, 1, 16, 16],
+            vec![5000, 1, 1, 3],
         );
+
 
         plain_model.print_plain_weights("Conv2".to_string());
         plain_model.print_plain_biases("Conv2".to_string());
@@ -214,10 +218,10 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
         println!("WARNING: The encrypted training could require days to be completed");
 
         let mut model = EncryptedNeuralNetworkU16GPU::create(Some(2));
-        model.add_max_pooling(vec![16, 16], 4, 4, 0);
-        model.add_conv(1, 1, 2, 2, 2, 0);
-        model.add_relu_activation(4);
-        model.add_dense(4, 3);
+        model.add_max_pooling(vec![16, 16], 2, 2, 0);
+        model.add_conv(1, 2, 2, 2, 2, 0);
+        model.add_relu_activation(32);
+        model.add_dense(32, 3);
 
         model.print_plain_weights("Conv2".to_string());
         model.print_plain_biases("Conv2".to_string());
@@ -226,12 +230,12 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
 
         model.train(
             1,
-            1,
-            0.1,
+            2,
+            0.3,
             &train_inputs,
             &train_labels,
-            vec![1, 1, 16, 16],
-            vec![1, 1, 1, 3],
+            vec![2, 1, 16, 16],
+            vec![2, 1, 1, 3],
         );
 
         model.print_plain_weights("Conv2".to_string());

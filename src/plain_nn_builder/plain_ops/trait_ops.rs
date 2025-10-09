@@ -32,6 +32,14 @@ pub trait PlainSqrt where Self: Sized {
     fn sqrt(self) -> Self;
 }
 
+pub trait PlainMulInf {
+    fn mul_inf(self, other: Self) -> Self;
+}
+
+pub trait PlainDivInf {
+    fn div_inf(self, other: Self) -> Self;
+}
+
 impl PlainAdd for u32 {
     fn add(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
@@ -128,6 +136,18 @@ impl PlainSqrt for u32 {
     }
 }
 
+impl PlainMulInf for u32 {
+    fn mul_inf(self, other: Self) -> Self {
+        lmul32(self, other) // same for all features
+    }
+}
+
+impl PlainDivInf for u32 {
+    fn div_inf(self, other: Self) -> Self {
+        ldiv32(self, other) // same for all features
+    }
+}
+
 // ==== u16 impls ====
 
 impl PlainAdd for u16 {
@@ -214,6 +234,18 @@ impl PlainBackwardReLU for u16 {
 impl PlainSqrt for u16 {
     fn sqrt(self) -> Self {
         sqrt16(self) // same for all features
+    }
+}
+
+impl PlainMulInf for u16 {
+    fn mul_inf(self, other: Self) -> Self {
+        lmul16(self, other) // same for all features
+    }
+}
+
+impl PlainDivInf for u16 {
+    fn div_inf(self, other: Self) -> Self {
+        ldiv16(self, other) // same for all features
     }
 }
 

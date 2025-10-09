@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tfhe = { version = "=1.2", features = ["boolean", "shortint", "integer", "gpu"] }
+tfhe = { version = "=1.3", features = ["boolean", "shortint", "integer", "gpu"] }
 once_cell = "1.19.0"
 rand = "0.8"
 rand_distr = "0.4"     

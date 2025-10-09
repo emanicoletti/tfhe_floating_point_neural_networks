@@ -1,3 +1,5 @@
+use std::ops::BitOr;
+
 use tfhe::prelude::*;
 use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
@@ -57,14 +59,9 @@ pub fn fhe_add8_gpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
@@ -149,14 +146,9 @@ pub fn fhe_add16_gpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
@@ -186,7 +178,6 @@ pub fn fhe_add16_gpu(
     overflow.select(&ov_result, &result)
 }
 
-/* GPU-oriented integer-based addition for 32 bits floating points */
 pub fn fhe_add32_gpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
@@ -196,10 +187,8 @@ pub fn fhe_add32_gpu(
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    
     let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
     let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
-    
 
     let ab_cmp = ns_a.ge(&ns_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -239,20 +228,14 @@ pub fn fhe_add32_gpu(
             )
         },
     );
-    
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
-    
+
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
+
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
     let leading_zeros = op_mant.leading_zeros();
-
     let ((ov_result, overflow), result) = rayon::join(
         ||{
             let overflow = leading_zeros.clone().eq(7u32);
@@ -329,14 +312,9 @@ pub fn fhe_add64_gpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
@@ -422,14 +400,9 @@ pub fn fhe_add8_cpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
@@ -515,14 +488,9 @@ pub fn fhe_add16_cpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
@@ -606,15 +574,10 @@ pub fn fhe_add32_cpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
-    
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
+
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
     let leading_zeros = op_mant.leading_zeros();
@@ -642,6 +605,7 @@ pub fn fhe_add32_cpu(
 
     overflow.select(&ov_result, &result)
 }
+
 
 /* CPU-oriented integer-based addition for 64 bits floating points */
 pub fn fhe_add64_cpu(
@@ -695,14 +659,9 @@ pub fn fhe_add64_cpu(
         },
     );
     
-    let (sum_mant, diff_mant) = rayon::join(
-        ||{
-            &x_mant + (&y_mant >> &diff_exp)
-        },
-        || {
-            &x_mant - (&y_mant >> &diff_exp)
-        }
-    );
+    let shifted_y = &y_mant >> &diff_exp;
+    let sum_mant = &x_mant + &shifted_y;
+    let diff_mant = &x_mant - &shifted_y;
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 

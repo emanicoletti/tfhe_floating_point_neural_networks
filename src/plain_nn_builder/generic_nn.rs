@@ -17,6 +17,8 @@ where
     + PlainReLU
     + PlainBackwardReLU
     + PlainSqrt
+    + PlainDivInf
+    + PlainMulInf
     + PlainElement
     + PlainValueType
     + Clone
@@ -259,7 +261,7 @@ where
                     correct += 1;
                 }
             }
-            println!("Epoch {:?} Validation Accuracy: {:.2}%", epoch, (correct as f32 / total as f32) * 100.0);
+            println!("Epoch {:?} Validation Accuracy: {:.2}%", epoch+1, (correct as f32 / total as f32) * 100.0);
         }
     }
 

@@ -137,6 +137,10 @@ where
         self.forward(input)
     }
 
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+        self.forward(input)
+    }
+
     fn update_parameters(
         &mut self,
         learning_rate: T

@@ -22,6 +22,8 @@ use rayon::prelude::*;
 use rayon::{join, scope};
 use std::thread;
 use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64, PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
+use tfhe::shortint::parameters::v1_3::*;
+
 
 use crate::tfhe_nn_builder::add::*;
 use crate::tfhe_nn_builder::div::*;
@@ -63,7 +65,7 @@ pub fn test_encrypted_ops(ops: &str, fp_size: usize, gpu: bool, num_ops: usize, 
         gpu_test(ops, fp_size, num_ops, min_range, max_range, client_key, server_key)
     }
     else{
-        let config = ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        let config = ConfigBuilder::with_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
             .build();
         let (client_key, server_key) = generate_keys(config);
         rayon::broadcast(|_| set_server_key(server_key.clone()));
@@ -162,9 +164,9 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => panic!("Log2 not supported for FP8"),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
+                let duration = start.elapsed();
                 let res: u8 = result.decrypt(&client_key);
                 println!("Result: {} \n", res);
-                let duration = start.elapsed();
                 ops_duration += duration;
             },
             16 => {
@@ -206,8 +208,8 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => fhe_log2_16_gpu(encrypted_a, encrypted_zero, server_key.clone()),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f16::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f16::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             32 => {
@@ -246,8 +248,8 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => fhe_log2_32_gpu(encrypted_a, encrypted_zero, server_key.clone()),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             64 => {
@@ -287,8 +289,8 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => panic!("Log2 not supported for fp64"),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f64::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f64::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             _ => panic!("Unsupported floating point size: {}", fp_size),
@@ -388,9 +390,9 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => panic!("Log2 not supported for FP8"),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
+                let duration = start.elapsed();
                 let res: u8 = result.decrypt(&client_key);
                 println!("Result: {} \n", res);
-                let duration = start.elapsed();
                 ops_duration += duration;
             },
             16 => {
@@ -432,8 +434,8 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => fhe_log2_16_cpu(encrypted_a, encrypted_zero, server_key.clone()),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f16::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f16::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             32 => {
@@ -472,8 +474,8 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => fhe_log2_32_cpu(encrypted_a, encrypted_zero, server_key.clone()),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             64 => {
@@ -513,8 +515,8 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "log2" => panic!("Log2 not supported for fp64"),
                     _ => panic!("Unsupported operation: {}", ops),
                 };
-                println!("Result: {} \n", f64::from_bits(result.decrypt(&client_key)));
                 let duration = start.elapsed();
+                println!("Result: {} \n", f64::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             _ => panic!("Unsupported floating point size: {}", fp_size),

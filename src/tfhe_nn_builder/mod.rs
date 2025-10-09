@@ -13,3 +13,4 @@ pub use encrypted_layers::*;
 pub use encrypted_nn::*;
 pub use generic_enc_nn::*;
 pub use encrypted_ops::*;
+pub use encrypted_losses::*;

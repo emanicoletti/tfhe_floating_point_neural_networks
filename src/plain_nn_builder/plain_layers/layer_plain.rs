@@ -20,6 +20,8 @@ where
 
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;
 
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;
+
     fn get_weights(&self) -> PlainTensor<T>;
     
     fn get_biases(&self) -> PlainTensor<T>;

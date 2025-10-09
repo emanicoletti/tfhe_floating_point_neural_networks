@@ -30,7 +30,7 @@ impl<T: PlainElement> PlainDenseLayer<T>{
 
 impl<T> PlainLayer<T> for PlainDenseLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + Send + Sync + Clone + PlainElement + PlainValueType + Copy, 
+    T: PlainAdd + PlainSub + PlainMul + PlainMulInf + Send + Sync + Clone + PlainElement + PlainValueType + Copy, 
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
 
@@ -136,6 +136,32 @@ where
 
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         self.forward(input)
+    }
+
+    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+
+        let flatten_input = input.flatten_hw_to_1d();
+
+        let mut weighted_sum = flatten_input.approx_matmul(&self.weights.transpose());
+
+        // Expand biases to match [batch_size, output_dim]
+        let batch_size = input.shape[0];
+        let output_dim = self.biases.shape[3];
+        let bias_data = &self.biases.data;
+
+        let repeated: Vec<T> = (0..batch_size)
+            .into_par_iter()
+            .flat_map(|_| bias_data.par_iter().cloned())
+            .collect();
+
+        let expanded_biases = PlainTensor {
+            data: repeated,
+            shape: vec![batch_size, 1, 1, output_dim],
+        };
+
+        weighted_sum = weighted_sum.add(&expanded_biases);
+        weighted_sum
+
     }
 
     fn get_weights(&self) -> PlainTensor<T> 
