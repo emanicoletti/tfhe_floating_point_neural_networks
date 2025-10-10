@@ -2,9 +2,9 @@ use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeur
 use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
 use crate::plain_nn_builder::plain_utils::load_from_file::*;
 
-pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
-
-    // Validate input parameters
+#[allow(dead_code)]
+pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
+    
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -12,10 +12,10 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    /* Load data from folder experiment_1_2 */
+    // Load data from folder experiment_1_2 
     let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(1)?;
 
-    /* Format the input accordingly */
+    // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
     let val_inputs = array2_to_vecvec(&val_inputs_arr);
@@ -23,10 +23,13 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
+    // Declare the plain model structure
     let mut plain_model = PlainNeuralNetworkU32::create(Some(1));
 
     if train_plain_network {
-        plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+
+        // Define the architecture
+        plain_model.add_max_pooling(vec![16, 16], 4, 4);
         plain_model.add_dense(16, 4);
         plain_model.add_tanh_activation(4);
         plain_model.add_dense(4, 2);
@@ -34,14 +37,12 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(2, 3);
         plain_model.add_tanh_activation(3);
 
-        /*
-        if verbose -> Print a summary
-        */
 
+        // Train and validate the model
         plain_model.train_and_validate(
-            10,
+            3,
             5,
-            0.05,
+            0.1,
             &train_inputs,
             &train_labels,
             &val_inputs,
@@ -52,6 +53,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
             vec![5000, 1, 1, 3],
         );
 
+        // Print model weights and biases
         plain_model.print_plain_weights("Dense2".to_string());
         plain_model.print_plain_biases("Dense2".to_string());
         plain_model.print_plain_weights("Dense4".to_string());
@@ -62,8 +64,12 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if train_encrypted_network {
+        println!("WARNING: The encrypted training could require days to be completed");
+        // Declare the encrypted model structure
         let mut encrypted_model = EncryptedNeuralNetworkU32GPU::create(Some(1));
-        encrypted_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+
+        // Define the architecture
+        encrypted_model.add_max_pooling(vec![16, 16], 4, 4);
         encrypted_model.add_dense(16, 4);
         encrypted_model.add_tanh_activation(4);
         encrypted_model.add_dense(4, 2);
@@ -71,10 +77,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         encrypted_model.add_dense(2, 3);
         encrypted_model.add_tanh_activation(3);
 
-        /*
-        if verbose -> Print a summary
-        */
-
+        // Train the model
         encrypted_model.train(
             1,
             1,
@@ -85,6 +88,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
             vec![1, 1, 1, 3],
         );
 
+        // Print model weights and biases
         encrypted_model.print_plain_weights("Dense2".to_string());
         encrypted_model.print_plain_biases("Dense2".to_string());
         encrypted_model.print_plain_weights("Dense4".to_string());
@@ -94,17 +98,18 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if test_plain_network {
+
+        // Validate the plain model
         let mut correct = 0;
         let mut total = val_labels.len();
 
         for (input, label) in val_inputs.iter().zip(val_labels.iter()) {
-            let input_batch = vec![input.clone()]; // batch size = 1
+            let input_batch = vec![input.clone()]; 
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
             let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
 
-            // Get predicted class (argmax)
             let predicted_class = prediction
                 .iter()
                 .enumerate()
@@ -112,7 +117,6 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
                 .map(|(idx, _)| idx)
                 .unwrap();
 
-            // Get actual class from one-hot label
             let actual_class = label
                 .iter()
                 .enumerate()
@@ -128,17 +132,17 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         let accuracy = correct as f32 / total as f32;
         println!("Validation Accuracy: {:.2}%", accuracy * 100.0);
 
+        // Test the plain model
         correct = 0;
         total = test_labels.len();
 
         for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
-            let input_batch = vec![input.clone()]; // batch size = 1
+            let input_batch = vec![input.clone()]; 
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
             let prediction = plain_model.inference(&input_batch, input_shape, label_shape);
 
-            // Get predicted class (argmax)
             let predicted_class = prediction
                 .iter()
                 .enumerate()
@@ -146,7 +150,6 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
                 .map(|(idx, _)| idx)
                 .unwrap();
 
-            // Get actual class from one-hot label
             let actual_class = label
                 .iter()
                 .enumerate()
@@ -166,9 +169,9 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     Ok(())
 }
 
-pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool, verbose: bool) -> Result<(), Box<dyn std::error::Error>> {
+#[allow(dead_code)]
+pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
 
-     // Validate input parameters
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -176,10 +179,10 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    /* Load data from folder experiment_1_2 */
+    // Load data from folder experiment_1_2 
     let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(1)?;
 
-    /* Format the input accordingly */
+    // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
     let val_inputs = array2_to_vecvec(&val_inputs_arr);
@@ -187,10 +190,12 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
+    // Declare the plain model structure
     let mut plain_model = PlainNeuralNetworkU16::create(Some(1));
 
     if train_plain_network {
-        plain_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+        // Define the architecture
+        plain_model.add_max_pooling(vec![16, 16], 4, 4);
         plain_model.add_dense(16, 4);
         plain_model.add_tanh_activation(4);
         plain_model.add_dense(4, 2);
@@ -198,10 +203,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(2, 3);
         plain_model.add_tanh_activation(3);
 
-        /*
-        if verbose -> Print a summary
-        */
-
+        // Train the model
         plain_model.train(
             1,
             1,
@@ -212,7 +214,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
             vec![1, 1, 1, 3],
         );
 
-
+        // Print model weights and biases
         plain_model.print_plain_weights("Dense2".to_string());
         plain_model.print_plain_biases("Dense2".to_string());
         plain_model.print_plain_weights("Dense4".to_string());
@@ -222,8 +224,12 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if train_encrypted_network {
+        println!("WARNING: The encrypted training could require days to be completed");
+        // Declare the encrypted model structure
         let mut encrypted_model = EncryptedNeuralNetworkU16GPU::create(Some(1));
-        encrypted_model.add_max_pooling(vec![16, 16], 4, 4, 0);
+
+        // Define the architecture
+        encrypted_model.add_max_pooling(vec![16, 16], 4, 4);
         encrypted_model.add_dense(16, 4);
         encrypted_model.add_tanh_activation(4);
         encrypted_model.add_dense(4, 2);
@@ -231,10 +237,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         encrypted_model.add_dense(2, 3);
         encrypted_model.add_tanh_activation(3);
 
-        /*
-        if verbose -> Print a summary
-        */
-
+        // Train the model
         encrypted_model.train(
             1,
             1,
@@ -245,6 +248,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
             vec![1, 1, 1, 3],
         );
 
+        // Print model weights and biases
         encrypted_model.print_plain_weights("Dense2".to_string());
         encrypted_model.print_plain_biases("Dense2".to_string());
         encrypted_model.print_plain_weights("Dense4".to_string());
@@ -254,6 +258,8 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if test_plain_network {
+
+        // Validate the plain model
         let mut correct = 0;
         let mut total = val_labels.len();
 
@@ -288,6 +294,7 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         let accuracy = correct as f32 / total as f32;
         println!("Validation Accuracy: {:.2}%", accuracy * 100.0);
 
+        // Test the plain model
         correct = 0;
         total = test_labels.len();
 

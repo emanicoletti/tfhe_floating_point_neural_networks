@@ -12,15 +12,15 @@ use crate::tfhe_nn_builder::server_key_trait::ServerKeyTrait;
 pub struct EncryptedTanhActivation<T: EncryptedElement> {
     pub id: String,
     pub derivatives: EncryptedTensor<T>, // same shape as input, stores derivative per element
-    pub ranges: Vec<(T, T, T, T, T)>,    // piecewise segments: (min, max, a, b, derivative)
+    pub _ranges: Vec<(T, T, T, T, T)>,    // piecewise segments: (min, max, a, b, derivative)
 }
 
 impl<T: EncryptedElement> EncryptedTanhActivation<T> {
-    pub fn new(id: String, derivatives: EncryptedTensor<T>, ranges: Vec<(T, T, T, T, T)>) -> Self {
+    pub fn _new(id: String, derivatives: EncryptedTensor<T>, ranges: Vec<(T, T, T, T, T)>) -> Self {
         Self {
             id,
             derivatives,
-            ranges
+            _ranges: ranges
         }
     }
 }
@@ -40,7 +40,7 @@ where
 
     fn backward(
         &mut self,
-        input: &EncryptedTensor<T>,
+        _input: &EncryptedTensor<T>,
         grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T> 
@@ -61,8 +61,8 @@ where
 
     fn update_parameters(
             &mut self,
-            learning_rate: T,
-            ctx: &EncryptedContext<K, T>,
+            _learning_rate: T,
+            _ctx: &EncryptedContext<K, T>,
         ) {
         // No parameters to update in tanh activation
     }

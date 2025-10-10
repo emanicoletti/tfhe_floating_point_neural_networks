@@ -5,7 +5,7 @@ pub fn fhe_ss_add8_gpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
     encrypted_mask: FheUint8,
-    encrypted_zero: FheUint8,
+    _encrypted_zero: FheUint8,
     server_keys: CudaServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -17,7 +17,7 @@ pub fn fhe_ss_add8_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, _))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1000u8;
             let denorm_y = y_exp.eq(0u16);
@@ -63,7 +63,7 @@ pub fn fhe_ss_add8_gpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -77,7 +77,7 @@ pub fn fhe_ss_add16_gpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
-    encrypted_zero: FheUint16,
+    _encrypted_zero: FheUint16,
     server_keys: CudaServerKey,
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -134,7 +134,7 @@ pub fn fhe_ss_add16_gpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -147,7 +147,7 @@ pub fn fhe_ss_add32_gpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_mask: FheUint32,
-    encrypted_zero: FheUint32,
+    _encrypted_zero: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -202,7 +202,7 @@ pub fn fhe_ss_add32_gpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -216,7 +216,7 @@ pub fn fhe_ss_add64_gpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_mask: FheUint64,
-    encrypted_zero: FheUint64,
+    _encrypted_zero: FheUint64,
     server_keys: CudaServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -228,7 +228,7 @@ pub fn fhe_ss_add64_gpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, _))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let denorm_y = y_exp.eq(0u64);
@@ -273,7 +273,7 @@ pub fn fhe_ss_add64_gpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -286,8 +286,8 @@ pub fn fhe_ss_add8_cpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
     encrypted_mask: FheUint8,
-    encrypted_zero: FheUint8,
-    server_keys: ServerKey,
+    _encrypted_zero: FheUint8,
+    _server_keys: ServerKey,
 ) -> FheUint8 {
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
@@ -298,7 +298,7 @@ pub fn fhe_ss_add8_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, _))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1000u8;
             let denorm_y = y_exp.eq(0u16);
@@ -344,7 +344,7 @@ pub fn fhe_ss_add8_cpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -358,10 +358,9 @@ pub fn fhe_ss_add16_cpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
-    encrypted_zero: FheUint16,
-    server_keys: ServerKey,
+    _encrypted_zero: FheUint16,
+    _server_keys: ServerKey,
 ) -> FheUint16 {
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let ab_cmp = encrypted_a.ge(&encrypted_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -415,7 +414,7 @@ pub fn fhe_ss_add16_cpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -428,10 +427,9 @@ pub fn fhe_ss_add32_cpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_mask: FheUint32,
-    encrypted_zero: FheUint32,
-    server_keys: ServerKey,
+    _encrypted_zero: FheUint32,
+    _server_keys: ServerKey,
 ) -> FheUint32 {
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let ab_cmp = encrypted_a.ge(&encrypted_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -483,7 +481,7 @@ pub fn fhe_ss_add32_cpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }
@@ -497,10 +495,9 @@ pub fn fhe_ss_add64_cpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_mask: FheUint64,
-    encrypted_zero: FheUint64,
-    server_keys: ServerKey,
+    _encrypted_zero: FheUint64,
+    _server_keys: ServerKey,
 ) -> FheUint64 {
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let ab_cmp = encrypted_a.ge(&encrypted_b);
     let (encrypted_x, encrypted_y) = rayon::join(
@@ -509,7 +506,7 @@ pub fn fhe_ss_add64_cpu(
     );
 
     // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, _))) = rayon::join(
         || {
             let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
             let denorm_y = y_exp.eq(0u64);
@@ -554,7 +551,7 @@ pub fn fhe_ss_add64_cpu(
             (result, overflow)
         },
         ||{
-            let mant = (&op_mant & &encrypted_mask);
+            let mant = &op_mant & &encrypted_mask;
             let result = &x_sign | &x_exp | &mant;
             result
         }

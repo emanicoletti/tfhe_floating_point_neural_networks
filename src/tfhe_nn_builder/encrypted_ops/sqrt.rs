@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, ServerKey, CudaServerKey};
+use tfhe::{set_server_key, FheUint16, FheUint32, ServerKey, CudaServerKey};
 
 static SQRT_BITS_U16: [u16; 11] = [
     1024u16, 256u16, 64u16, 16u16, 4u16, 1u16, 0u16, 0u16, 0u16, 0u16, 0u16
@@ -18,7 +18,7 @@ pub fn fhe_sqrt16_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (neg_denorm,(exp, mut mantissa)) = rayon::join(
+    let (neg_denorm,(exp, mantissa)) = rayon::join(
         || {
             let sign = &encrypted_a >> 15u16;
             let negative_sign = sign.eq(1u16);
@@ -55,11 +55,11 @@ pub fn fhe_sqrt16_gpu(
                 (ge_result, ge_x)
             }
         );
-        ((x, result), res_mantissa) = rayon::join(
+        (x, res_mantissa) = rayon::join(
             ||{
                 x = grt.select(&ge_x, &x);
                 result = grt.select(&ge_result, &lt_result);
-                (x, result)
+                x
             }, 
             || {
                 let ge_mantissa = res_mantissa.clone() | (1u16 << (10 - i));
@@ -81,7 +81,7 @@ pub fn fhe_sqrt32_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (negative_sign,(exp, mut mantissa)) = rayon::join(
+    let (negative_sign,(exp, mantissa)) = rayon::join(
         || {
             let sign = &encrypted_a >> 31u32;
             let negative_sign = sign.eq(1u32);
@@ -118,11 +118,11 @@ pub fn fhe_sqrt32_gpu(
                 (ge_result, ge_x)
             },
         );
-        ((x, result), res_mantissa) = rayon::join(
+        (x, res_mantissa) = rayon::join(
             ||{
                 x = grt.select(&ge_x, &x);
                 result = grt.select(&ge_result, &lt_result);
-                (x, result)
+                x
             },
             ||{
                 let ge_mantissa = res_mantissa.clone() | (1u32 << (23 - i));
@@ -144,7 +144,7 @@ pub fn fhe_sqrt16_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (neg_denorm,(exp, mut mantissa)) = rayon::join(
+    let (neg_denorm,(exp, mantissa)) = rayon::join(
         || {
             let sign = &encrypted_a >> 15u16;
             let negative_sign = sign.eq(1u16);
@@ -181,11 +181,11 @@ pub fn fhe_sqrt16_cpu(
                 (ge_result, ge_x)
             }
         );
-        ((x, result), res_mantissa) = rayon::join(
+        (x, res_mantissa) = rayon::join(
             ||{
                 x = grt.select(&ge_x, &x);
                 result = grt.select(&ge_result, &lt_result);
-                (x, result)
+                x
             }, 
             || {
                 let ge_mantissa = res_mantissa.clone() | (1u16 << (10 - i));
@@ -207,7 +207,7 @@ pub fn fhe_sqrt32_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (negative_sign,(exp, mut mantissa)) = rayon::join(
+    let (negative_sign,(exp, mantissa)) = rayon::join(
         || {
             let sign = &encrypted_a >> 31u32;
             let negative_sign = sign.eq(1u32);
@@ -244,11 +244,11 @@ pub fn fhe_sqrt32_cpu(
                 (ge_result, ge_x)
             },
         );
-        ((x, result), res_mantissa) = rayon::join(
+        (x, res_mantissa) = rayon::join(
             ||{
                 x = grt.select(&ge_x, &x);
                 result = grt.select(&ge_result, &lt_result);
-                (x, result)
+                x
             },
             ||{
                 let ge_mantissa = res_mantissa.clone() | (1u32 << (23 - i));

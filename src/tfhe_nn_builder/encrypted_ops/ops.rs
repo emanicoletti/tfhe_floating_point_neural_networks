@@ -9,7 +9,6 @@ use super::same_sign_add::*;
 use super::relu::*;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
-use tfhe::FheBool;
 use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 
@@ -66,6 +65,7 @@ pub trait EncryptedSameSignAdd<K, T>
 where
     K: ServerKeyTrait + Clone + Send + Sync,
 {
+    #[allow(dead_code)]
     fn same_sign_add(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
 }
 
@@ -305,37 +305,37 @@ impl EncryptedTanh<ServerKey, FheUint32> for ServerKey {
 }
 
 impl EncryptedMax<CudaServerKey, FheUint16> for CudaServerKey {
-    fn max(&self, a: FheUint16, b: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+    fn max(&self, a: FheUint16, b: FheUint16, _ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
         fhe_max16_gpu(a, b, self.clone())
     }
 }
 
 impl EncryptedMax<CudaServerKey, FheUint32> for CudaServerKey {
-    fn max(&self, a: FheUint32, b: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+    fn max(&self, a: FheUint32, b: FheUint32, _ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
         fhe_max32_gpu(a, b, self.clone())
     }
 }
 
 impl EncryptedMax<ServerKey, FheUint32> for ServerKey {
-    fn max(&self, a: FheUint32, b: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+    fn max(&self, a: FheUint32, b: FheUint32, _ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
         fhe_max32_cpu(a, b, self.clone())
     }
 }
 
 impl EncryptedGradIfEqual<CudaServerKey, FheUint16> for CudaServerKey {
-    fn grad_if_equal(&self, a: FheUint16, b: FheUint16, zero: FheUint16, grad: FheUint16, ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+    fn grad_if_equal(&self, a: FheUint16, b: FheUint16, zero: FheUint16, grad: FheUint16, _ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
         fhe_grad_if_equal16_gpu(a, b, zero, grad, self.clone())
     }
 }
 
 impl EncryptedGradIfEqual<CudaServerKey, FheUint32> for CudaServerKey {
-    fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+    fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, _ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
         fhe_grad_if_equal32_gpu(a, b, zero, grad, self.clone())
     }
 }
 
 impl EncryptedGradIfEqual<ServerKey, FheUint32> for ServerKey {
-    fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
+    fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, _ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
         fhe_grad_if_equal32_cpu(a, b, zero, grad, self.clone())
     }
 }

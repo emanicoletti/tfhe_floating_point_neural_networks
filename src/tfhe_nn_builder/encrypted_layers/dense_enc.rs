@@ -19,7 +19,7 @@ pub struct EncryptedDenseLayer<T: EncryptedElement> {
 }
 
 impl<T: EncryptedElement> EncryptedDenseLayer<T> {
-    pub fn new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
+    pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
             id,
             weights, // expect shape [1, 1, input_dim, output_dim]
@@ -39,7 +39,7 @@ where
         let start = Instant::now();
         let flatten_input = input.flatten_hw_to_1d();
         let mut weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx); 
-        // Expand biases to match [batch_size, output_dim]
+
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
         let bias_data = &self.biases.data;
@@ -76,12 +76,12 @@ where
         scope(|s| {
             s.spawn(|_| {
                 let flatten_input = input.flatten_hw_to_1d();
-                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx).sum_axis(0, ctx);
+                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx).sum_on_first_axis(ctx);
                 grad_weights_opt = Some(grad_weights);
             });
     
             s.spawn(|_| {
-                let grad_biases = grad_output.sum_axis(0, ctx);
+                let grad_biases = grad_output.sum_on_first_axis(ctx);
                 grad_biases_opt = Some(grad_biases);
             });
     

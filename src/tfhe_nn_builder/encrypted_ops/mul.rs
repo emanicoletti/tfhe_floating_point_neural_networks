@@ -272,7 +272,7 @@ pub fn fhe_lmul16_cpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_zero: FheUint16,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint16 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -325,7 +325,7 @@ pub fn fhe_lmul32_cpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_zero: FheUint32,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint32 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -378,7 +378,7 @@ pub fn fhe_lmul64_cpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_zero: FheUint64,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint64 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -642,7 +642,7 @@ pub fn fhe_pam_mul8_cpu(
     encrypted_a: FheUint8,
     encrypted_b: FheUint8,
     encrypted_zero: FheUint8,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint8 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -695,7 +695,7 @@ pub fn fhe_pam_mul16_cpu(
     encrypted_a: FheUint16,
     encrypted_b: FheUint16,
     encrypted_zero: FheUint16,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint16 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -748,7 +748,7 @@ pub fn fhe_pam_mul32_cpu(
     encrypted_a: FheUint32,
     encrypted_b: FheUint32,
     encrypted_zero: FheUint32,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint32 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
@@ -801,7 +801,7 @@ pub fn fhe_pam_mul64_cpu(
     encrypted_a: FheUint64,
     encrypted_b: FheUint64,
     encrypted_zero: FheUint64,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint64 {
 
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));

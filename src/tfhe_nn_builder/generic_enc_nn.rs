@@ -1,4 +1,4 @@
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::{self, EncryptedContext};
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
 use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer, EncryptedConvLayer};
@@ -7,12 +7,7 @@ use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
 use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 use crate::tfhe_nn_builder::encrypted_ops::*;
 
-use half::f16;
-use tfhe::array::stride;
-
 use std::time::Instant;
-
-use tfhe::set_server_key;
 
 /// Core generic implementation of an encrypted neural network
 pub struct EncryptedNeuralNetworkImpl<K: ServerKeyTrait, T: EncryptedElement> {
@@ -65,7 +60,7 @@ where
         let tanh_layer = EncryptedTanhActivation {
             id: id,
             derivatives: derivatives,
-            ranges: ranges,
+            _ranges: ranges,
         };
         self.layers.push(Box::new(tanh_layer));
     }
@@ -84,10 +79,9 @@ where
         input_dim: Vec<usize>,
         kernel_size: usize,
         stride: usize,
-        padding: usize,
     ) {
         let id = format!("MaxPooling{}", self.layers.len() + 1);
-        let max_pooling_layer = EncryptedMaxPoolingLayer::new(id, input_dim, kernel_size, stride, padding);
+        let max_pooling_layer = EncryptedMaxPoolingLayer::new(id, input_dim, kernel_size, stride);
         self.layers.push(Box::new(max_pooling_layer));
     }
    

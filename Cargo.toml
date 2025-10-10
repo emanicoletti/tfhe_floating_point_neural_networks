@@ -1,5 +1,5 @@
 [package]
-name = "lmul"
+name = "TFHE_Based_Floating_Point_Neural_Network_Training"
 version = "0.1.0"
 edition = "2024"
 
@@ -18,4 +18,4 @@ rand_chacha = "0.3"
 exact = []
 lmul = []
 pam = []
-default = []  
+default = ["lmul"] 

@@ -14,7 +14,7 @@ pub struct EncryptedReLUActivation<T: EncryptedElement> {
 }
 
 impl<T: EncryptedElement> EncryptedReLUActivation<T> {
-    pub fn new(id: String, derivatives: EncryptedTensor<T>) -> Self {
+    pub fn _new(id: String, derivatives: EncryptedTensor<T>) -> Self {
         Self {
             id,
             derivatives,
@@ -37,7 +37,7 @@ where
 
     fn backward(
         &mut self,
-        input: &EncryptedTensor<T>,
+        _input: &EncryptedTensor<T>,
         grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>
@@ -58,8 +58,8 @@ where
 
     fn update_parameters(
         &mut self,
-        learning_rate: T,
-        ctx: &EncryptedContext<K, T>,
+        _learning_rate: T,
+        _ctx: &EncryptedContext<K, T>,
     ) {
         // No parameters to update in ReLU activation
     }

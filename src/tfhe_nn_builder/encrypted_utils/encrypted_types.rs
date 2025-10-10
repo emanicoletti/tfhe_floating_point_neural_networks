@@ -34,7 +34,7 @@ impl EncryptableValueType for FheUint8 {
         FheDecrypt::decrypt(self, key)
     }
 
-    fn n_bits(n: f32) -> usize {
+    fn n_bits(_n: f32) -> usize {
         unimplemented!()
     }
 }
@@ -83,7 +83,7 @@ impl EncryptableValueType for FheUint64 {
         FheDecrypt::decrypt(self, key)
     }
 
-    fn n_bits(n: f32) -> usize {
+    fn n_bits(_n: f32) -> usize {
         unimplemented!()
     }
 }

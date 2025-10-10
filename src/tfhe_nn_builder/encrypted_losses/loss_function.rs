@@ -6,15 +6,13 @@ use crate::tfhe_nn_builder::encrypted_ops::*;
 
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::ClientKey;
-use tfhe::{FheUint16, FheUint32};
-
-use half::*;
 
 pub trait LossFunction<K, T> 
 where
     K: ServerKeyTrait,
     T: EncryptedElement,
 {
+    #[allow(dead_code)]
     fn compute_loss(
         &self,
         predicted: &EncryptedTensor<T>,
@@ -27,10 +25,7 @@ where
         predicted: &EncryptedTensor<T>,
         target: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
-    ) -> EncryptedTensor<T> 
-    {
-        unimplemented!("Gradient computation not implemented for this loss function");
-    }
+    ) -> EncryptedTensor<T>;
 }
 
 pub struct MseLoss;
@@ -56,10 +51,7 @@ where
         }
 
         let n = predicted.data.len() as f32;
-        /* 
-        let n_f16 = f16::from_f32(n);
-        let n_bits: usize = n_f16.to_bits().into();
-        */
+
         let n_bits = n.to_bits() as usize;
 
         let n_enc = T::try_encrypt_plain(n_bits, &ctx.client_key).expect("Failed to encrypt float length");

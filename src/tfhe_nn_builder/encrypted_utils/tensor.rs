@@ -1,16 +1,11 @@
-use crate::tfhe_nn_builder::encrypted_ops::{ops, EncryptedNegate};
+use crate::tfhe_nn_builder::encrypted_ops::EncryptedNegate;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptedElement;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
 use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax, EncryptedReLU};
-
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptableValueType;
 
 use rayon::prelude::*;
-
-use half::f16;
-
-use std::time::Instant;
 
 
 #[derive(Clone)]
@@ -22,8 +17,6 @@ pub struct EncryptedTensor<T: EncryptedElement> {
 impl<T: EncryptedElement> EncryptedTensor<T> {
     /// Generate a new EncryptedTensor with validated shape
     pub fn new(data: Vec<T>, shape: Vec<usize>) -> Self {
-        let expected_size: usize = shape.iter().product();
-        //assert_eq!(data.len(), expected_size, "Data length does not match shape dimensions");
         Self { data, shape }
     }
 
@@ -58,12 +51,14 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         &self.data[idx]
     }
 
+    #[allow(dead_code)]
     pub fn get_tensor(&self) -> EncryptedTensor<T> {
         EncryptedTensor {
             data: self.data.clone(),
             shape: self.shape.clone(),
         }
     }
+
     pub fn matmul<K>(
         &self,
         other: &EncryptedTensor<T>,
@@ -80,7 +75,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
     
-        let [b2, c2, h2, w2] = other.shape[..] else {
+        let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
     
@@ -216,7 +211,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         EncryptedTensor::new(transposed_data, vec![self.shape[0], self.shape[1], cols, rows])
     }
 
-    pub fn sum_axis<K>(&self, axis: usize, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>
+    pub fn sum_on_first_axis<K>(&self, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>
     where
         K: ServerKeyTrait + EncryptedAdd<K, T>,
         T: Send + Sync + Clone,

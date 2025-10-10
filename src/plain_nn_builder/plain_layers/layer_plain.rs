@@ -20,14 +20,20 @@ where
 
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;
 
+    #[allow(dead_code)]
+    // Use the approximate arithmetic for inference, while keeping training with exact arithmetic (Experimental)
     fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;
 
     fn get_weights(&self) -> PlainTensor<T>;
     
     fn get_biases(&self) -> PlainTensor<T>;
 
+    #[allow(dead_code)]
+    // Debugging purposes
     fn get_grad_weights(&self) -> PlainTensor<T>;
 
+    #[allow(dead_code)]
+    // Debugging purposes
     fn get_grad_biases(&self) -> PlainTensor<T>;
 
     fn get_id(&self) -> String;

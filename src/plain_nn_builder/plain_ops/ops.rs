@@ -128,7 +128,7 @@ pub fn same_sign_add32(
         let result = x_sign | res_exp | mant;
         (result, overflow, result) 
     } else {
-        let mant = (sum_mant & encrypted_mask);
+        let mant = sum_mant & encrypted_mask;
         let result = x_sign | x_exp | mant;
         (result, overflow, result)
     };
@@ -194,19 +194,19 @@ pub fn sqrt32(
     let mut x = mantissa;
     for i in 0..24 {
         if x >= (result + SQRT_BITS_U32[i]) {
-            res_mantissa |= (1u32 << (23 - i));
-            x -= (result + SQRT_BITS_U32[i]);
+            res_mantissa |= 1u32 << (23 - i);
+            x -= result + SQRT_BITS_U32[i];
             result = (result >> 1u32) + SQRT_BITS_U32[i];
         }
         else {
-            result = (result >> 1u32);
+            result = result >> 1u32;
         }
     }
     res_mantissa &= 0b0000_0000_0111_1111_1111_1111_1111_1111u32; // Mask to keep only the mantissa bits
     (0u32 << 31u32) | (res_exp << 23u32) | res_mantissa
 }
 
-
+#[allow(dead_code)]
 static EXP_TO_RESULT_U32: [u32; 128] = [
     0b00111111100000000000000000000000u32, 0b00111111100000000000000000000000u32, 0b01000000000000000000000000000000u32, 0b01000000000000000000000000000000u32, 
     0b01000000100000000000000000000000u32, 0b01000000100000000000000000000000u32, 0b01000000100000000000000000000000u32, 0b01000000100000000000000000000000u32,
@@ -242,6 +242,7 @@ static EXP_TO_RESULT_U32: [u32; 128] = [
     0b01000010100000000000000000000000u32, 0b01000010100000000000000000000000u32, 0b01000010100000000000000000000000u32, 0b01000010100000000000000000000000u32,
 ];
 
+#[allow(dead_code)]
 pub fn log2_u32(
     a: u32
 ) -> u32 {
@@ -267,7 +268,7 @@ pub fn log2_u32(
     for i in 0..23 {
         let squared_shifted = ((mant as u64) * (mant as u64) >> 23u32) as u32;
         if squared_shifted >= 16777216u32 {
-            log_mant |= (1u32 << (22 - i));
+            log_mant |= 1u32 << (22 - i);
             mant = squared_shifted >> 1u32;
         }
         else{
@@ -306,8 +307,8 @@ pub fn log2_u32(
     }
     let ilog2 = sum.ilog2();
     let mut result_mant = sum & (0b0000_0000_0111_1111_1111_1111_1111_1111u32 << (ilog2 - 23u32));
-    result_mant >>= (ilog2 - 23u32);
-    result -= (diff_exp << 23u32);
+    result_mant >>= ilog2 - 23u32;
+    result -= diff_exp << 23u32;
     result |= result_mant;
     result
 }
@@ -380,7 +381,7 @@ pub fn add16 (
         let mant = (sum_mant & mask) << diff;
         let sub_exp: u16 = diff << 10u16;
         let mut res_exp = x_exp - sub_exp;
-        if(sub_exp > x_exp){
+        if sub_exp > x_exp{
             res_exp = 0u16;
         }
         let result = x_sign | res_exp | mant;
@@ -437,13 +438,13 @@ pub fn same_sign_add16(
     let encrypted_mask = 1023u16;
 
     let (ov_result, overflow_flag, result) = if overflow {
-        // true branch (equivalent to first closure)
+        
         let mant = (sum_mant & 0b0000_0111_1111_1110u16) >> 1u16;
         let res_exp = x_exp + 1024u16;
         let result = x_sign | res_exp | mant;
         (result, overflow, result) 
     } else {
-        let mant = (sum_mant & encrypted_mask);
+        let mant = sum_mant & encrypted_mask;
         let result = x_sign | x_exp | mant;
         (result, overflow, result)
     };
@@ -484,10 +485,12 @@ pub fn backward_relu16 (
     }
 }
 
+#[allow(dead_code)]
 static EXP_TO_RESULT_U16: [u16; 16] = [
     15360u16, 15360u16, 16384u16, 16384u16, 17408u16, 17408u16, 17408u16, 17408u16, 18432u16, 18432u16, 18432u16, 18432u16, 18432u16, 18432u16, 18432u16, 18432u16
 ];
 
+#[allow(dead_code)]
 pub fn log2_u16(
     a: u16
 ) -> u16 {
@@ -511,9 +514,9 @@ pub fn log2_u16(
     let mut mant = &a & 0b0000_0011_1111_1111u16;
     mant += 1024u16; // add 1 to mantissa
     for i in 0..10 {
-        let squared_shifted = ((((mant as u32) * (mant as u32)) >> 10u32) as u16);
+        let squared_shifted = (((mant as u32) * (mant as u32)) >> 10u32) as u16;
         if squared_shifted >= 2048u16 {
-            log_mant |= (1u16 << (9 - i));
+            log_mant |= 1u16 << (9 - i);
             mant = squared_shifted >> 1u16;
         }
         else{
@@ -552,8 +555,8 @@ pub fn log2_u16(
     }
     let ilog2 = sum.ilog2() as u16;
     let mut result_mant = sum & (0b0000_0011_1111_1111u16 << (ilog2 - 10u16));
-    result_mant >>= (ilog2 - 10u16);
-    result -= (diff_exp << 10u16);
+    result_mant >>= ilog2 - 10u16;
+    result -= diff_exp << 10u16;
     result |= result_mant;
     result
 }
@@ -584,12 +587,12 @@ pub fn sqrt16(
     let mut x = mantissa;
     for i in 0..11 {
         if x >= (result + SQRT_BITS_U16[i]) {
-            res_mantissa |= (1u16 << (10 - i));
-            x -= (result + SQRT_BITS_U16[i]);
+            res_mantissa |= 1u16 << (10 - i);
+            x -= result + SQRT_BITS_U16[i];
             result = (result >> 1u16) + SQRT_BITS_U16[i];
         }
         else {
-            result = (result >> 1u16);
+            result = result >> 1u16;
         }
     }
     res_mantissa &= 0b0000_0011_1111_1111u16; // Mask to keep only the mantissa bits
@@ -609,6 +612,7 @@ pub fn lmul32 (
     sign <<= 31u32;
 
     let a_exp = (&a &  2139095040u32) >> 23u32;
+    
     let b_exp = (&b &  2139095040u32) >> 23u32;
     let exp = &a_exp + &b_exp;
 
@@ -620,7 +624,6 @@ pub fn lmul32 (
     let b_digits = &b & 2147483647u32;
     let mut digits = &a_digits + &b_digits;
     digits -= 1064828928u32;
-    //digits -= 1065353216u32;
     digits &= 2147483647u32;
 
     return digits | sign
@@ -682,13 +685,13 @@ pub fn lmul_tanh32 (
         1073741825u32..=2147483647u32 => {
             (1065353217u32, 0u32)
         }, // [2, ∞]
-        _ => panic!("unexpected input {:?}", a),
     };
     (out, dx)
 }
 
 /* APPROX INTEGER-BASED OPERATIONS FP-32 ACCORDING TO PAM ALGORITHM */
 
+#[allow(dead_code)]
 pub fn pam_mul32 (
     a: u32,
     b: u32,
@@ -716,6 +719,7 @@ pub fn pam_mul32 (
     return digits | sign
 }    
 
+#[allow(dead_code)]
 pub fn pam_div32 (
     a: u32,
     b: u32,
@@ -743,6 +747,7 @@ pub fn pam_div32 (
     return digits | sign
 }
 
+#[allow(dead_code)]
 pub fn pam_tanh32 (
     a: u32
 ) -> (u32, u32) {
@@ -772,7 +777,6 @@ pub fn pam_tanh32 (
         1073741825u32..=2147483647u32 => {
             (1065353217u32, 0u32)
         }, // [2, ∞]
-        _ => panic!("unexpected input {:?}", a),
     };
     (out, dx)
 }
@@ -863,12 +867,12 @@ pub fn lmul_tanh16 (
         16385u16..=32767u16 => {
             (15360u16, 0u16)
         }, // [2, ∞]
-        _ => panic!("unexpected input {:?}", a),
     };
     (out, dx)
 }
 
 /* APPROX INTEGER-BASED OPERATIONS FP-16 ACCORDING TO PAM ALGORITHM */
+#[allow(dead_code)]
 pub fn pam_mul16 (
     a: u16,
     b: u16,
@@ -896,7 +900,7 @@ pub fn pam_mul16 (
     return digits | sign
 }
     
-
+#[allow(dead_code)]
 pub fn pam_div16 (
     a: u16,
     b: u16,
@@ -924,10 +928,10 @@ pub fn pam_div16 (
     return digits | sign
 }
 
+#[allow(dead_code)]
 pub fn pam_tanh16 (
     a: u16
 ) -> (u16, u16) {
-
     let (out, dx) = match a {
         49152u16..=65535u16 => {
             (48128u16, 0u16)
@@ -953,13 +957,13 @@ pub fn pam_tanh16 (
         16385u16..=32767u16 => {
             (15360u16, 0u16)
         }, // [2, ∞]
-        _ => panic!("unexpected input {:?}", a),
     };
     (out, dx)
 }
 
 /* CANONICAL OPERATIONS */
 
+#[allow(dead_code)]
  pub fn canonical_tanh16 (
     a: u16
 ) -> (u16, u16) {
@@ -969,6 +973,7 @@ pub fn pam_tanh16 (
     (tanh_value.to_bits(), derivative.to_bits())
 }
 
+#[allow(dead_code)]
 pub fn canonical_tanh32 (
     a: u32
 ) -> (u32, u32) {
@@ -978,6 +983,7 @@ pub fn canonical_tanh32 (
     (tanh_value.to_bits(), derivative.to_bits())
 }
 
+#[allow(dead_code)]
 pub fn canonical_sub32 (
     a: u32,
     b: u32, 
@@ -985,6 +991,7 @@ pub fn canonical_sub32 (
     (f32::from_bits(a) - f32::from_bits(b)).to_bits()
 }
 
+#[allow(dead_code)]
 pub fn canonical_div32 (
     a: u32,
     b: u32,
@@ -992,7 +999,7 @@ pub fn canonical_div32 (
     (f32::from_bits(a) / f32::from_bits(b)).to_bits()
 }
 
-
+#[allow(dead_code)]
 pub fn canonical_mul32 (
     a: u32,
     b: u32,
@@ -1000,6 +1007,7 @@ pub fn canonical_mul32 (
     (f32::from_bits(a) * f32::from_bits(b)).to_bits()
  }
 
+ #[allow(dead_code)]
  pub fn canonical_add32 (
     a: u32,
     b: u32
@@ -1007,12 +1015,14 @@ pub fn canonical_mul32 (
     (f32::from_bits(a) + f32::from_bits(b)).to_bits()
 }
 
+#[allow(dead_code)]
 pub fn canonical_sqrt32(
     a: u32
 ) -> u32 {
     (f32::from_bits(a).sqrt()).to_bits()
 }
 
+#[allow(dead_code)]
 pub fn canonical_add16 (
     a: u16,
     b: u16
@@ -1020,6 +1030,7 @@ pub fn canonical_add16 (
     (f16::from_bits(a) + f16::from_bits(b)).to_bits()
 }
 
+#[allow(dead_code)]
  pub fn canonical_sub16 (
     a: u16,
     b: u16, 
@@ -1027,6 +1038,7 @@ pub fn canonical_add16 (
     (f16::from_bits(a) - f16::from_bits(b)).to_bits()
 }
 
+#[allow(dead_code)]
 pub fn canonical_div16 (
     a: u16,
     b: u16,
@@ -1034,6 +1046,7 @@ pub fn canonical_div16 (
     (f16::from_bits(a) / f16::from_bits(b)).to_bits()
 }
 
+#[allow(dead_code)]
 pub fn canonical_mul16 (
     a: u16,
     b: u16,

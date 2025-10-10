@@ -1,4 +1,4 @@
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
+use tfhe::{set_server_key, FheUint16, FheUint32, ServerKey, CudaServerKey};
 use tfhe::prelude::*;
 
 pub fn fhe_grad_if_equal16_gpu(

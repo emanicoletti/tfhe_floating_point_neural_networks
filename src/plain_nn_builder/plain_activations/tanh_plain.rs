@@ -6,16 +6,14 @@ use rayon::iter::*;
 
 pub struct PlainTanhActivation<T: PlainElement> {
     pub id: String,
-    pub derivatives: PlainTensor<T>, // same shape as input, stores derivative per element
-    pub ranges: Vec<(T, T, T, T, T)>,    // piecewise segments: (min, max, a, b, derivative)
+    pub derivatives: PlainTensor<T>, 
 }
 
 impl<T: PlainElement> PlainTanhActivation<T> {
-    pub fn new(id: String, derivatives: PlainTensor<T>, ranges: Vec<(T, T, T, T, T)>) -> Self {
+    pub fn _new(id: String, derivatives: PlainTensor<T>) -> Self {
         Self {
             id,
             derivatives,
-            ranges
         }
     }
 }
@@ -33,7 +31,7 @@ where
 
     fn backward(
         &mut self,
-        input: &PlainTensor<T>,
+        _input: &PlainTensor<T>,
         grad_output: &PlainTensor<T>,
     ) -> PlainTensor<T> 
     {
@@ -50,7 +48,7 @@ where
 
     fn update_parameters(
         &mut self,
-        learning_rate: T,
+        _learning_rate: T,
     ) {
     // No parameters to update in tanh activation
     }

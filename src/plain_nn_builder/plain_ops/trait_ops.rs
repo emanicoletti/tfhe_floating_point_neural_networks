@@ -50,8 +50,6 @@ impl PlainAdd for u32 {
 
         #[cfg(feature = "pam")]
         { return add32(self, other); }
-
-        unreachable!("No valid feature selected for add(u32)");
     }
 }
 
@@ -65,8 +63,6 @@ impl PlainMul for u32 {
 
         #[cfg(feature = "pam")]
         { return pam_mul32(self, other); }
-
-        unreachable!("No valid feature selected for mul(u32)");
     }
 }
 
@@ -80,8 +76,6 @@ impl PlainDiv for u32 {
 
         #[cfg(feature = "pam")]
         { return pam_div32(self, other); }
-
-        unreachable!("No valid feature selected for div(u32)");
     }
 }
 
@@ -92,8 +86,6 @@ impl PlainSub for u32 {
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
         { return sub32(self, other); }
-
-        unreachable!("No valid feature selected for sub(u32)");
     }
 }
 
@@ -107,20 +99,18 @@ impl PlainTanh for u32 {
 
         #[cfg(feature = "pam")]
         { return pam_tanh32(self); }
-
-        unreachable!("No valid feature selected for tanh(u32)");
     }
 }
 
 impl PlainReLU for u32 {
     fn relu(self) -> (Self, Self) {
-        relu32(self) // same for all features
+        relu32(self) 
     }
 }
 
 impl PlainBackwardReLU for u32 {
     fn backward_relu(self, grad_output: Self) -> Self {
-        backward_relu32(self, grad_output) // same for all features
+        backward_relu32(self, grad_output) 
     }
 }
 
@@ -131,20 +121,18 @@ impl PlainSqrt for u32 {
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
         { return sqrt32(self); }
-
-        unreachable!("No valid feature selected for sqrt(u32)");
     }
 }
 
 impl PlainMulInf for u32 {
     fn mul_inf(self, other: Self) -> Self {
-        lmul32(self, other) // same for all features
+        lmul32(self, other) 
     }
 }
 
 impl PlainDivInf for u32 {
     fn div_inf(self, other: Self) -> Self {
-        ldiv32(self, other) // same for all features
+        ldiv32(self, other)
     }
 }
 
@@ -157,8 +145,6 @@ impl PlainAdd for u16 {
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
         { return add16(self, other); }
-
-        unreachable!("No valid feature selected for add(u16)");
     }
 }
 
@@ -172,8 +158,6 @@ impl PlainMul for u16 {
 
         #[cfg(feature = "pam")]
         { return pam_mul16(self, other); }
-
-        unreachable!("No valid feature selected for mul(u16)");
     }
 }
 
@@ -187,8 +171,6 @@ impl PlainDiv for u16 {
 
         #[cfg(feature = "pam")]
         { return pam_div16(self, other); }
-
-        unreachable!("No valid feature selected for div(u16)");
     }
 }
 
@@ -199,8 +181,6 @@ impl PlainSub for u16 {
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
         { return sub16(self, other); }
-
-        unreachable!("No valid feature selected for sub(u16)");
     }
 }
 
@@ -214,38 +194,36 @@ impl PlainTanh for u16 {
 
         #[cfg(feature = "pam")]
         { return pam_tanh16(self); }
-
-        unreachable!("No valid feature selected for tanh(u16)");
     }
 }
 
 impl PlainReLU for u16 {
     fn relu(self) -> (Self, Self) {
-        relu16(self) // same for all features
+        relu16(self) 
     }
 }
 
 impl PlainBackwardReLU for u16 {
     fn backward_relu(self, grad_output: Self) -> Self {
-        backward_relu16(self, grad_output) // same for all features
+        backward_relu16(self, grad_output) 
     }
 }
 
 impl PlainSqrt for u16 {
     fn sqrt(self) -> Self {
-        sqrt16(self) // same for all features
+        sqrt16(self) 
     }
 }
 
 impl PlainMulInf for u16 {
     fn mul_inf(self, other: Self) -> Self {
-        lmul16(self, other) // same for all features
+        lmul16(self, other) 
     }
 }
 
 impl PlainDivInf for u16 {
     fn div_inf(self, other: Self) -> Self {
-        ldiv16(self, other) // same for all features
+        ldiv16(self, other)
     }
 }
 

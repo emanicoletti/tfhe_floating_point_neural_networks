@@ -1,4 +1,4 @@
-use tfhe::{prelude::*, set_server_key, CudaServerKey, ServerKey, FheBool, FheUint16, FheUint32};
+use tfhe::{prelude::*, set_server_key, CudaServerKey, ServerKey, FheUint16, FheUint32};
 
 pub fn fhe_relu16_gpu(
     encrypted_a: FheUint16,
@@ -80,6 +80,7 @@ pub fn fhe_relu32_cpu(
     )
 }
 
+#[allow(dead_code)]
 pub fn backward_relu16_cpu(
     encrypted_grad_output: FheUint16,
     encrypted_derivative: FheUint16,
@@ -94,6 +95,7 @@ pub fn backward_relu16_cpu(
     )
 }
 
+#[allow(dead_code)]
 pub fn backward_relu32_cpu(
     encrypted_grad_output: FheUint32,
     encrypted_derivative: FheUint32,

@@ -1,5 +1,3 @@
-use std::ops::BitOr;
-
 use tfhe::prelude::*;
 use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
@@ -439,7 +437,7 @@ pub fn fhe_add16_cpu(
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
     encrypted_zero: FheUint16,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint16 {
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
@@ -526,7 +524,7 @@ pub fn fhe_add32_cpu(
     encrypted_b: FheUint32,
     encrypted_mask: FheUint32,
     encrypted_zero: FheUint32,
-    server_keys: ServerKey,
+    _server_keys: ServerKey,
 ) -> FheUint32 {
     //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 

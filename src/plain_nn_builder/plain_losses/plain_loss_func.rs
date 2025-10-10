@@ -51,9 +51,6 @@ where
         target: &PlainTensor<T>,
     ) -> PlainTensor<T> {
         let n = predicted.data.len() as f32;
-
-        let two = 2.0 as f32;
-        let two_bits = two.to_bits();
     
         let mut grad_data = Vec::with_capacity(n as usize);
     

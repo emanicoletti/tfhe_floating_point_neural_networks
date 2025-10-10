@@ -5,16 +5,11 @@ use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptableValueT
 use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate, EncryptedMax, EncryptedGradIfEqual};
 use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
 
-use rayon::prelude::*;
-use rayon::scope;
-
-
 pub struct EncryptedMaxPoolingLayer<T: EncryptedElement> {
-    input: EncryptedTensor<T>,
-    input_dim: Vec<usize>, // shape of the input tensor 
+    _input: EncryptedTensor<T>,
+    _input_dim: Vec<usize>, // shape of the input tensor 
     kernel_size: usize,
     stride: usize,
-    padding: usize,
     id: String,
 }
 
@@ -24,15 +19,13 @@ impl<T: EncryptedElement> EncryptedMaxPoolingLayer<T>{
         input_dim: Vec<usize>,
         kernel_size: usize,
         stride: usize,
-        padding: usize,
     ) -> Self {
         Self {
-            input: EncryptedTensor::new(vec![], input_dim.clone()),
+            _input: EncryptedTensor::new(vec![], input_dim.clone()),
             id,
-            input_dim,
+            _input_dim: input_dim,
             kernel_size,
             stride,
-            padding,
         }
     }
 }
@@ -150,8 +143,8 @@ fn backward(
 
     fn update_parameters(
         &mut self,
-        learning_rate: T,
-        ctx: &EncryptedContext<K, T>,
+        _learning_rate: T,
+        _ctx: &EncryptedContext<K, T>,
     ) {
         // No parameters to update in max pooling
     }

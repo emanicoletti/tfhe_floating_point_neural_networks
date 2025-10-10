@@ -1,5 +1,4 @@
 use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainBatchNormLayer}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
-use std::time::Instant;
 
 
 pub struct PlainNeuralNetworkImpl<T: PlainElement> {
@@ -40,12 +39,11 @@ where
         self.layers.push(Box::new(dense_layer));
     }
 
-    pub fn add_tanh_activation(&mut self, derivatives: PlainTensor<T>, ranges: Vec<(T, T, T, T, T)>) {
+    pub fn add_tanh_activation(&mut self, derivatives: PlainTensor<T>) {
         let id = format!("Tanh{}", self.layers.len() + 1);
-        let tanh_layer = PlainTanhActivation {
+        let tanh_layer = PlainTanhActivation{
             id: id,
             derivatives: derivatives,
-            ranges: ranges,
         };
         self.layers.push(Box::new(tanh_layer));
     }
@@ -61,10 +59,9 @@ where
         input_dim: Vec<usize>,
         kernel_size: usize,
         stride: usize,
-        padding: usize,
     ) {
         let id = format!("MaxPooling{}", self.layers.len() + 1);
-        let max_pooling_layer = PlainMaxPoolingLayer::new(id, input_dim, kernel_size, stride, padding);
+        let max_pooling_layer = PlainMaxPoolingLayer::new(id, input_dim, kernel_size, stride);
         self.layers.push(Box::new(max_pooling_layer));
     }
 
@@ -106,21 +103,12 @@ where
     {   
         for epoch in 0..epochs{
             println!("Epoch {}/{}", epoch + 1, epochs);
-            let time = Instant::now();
-            let forward_time = Instant::now();
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
-                    for j in 0..output.data.len(){
-                        /* 
-                        if output.data[j].to_f32() > 100.0{
-                            panic!("Gradient too large at layer - forward {}: {:?}", layer.get_id(), output.data[j].to_f32());
-                        }
-                        */
-                    }
                 }
                 
                 let prediction = activations.last().unwrap();
@@ -132,19 +120,11 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
-                    for j in 0..grad.data.len(){
-                        /* 
-                        if grad.data[j].to_f32() > 5.0{
-                            panic!("Gradient too large at layer - backward {}: {:?}", layer.get_id(), grad.data[j].to_f32());
-                        }
-                        */
-                    }
                 }
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
                 }
                 i_batch += 1;
-
             }
         }
     }
@@ -179,21 +159,12 @@ where
     {
         for epoch in 0..epochs{
             println!("Epoch {}/{}", epoch + 1, epochs);
-            let time = Instant::now();
-            let forward_time = Instant::now();
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
-                    for j in 0..output.data.len(){
-                        /* 
-                        if output.data[j].to_f32() > 1000.0{
-                            panic!("Gradient too large at layer - forward {}: {:?}", layer.get_id(), output.data[j].to_f32());
-                        }
-                        */
-                    }
                 }
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
@@ -203,13 +174,6 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
-                    for j in 0..grad.data.len(){
-                        /* 
-                        if grad.data[j].to_f32() > 5.0{
-                            panic!("Gradient too large at layer - backward {}: {:?}", layer.get_id(), grad.data[j].to_f32());
-                        }
-                        */
-                    }
                 }
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
@@ -219,7 +183,7 @@ where
             }
 
             let mut correct = 0;
-            let mut total = val_labels.shape[0];
+            let total = val_labels.shape[0];
 
             for (input_batch, label_batch) in self.iter_batches(&val_inputs, &val_labels, 1){
                 let prediction = self.inference(&input_batch);
@@ -235,11 +199,9 @@ where
                 .map(|(idx, _)| idx)
                 .unwrap();
 
-                // 2. Create one-hot encoded vector
                 let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
                 one_hot[predicted_index] = 1.0;
 
-                 // Get predicted class (argmax)
                 let predicted_class = prediction_f32
                     .iter()
                     .enumerate()
@@ -249,7 +211,6 @@ where
 
                 let label: Vec<f32> = label_batch.data.iter().map(|x| x.to_f32()).collect();
 
-                // Get actual class from one-hot label
                 let actual_class = label
                     .iter()
                     .enumerate()
@@ -291,7 +252,6 @@ where
 
         while start < num_samples {
             let end = usize::min(start + batch_size, num_samples);
-            // Slice input batch
             let input_start = start * input_sample_size;
             let input_end = end * input_sample_size;
 
@@ -308,7 +268,6 @@ where
                 shape: input_batch_shape,
             };
     
-            // Slice label batch
             let label_start = start * label_sample_size;
             let label_end = end * label_sample_size;
             let label_batch_data = labels.data[label_start..label_end].to_vec();

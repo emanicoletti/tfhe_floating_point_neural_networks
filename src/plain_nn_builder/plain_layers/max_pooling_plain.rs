@@ -1,13 +1,11 @@
-use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::PlainLayer;
 
 pub struct PlainMaxPoolingLayer<T: PlainElement> {
-    input: PlainTensor<T>,
-    input_dim: Vec<usize>,
+    _input: PlainTensor<T>,
+    _input_dim: Vec<usize>,
     kernel_size: usize,
     stride: usize,
-    padding: usize,
     id: String,
 }
 
@@ -17,15 +15,13 @@ impl<T: PlainElement> PlainMaxPoolingLayer<T>{
         input_dim: Vec<usize>,
         kernel_size: usize,
         stride: usize,
-        padding: usize,
     ) -> Self {
         Self {
-            input: PlainTensor::new(vec![], input_dim.clone()),
+            _input: PlainTensor::new(vec![], input_dim.clone()),
             id,
-            input_dim,
+            _input_dim: input_dim,
             kernel_size,
-            stride,
-            padding,
+            stride
         }
     }
 }
@@ -91,7 +87,7 @@ where
         let out_h = (height - kernel) / stride + 1;
         let out_w = (width - kernel) / stride + 1;
 
-        let mut grad_output = grad_output.unflatten_1d_to_hw(&[batch, channels, out_h, out_w]);
+        let grad_output = grad_output.unflatten_1d_to_hw(&[batch, channels, out_h, out_w]);
 
         let mut grad_input = PlainTensor::new(
             vec![T::default(); batch * channels * height * width],
@@ -102,7 +98,6 @@ where
             for c in 0..channels {
                 for h in 0..out_h {
                     for w in 0..out_w {
-                        // get pooling region
                         let mut max_val = T::default();
                         let mut max_idx = (0, 0);
                         let mut first = true;
@@ -121,7 +116,6 @@ where
                             }
                         }
 
-                        // assign grad to the max location only
                         let grad = grad_output.get(&[n, c, h, w]).clone();
                         let flat_index = ((n * channels + c) * height + max_idx.0) * width + max_idx.1;
                         grad_input.data[flat_index] = grad;
@@ -143,7 +137,7 @@ where
 
     fn update_parameters(
         &mut self,
-        learning_rate: T
+        _learning_rate: T
     ) {
         // No parameters to update in max pooling
     }

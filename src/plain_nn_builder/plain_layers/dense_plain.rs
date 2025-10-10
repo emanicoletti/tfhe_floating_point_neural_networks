@@ -3,10 +3,7 @@ use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::PlainLayer;
 
 use rayon::iter::*;
-use rayon::prelude::*;
 use rayon::scope;
-
-use std::panic;
 
 pub struct PlainDenseLayer<T: PlainElement> {
     pub id: String,
@@ -17,11 +14,11 @@ pub struct PlainDenseLayer<T: PlainElement> {
 }
 
 impl<T: PlainElement> PlainDenseLayer<T>{
-    pub fn new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>) -> Self {
+    pub fn _new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>) -> Self {
         Self {
             id,
-            weights, // expect shape [1, 1, input_dim, output_dim]
-            biases,  // expect shape [1, 1, 1, output_dim]
+            weights,
+            biases, 
             grad_weights: None,
             grad_biases: None,
         }
@@ -38,7 +35,6 @@ where
 
         let mut weighted_sum = flatten_input.matmul(&self.weights.transpose()); 
 
-        // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
         let bias_data = &self.biases.data;
@@ -70,12 +66,12 @@ where
             scope(|s| {
                 s.spawn(|_| {
                     let flatten_input = input.flatten_hw_to_1d();
-                    let grad_weights = grad_output.transpose().matmul(&flatten_input).sum_axis(0);
+                    let grad_weights = grad_output.transpose().matmul(&flatten_input).sum_on_first_axis();
                     grad_weights_opt = Some(grad_weights);
                 });
         
                 s.spawn(|_| {
-                    let grad_biases = grad_output.sum_axis(0);
+                    let grad_biases = grad_output.sum_on_first_axis();
                     grad_biases_opt = Some(grad_biases);
                 });
         
@@ -85,7 +81,6 @@ where
                 });
             });
 
-            // Unwrap results (these will always be Some because the spawns run synchronously)
             let grad_weights = grad_weights_opt.expect("grad_weights not computed");
             let grad_biases = grad_biases_opt.expect("grad_biases not computed");
             let grad_input = grad_input_opt.expect("grad_input not computed");
@@ -102,7 +97,6 @@ where
             let mut lr_grad_w_opt = None;
             let mut lr_grad_b_opt = None;
 
-            // Compute scalar multiplications in parallel
             scope(|s| {
                 s.spawn(|_| {
                     lr_grad_w_opt = Some(grad_w.mul_scalar(&learning_rate));
@@ -117,8 +111,7 @@ where
 
             let mut new_weights = None;
             let mut new_biases = None;
-    
-            // Subtractions can also be parallelized
+
             scope(|s| {
                 s.spawn(|_| {
                     new_weights = Some(self.weights.sub(&lr_grad_w));
@@ -144,7 +137,6 @@ where
 
         let mut weighted_sum = flatten_input.approx_matmul(&self.weights.transpose());
 
-        // Expand biases to match [batch_size, output_dim]
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
         let bias_data = &self.biases.data;
@@ -164,8 +156,7 @@ where
 
     }
 
-    fn get_weights(&self) -> PlainTensor<T> 
-    {
+    fn get_weights(&self) -> PlainTensor<T>{
         self.weights.clone()
     }
 

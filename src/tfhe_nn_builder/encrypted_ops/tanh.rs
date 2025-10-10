@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
+use tfhe::{set_server_key, FheUint16, FheUint32, ServerKey, CudaServerKey};
 
 use crate::tfhe_nn_builder::encrypted_ops::add::*;
 use crate::tfhe_nn_builder::encrypted_ops::mul::*;
@@ -7,7 +7,6 @@ use crate::tfhe_nn_builder::encrypted_ops::same_sign_add::*;
 
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
-use rayon::iter::IntoParallelIterator;
 
 pub fn fhe_lmul_tanh16_gpu(
     input: FheUint16,

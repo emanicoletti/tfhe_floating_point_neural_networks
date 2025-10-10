@@ -6,9 +6,6 @@ use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, Encrypte
 use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
 
 use rayon::prelude::*;
-use rayon::scope;
-
-use std::time::Instant;
 
 pub struct EncryptedConvLayer<T: EncryptedElement> {
     pub id: String,
@@ -21,7 +18,7 @@ pub struct EncryptedConvLayer<T: EncryptedElement> {
 }
 
 impl<T: EncryptedElement> EncryptedConvLayer<T> {
-    pub fn new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, stride: usize, padding: usize) -> Self {
+    pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, stride: usize, padding: usize) -> Self {
         Self {
             id,
             weights, // expect shape [output_dim, input_dim, kernel_height, kernel_width]
@@ -114,9 +111,8 @@ where
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
-        let mut grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width], ctx);
+        let grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width], ctx);
 
-        // 1. Initialize gradients
         let mut grad_input = EncryptedTensor {
             data: vec![ctx.encrypted_zero.clone(); input.data.len()],
             shape: input.shape.clone(),

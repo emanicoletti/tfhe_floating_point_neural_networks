@@ -16,8 +16,6 @@ pub struct PlainTensor<T: PlainElement> {
 impl<T: PlainElement> PlainTensor<T> {
 
     pub fn new(data: Vec<T>, shape: Vec<usize>) -> Self {
-        let expected_size: usize = shape.iter().product();
-        //assert_eq!(data.len(), expected_size, "Data length does not match shape dimensions");
         Self { data, shape }
     }
 
@@ -31,7 +29,6 @@ impl<T: PlainElement> PlainTensor<T> {
             let dim_size = self.shape[i];
             let idx = indices[i];
             
-            // This assertion fails when index is invalid
             assert!(
                 idx < dim_size,
                 "Index {} out of bounds for dimension {} (size {})",
@@ -52,6 +49,7 @@ impl<T: PlainElement> PlainTensor<T> {
         &self.data[idx]
     }
 
+    #[allow(dead_code)]
     pub fn get_tensor(&self) -> PlainTensor<T> {
         PlainTensor {
             data: self.data.clone(),
@@ -73,7 +71,7 @@ impl<T: PlainElement> PlainTensor<T> {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
     
-        let [b2, c2, h2, w2] = other.shape[..] else {
+        let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
     
@@ -104,7 +102,6 @@ impl<T: PlainElement> PlainTensor<T> {
                     let a_val = self.get(&[b_self, c, i, k]).clone();
                     let b_val = other.get(&[b_other, c, k, j]).clone();
                     let prod = a_val.clone().mul(b_val.clone());
-                    //println!("Multiplying {} with {} = {}", a_val.to_f32(), b_val.to_f32(), prod.to_f32());
                     products.push(prod);
                 }
     
@@ -114,7 +111,6 @@ impl<T: PlainElement> PlainTensor<T> {
                     for pair in products.chunks(2) {
                         if pair.len() == 2 {
                             next.push(pair[0].clone().add(pair[1].clone()));
-                            //println!("Adding {} and {} = {}", pair[0].to_f32(), pair[1].to_f32(), next.last().unwrap().to_f32());
                         } else {
                             next.push(pair[0].clone());
                         }
@@ -143,7 +139,7 @@ impl<T: PlainElement> PlainTensor<T> {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
     
-        let [b2, c2, h2, w2] = other.shape[..] else {
+        let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
     
@@ -174,7 +170,6 @@ impl<T: PlainElement> PlainTensor<T> {
                     let a_val = self.get(&[b_self, c, i, k]).clone();
                     let b_val = other.get(&[b_other, c, k, j]).clone();
                     let prod = a_val.clone().mul_inf(b_val.clone());
-                    //println!("Multiplying {} with {} = {}", a_val.to_f32(), b_val.to_f32(), prod.to_f32());
                     products.push(prod);
                 }
     
@@ -184,7 +179,6 @@ impl<T: PlainElement> PlainTensor<T> {
                     for pair in products.chunks(2) {
                         if pair.len() == 2 {
                             next.push(pair[0].clone().add(pair[1].clone()));
-                            //println!("Adding {} and {} = {}", pair[0].to_f32(), pair[1].to_f32(), next.last().unwrap().to_f32());
                         } else {
                             next.push(pair[0].clone());
                         }
@@ -215,7 +209,7 @@ impl<T: PlainElement> PlainTensor<T> {
         .data
         .par_iter()
         .zip(other.data.par_iter()) 
-        .map(|(a, b)| a.clone().add(b.clone())) // or whatever operation you're doing
+        .map(|(a, b)| a.clone().add(b.clone())) 
         .collect();
             
         PlainTensor {
@@ -281,7 +275,7 @@ impl<T: PlainElement> PlainTensor<T> {
         PlainTensor::new(transposed_data, vec![self.shape[0], self.shape[1], cols, rows])
     }
 
-    pub fn sum_axis(&self, axis: usize) -> PlainTensor<T>
+    pub fn sum_on_first_axis(&self) -> PlainTensor<T>
     where
         T: PlainAdd,
     {

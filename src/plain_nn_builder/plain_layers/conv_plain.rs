@@ -1,10 +1,8 @@
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::PlainLayer;
-
 use rayon::iter::*;
-use rayon::prelude::*;
-use rayon::scope;
+
 
 pub struct PlainConv2DLayer<T: PlainElement> {
     pub id: String,
@@ -17,7 +15,7 @@ pub struct PlainConv2DLayer<T: PlainElement> {
 }
 
 impl<T: PlainElement> PlainConv2DLayer<T> {
-    pub fn new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>, stride: usize, padding: usize) -> Self {
+    pub fn _new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>, stride: usize, padding: usize) -> Self {
         Self {
             id,
             weights,
@@ -44,7 +42,6 @@ where
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
-        // --- Create padded input ---
         let padded_height = in_height + 2 * self.padding;
         let padded_width = in_width + 2 * self.padding;
 
@@ -66,13 +63,11 @@ where
             }
         }
 
-        // --- Output tensor ---
         let mut output = PlainTensor {
             data: vec![T::default(); batch_size * out_channels * out_height * out_width],
             shape: vec![batch_size, out_channels, out_height, out_width],
         };
 
-        // --- Convolution loop ---
         for b in 0..batch_size {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
@@ -118,9 +113,8 @@ where
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
-        let mut grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width]);
+        let grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width]);
 
-        // --- Initialize gradients ---
         let mut grad_input = PlainTensor {
             data: vec![T::default(); input.data.len()],
             shape: input.shape.clone(),
@@ -136,7 +130,6 @@ where
             shape: vec![out_channels],
         };
 
-        // --- Padded input for convenience ---
         let padded_height = in_height + 2 * self.padding;
         let padded_width = in_width + 2 * self.padding;
 
@@ -145,7 +138,6 @@ where
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
-                // --- build padded_input once (same as your forward)
         let mut padded_input = PlainTensor {
             data: vec![T::default(); batch_size * in_channels * padded_height * padded_width],
             shape: vec![batch_size, in_channels, padded_height, padded_width],
@@ -163,34 +155,29 @@ where
             }
         }
 
-        // --- main backward loops (no per-element bounds checks)
         for b in 0..batch_size {
             for oc in 0..out_channels {
                 for oh in 0..out_height {
                     for ow in 0..out_width {
                         let grad_out_val = grad_output.data[grad_output.flatten_index(&[b, oc, oh, ow])];
 
-                        // Bias gradient
                         grad_biases.data[oc] = grad_biases.data[oc].add(grad_out_val);
 
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
                                 for kw in 0..kernel_width {
-                                    let ih = oh * self.stride + kh; // padded coord
-                                    let iw = ow * self.stride + kw; // padded coord
+                                    let ih = oh * self.stride + kh; 
+                                    let iw = ow * self.stride + kw; 
 
-                                    // read directly from padded_input
                                     let inp_idx = padded_input.flatten_index(&[b, ic, ih, iw]);
                                     let x_val = padded_input.data[inp_idx];
 
                                     let w_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
                                     let w_val = self.weights.data[w_idx];
 
-                                    // grad wrt weights
                                     grad_weights.data[w_idx] =
                                         grad_weights.data[w_idx].add(grad_out_val.mul(x_val));
 
-                                    // grad wrt input (into padded grad buffer)
                                     let gip_idx = grad_input_padded.flatten_index(&[b, ic, ih, iw]);
                                     grad_input_padded.data[gip_idx] =
                                         grad_input_padded.data[gip_idx].add(grad_out_val.mul(w_val));
@@ -202,7 +189,6 @@ where
             }
         }
         
-        // --- Remove padding from grad_input ---
         for b in 0..batch_size {
             for ic in 0..in_channels {
                 for h in 0..in_height {
@@ -215,7 +201,6 @@ where
             }
         }
 
-        // --- Store gradients for optimizer ---
         self.grad_weights = Some(grad_weights);
         self.grad_biases = Some(grad_biases);
 
@@ -228,15 +213,12 @@ where
             T: Send + Sync + Copy,
     {
         if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-            // Update weights in parallel
             self.weights.data
                 .par_iter_mut()
                 .zip(grad_w.data.par_iter())
                 .for_each(|(w, &gw)| {
                     *w = w.sub(gw.mul(learning_rate.clone()));
                 });
-
-            // Update biases in parallel
             self.biases.data
                 .par_iter_mut()
                 .zip(grad_b.data.par_iter())
@@ -262,7 +244,6 @@ where
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
-        // --- Create padded input ---
         let padded_height = in_height + 2 * self.padding;
         let padded_width = in_width + 2 * self.padding;
 
@@ -271,7 +252,6 @@ where
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
-        // Copy original input into padded tensor
         for b in 0..batch_size {
             for c in 0..in_channels {
                 for h in 0..in_height {
@@ -284,13 +264,11 @@ where
             }
         }
 
-        // --- Output tensor ---
         let mut output = PlainTensor {
             data: vec![T::default(); batch_size * out_channels * out_height * out_width],
             shape: vec![batch_size, out_channels, out_height, out_width],
         };
 
-        // --- Convolution loop ---
         for b in 0..batch_size {
             for oc in 0..out_channels {
                 for oh in 0..out_height {

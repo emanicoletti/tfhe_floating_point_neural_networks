@@ -2,11 +2,6 @@ use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::PlainLayer;
 
-use rayon::iter::*;
-use rayon::prelude::*;
-use rayon::scope;
-
-
 pub struct PlainBatchNormLayer<T: PlainElement> {
     pub id: String,
     pub x_hat: PlainTensor<T>,
@@ -16,8 +11,6 @@ pub struct PlainBatchNormLayer<T: PlainElement> {
     pub beta: PlainTensor<T>,
     pub batch_mean: PlainTensor<T>,
     pub batch_variance: PlainTensor<T>,
-    pub grad_mean: Option<PlainTensor<T>>,
-    pub grad_variance: Option<PlainTensor<T>>,
     pub grad_gamma: Option<PlainTensor<T>>,
     pub grad_beta: Option<PlainTensor<T>>,
 }
@@ -41,8 +34,6 @@ impl<T: PlainElement> PlainBatchNormLayer<T> {
                 data: vec![T::default(); variance.data.len()],
                 shape: variance.shape.clone(),
             },
-            grad_mean: None,
-            grad_variance: None,
             grad_gamma: None,
             grad_beta: None,
         }
@@ -61,7 +52,7 @@ where
             shape: input.shape.clone(),
         }; 
 
-        for j in 0..input.shape[1] { // loop over channels
+        for j in 0..input.shape[1] { 
             // Compute mean for this channel from current batch
             let mut sum = T::default();
             let n = T::from_f32((batch_size * input.shape[2] * input.shape[3]) as f32);
@@ -136,7 +127,6 @@ where
         let n = T::from_f32(n_elements);
 
         let reshaped_grad_output = if grad_output.shape[3] == channels * height * width {
-            // Flattened case
             PlainTensor {
                 data: grad_output.data.clone(),
                 shape: vec![batch_size, channels, height, width],
@@ -181,11 +171,6 @@ where
 
                         sum_dy = sum_dy.add(dy);
                         sum_dy_xhat = sum_dy_xhat.add(dy.mul(xhat_val));
-                        /* 
-                        if sum_dy_xhat.add(dy.mul(xhat_val)).to_f32().abs() > 100.0 || sum_dy_xhat.add(dy.mul(xhat_val)).to_f32().is_nan() {
-                            panic!("sum_dy_xhat too large at BN - backward {:?}, dy: {:?}, xhat_val: {:?}", sum_dy_xhat.to_f32(), dy.to_f32(), xhat_val.to_f32());
-                        }
-                        */
                     }
                 }
             }
@@ -212,25 +197,15 @@ where
                         // Compute per-channel mean terms
                         let mean_dy = sum_dy.div(n);
                         let mean_dy_xhat = sum_dy_xhat.div(n);
-                        /* 
-                        if mean_dy_xhat.to_f32().abs() > 100.0 {
-                            panic!("mean_dy_xhat too large at BN - backward {:?}, sum_dy_xhat: {:?}, n: {:?}", mean_dy_xhat.to_f32(), sum_dy_xhat.to_f32(), n.to_f32());
-                        }
-                        */
 
-                        // PyTorch formula: dx = gamma / std * (dy - mean(dy) - xhat * mean(dy * xhat))
+                        // Final gradient computation
                         let dx = (gamma.div(std)).mul((dy.sub(mean_dy)).sub(xhat_val.mul(mean_dy_xhat)));
-                        /* 
-                        if dx.to_f32() > 100.0 {
-                            panic!("Gradient too large at BN - backward {:?}, gamma: {:?}, std: {:?}, dy: {:?}, mean_dy: {:?}, xhat_val: {:?}, mean_dy_xhat: {:?}",  dx.to_f32(), gamma.to_f32(), std.to_f32(), dy.to_f32(), mean_dy.to_f32(), xhat_val.to_f32(), mean_dy_xhat.to_f32());
-                        }
-                        */
+
                         grad_input.data[idx] = dx;
                     }
                 }
             }
         }
-
         grad_input
     }
 
@@ -247,7 +222,7 @@ where
         let batch_size = input.shape[0];
         let mut normalized = input.clone();
 
-        for j in 0..input.shape[1] { // loop over channels
+        for j in 0..input.shape[1] { 
             let mean = self.mean.data[j];
             let var = self.variance.data[j];
             let gamma = self.gamma.data[j];
@@ -273,7 +248,7 @@ where
         let batch_size = input.shape[0];
         let mut normalized = input.clone();
 
-        for j in 0..input.shape[1] { // loop over channels
+        for j in 0..input.shape[1] { 
             let mean = self.mean.data[j];
             let var = self.variance.data[j];
             let gamma = self.gamma.data[j];

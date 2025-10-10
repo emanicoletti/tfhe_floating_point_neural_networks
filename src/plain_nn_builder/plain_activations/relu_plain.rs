@@ -31,11 +31,10 @@ where
 
     fn backward(
         &mut self,
-        input: &PlainTensor<T>,
+        _input: &PlainTensor<T>,
         grad_output: &PlainTensor<T>,
     ) -> PlainTensor<T>
     {
-        // grad_input = grad_output * derivative
         let grad_input_data: Vec<T> = grad_output
             .data
             .par_iter()
@@ -48,7 +47,7 @@ where
 
     fn update_parameters(
         &mut self,
-        learning_rate: T,
+        _learning_rate: T,
     ) {
     // No parameters to update in relu activation
     }
