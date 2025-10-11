@@ -1,4 +1,5 @@
 # TFHE-Based Floating-Point Neural Network Training
+![Banner](./assets/banner.png)
 
 This is the official repo for .... paper. In this study we make feasible the usage of Floating-Point arithmetic using TFHE encryption scheme for training Deep Neural Networks. 
 
