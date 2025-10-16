@@ -334,6 +334,12 @@ impl EncryptedGradIfEqual<CudaServerKey, FheUint32> for CudaServerKey {
     }
 }
 
+impl EncryptedGradIfEqual<ServerKey, FheUint16> for ServerKey {
+    fn grad_if_equal(&self, a: FheUint16, b: FheUint16, zero: FheUint16, grad: FheUint16, _ctx: &EncryptedContext<Self, FheUint16>) -> FheUint16 {
+        fhe_grad_if_equal16_cpu(a, b, zero, grad, self.clone())
+    }
+}
+
 impl EncryptedGradIfEqual<ServerKey, FheUint32> for ServerKey {
     fn grad_if_equal(&self, a: FheUint32, b: FheUint32, zero: FheUint32, grad: FheUint32, _ctx: &EncryptedContext<Self, FheUint32>) -> FheUint32 {
         fhe_grad_if_equal32_cpu(a, b, zero, grad, self.clone())
