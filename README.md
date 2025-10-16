@@ -74,4 +74,35 @@ experiment_x_fpy(...)
 ```
 where x corresponds to one of the three experiments (1, 2, 3), and y the bit_width (16 or 32).
 
+## Test arithmetic
+You can test individual encrypted arithmetic operations by calling the corresponding test function in your main():
+```
+test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
+```
+where the parameters corresponds to the operation the list is below, then the size, the true or false for gpu acceleration, number of operations, and range.
+| Parameter                 | Description                                           |
+| ------------------------- | ----------------------------------------------------- |
+| `op_name`                 | Operation name (e.g., `"lmul"`, `"add"`, `"pam_div"`) |
+| `bit_width`               | Floating-point bit width (8, 16, 32, 64)              |
+| `use_gpu`                 | `true` to enable GPU acceleration, `false` otherwise  |
+| `num_ops`                 | Number of operations to perform                       |
+| `range_min` / `range_max` | Value range for random input generation               |
+
+Available operations:
+| Operation         | Description              | Type        | FP Formats               | Speed             |
+| ----------------- | ------------------------ | ----------- | ------------------------ | ----------------- |
+| **add**           | Addition                 | Exact       | FP8 / FP16 / FP32 / FP64 | ⚙️ Medium          |
+| **same_sign_add** | Same-sign addition       | Exact       | FP8 / FP16 / FP32 / FP64 | ⚙️ Medium          |
+| **sub**           | Subtraction              | Exact       | FP8 / FP16 / FP32 / FP64 | ⚙️ Medium         |
+| **lmul**          | Lmul multiplication      | Approximate | FP8 / FP16 / FP32 / FP64 | ⚡ Fast            |
+| **ldiv**          | Lmul division            | Approximate | FP8 / FP16 / FP32 / FP64 | ⚡ Fast            |
+| **lmul_tanh**     | PLA Tanh (based on Lmul) | Approximate | FP16 / FP32              | 🐢 Very Slow      |
+| **pam_mul**       | PAM multiplication       | Approximate | FP16 / FP32              | ⚡ Fast            |
+| **pam_div**       | PAM division             | Approximate | FP16 / FP32              | ⚡ Fast            |
+| **pam_tanh**      | PLA Tanh (based on PAM)  | Approximate | FP16 / FP32              | 🐢 Very Slow      |
+| **relu**          | ReLU activation          | Exact       | FP8 / FP16 / FP32 / FP64 | 🚀 Very Fast      |
+| **sqrt**          | Square root              | Exact       | FP16 / FP32              | 🐢 Very Slow      |
+| **log2**          | Base-2 logarithm         | Exact       | FP16 / FP32              | 🐌 Extremely Slow |
+
+
 ## Citation

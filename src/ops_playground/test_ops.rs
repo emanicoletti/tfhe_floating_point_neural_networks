@@ -1,6 +1,6 @@
 // Ops Playground List:
-// [add]: Addition - Exact - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Slow
-// [same_sign_add]: Same Sign Addition - Exact - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Slow
+// [add]: Addition - Exact - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Medium
+// [same_sign_add]: Same Sign Addition - Exact - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Fast
 // [sub]: Subtraction - Exact - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Medium
 // [lmul]: Lmul Multiplication - Approximate - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Fast
 // [ldiv]: Lmul Division - Approximate - Available fp formats: (FP8, FP16, FP32, FP64) - Execution: Fast

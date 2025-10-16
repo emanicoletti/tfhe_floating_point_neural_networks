@@ -10,10 +10,12 @@ use crate::experiment_1_2::exp_1_settings::*;
 use crate::experiment_1_2::exp_2_settings::*;
 #[allow(unused_imports)]
 use crate::experiment_3::exp_3_settings::*;
+#[allow(unused_imports)]
+use crate::ops_playground::test_ops::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    //test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
+    test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
     experiment_1_fp32(true, false, true)?;
 
     Ok(())
