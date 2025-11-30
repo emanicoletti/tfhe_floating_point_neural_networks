@@ -18,7 +18,8 @@ use std::time::Instant;
 use rand::Rng;
 use half::f16;
 use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
-use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
+use tfhe::shortint::parameters::v1_1::{V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
+use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
 use crate::tfhe_nn_builder::add::*;
 use crate::tfhe_nn_builder::div::*;
 use crate::tfhe_nn_builder::log2::*;
@@ -55,7 +56,7 @@ pub static TANH32_PLA_RANGES: &[(u32, u32, u32, u32, u32)] = &[
 pub fn test_encrypted_ops(ops: &str, fp_size: usize, gpu: bool, num_ops: usize, min_range: f32, max_range: f32) -> Result<(), Box<dyn std::error::Error>> {
     if gpu {
         // Configure, generate and set the keys for GPU execution
-        let config = ConfigBuilder::with_custom_parameters(PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64).build();
+        let config = ConfigBuilder::with_custom_parameters(V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40).build();
         let client_key = ClientKey::generate(config);
         let compressed_server_key = CompressedServerKey::new(&client_key);
         let server_key = compressed_server_key.decompress_to_gpu();
@@ -65,7 +66,7 @@ pub fn test_encrypted_ops(ops: &str, fp_size: usize, gpu: bool, num_ops: usize, 
     }
     else{
         // Configure, generate and set the keys for CPU execution
-        let config = ConfigBuilder::with_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        let config = ConfigBuilder::with_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40)
             .build();
         let (client_key, server_key) = generate_keys(config);
         rayon::broadcast(|_| set_server_key(server_key.clone()));
@@ -164,6 +165,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 // Perform the operation
                 let start = Instant::now();
                 let result = match ops {
+                    "test" => fhe_add_int8(encrypted_a, encrypted_b, server_key.clone()),
                     "add" => fhe_add8_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "same_sign_add" => fhe_ss_add8_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "sub" => {
@@ -253,6 +255,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 // Perform the operation
                 let start = Instant::now();
                 let result = match ops {
+                    "test" => fhe_add_int32(encrypted_a, encrypted_b, server_key.clone()),
                     "add" => fhe_add32_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "same_sign_add" => fhe_ss_add32_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "sub" => {
@@ -297,6 +300,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 // Perform the operation
                 let start = Instant::now();
                 let result = match ops {
+                    "test" => fhe_add_int64(encrypted_a, encrypted_b, server_key.clone()),
                     "add" => fhe_add64_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "same_sign_add" => fhe_ss_add64_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "sub" => {

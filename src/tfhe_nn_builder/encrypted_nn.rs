@@ -20,6 +20,7 @@ use std::time::Instant;
 use tfhe::prelude::FheTryEncrypt;
 use tfhe::shortint::parameters::v1_2::*;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, CudaServerKey, FheUint16, FheUint32};
+use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
 
 
 pub trait EncryptedNeuralNetwork{
@@ -138,7 +139,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
         experiment: Option<i8>
     ) -> Self {
         let config =
-        ConfigBuilder::with_custom_parameters(V1_2_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        ConfigBuilder::with_custom_parameters(V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40)
             .build();
         let client_key = ClientKey::generate(config);
         let compressed_server_key = CompressedServerKey::new(&client_key);
@@ -291,13 +292,15 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
                     println!("Expected 4D shape for weights, got {:?}", shape);
                     return;
                 }
-
+                
+                let in_channels = shape[0];
+                let out_channels = shape[1];
                 let rows = shape[2];
                 let cols = shape[3];
                 let flat = weights.data;
     
-                if flat.len() != rows * cols {
-                    println!("Shape mismatch: expected {} elements, got {}", rows * cols, flat.len());
+                if flat.len() != in_channels * out_channels * rows * cols {
+                    println!("Shape mismatch: expected {} elements, got {}", in_channels * out_channels * rows * cols, flat.len());
                     return;
                 }
     
@@ -516,8 +519,8 @@ impl EncryptedNeuralNetworkU16GPU {
             // Xavier initialization for other cases
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
             let normal = Normal::new(0.0, std_dev).unwrap();
-        
-            let mut rng = ChaCha8Rng::seed_from_u64(42);
+            
+            let mut rng = ChaCha8Rng::seed_from_u64(7188);
 
             let mut weights = Vec::with_capacity(in_channels * out_channels * input_size * output_size);
 
@@ -680,7 +683,7 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
         experiment: Option<i8>
     ) -> Self{
         let config =
-        ConfigBuilder::with_custom_parameters(V1_2_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
+        ConfigBuilder::with_custom_parameters(V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40)
             .build();
         let client_key = ClientKey::generate(config);
         let compressed_server_key = CompressedServerKey::new(&client_key);
@@ -839,8 +842,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
                 let cols = shape[3];
                 let flat = weights.data;
     
-                if flat.len() != rows * cols {
-                    println!("Shape mismatch: expected {} elements, got {}", rows * cols, flat.len());
+                if flat.len() != in_channels * out_channels * rows * cols {
+                    println!("Shape mismatch: expected {} elements, got {}", in_channels * out_channels * rows * cols, flat.len());
                     return;
                 }
     
@@ -1048,8 +1051,8 @@ impl EncryptedNeuralNetworkU32GPU {
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
             let normal = Normal::new(0.0, std_dev).unwrap();
         
-            let mut rng = ChaCha8Rng::seed_from_u64(42);
-
+            let mut rng = ChaCha8Rng::seed_from_u64(123);
+        
             let mut weights = Vec::with_capacity(in_channels * out_channels * input_size * output_size);
 
             for _ in 0..(in_channels * out_channels * input_size * output_size) {

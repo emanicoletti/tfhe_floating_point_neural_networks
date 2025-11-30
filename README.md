@@ -80,7 +80,7 @@ You can test individual encrypted arithmetic operations by calling the correspon
 test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
 ```
 
-Parameters
+Parameters:
 | Parameter                 | Description                                           |
 | ------------------------- | ----------------------------------------------------- |
 | `op_name`                 | Operation name (e.g., `"lmul"`, `"add"`, `"pam_div"`) |

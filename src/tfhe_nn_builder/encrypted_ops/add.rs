@@ -3,6 +3,39 @@ use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey,
 
 /* GPU OPERATIONS */
 
+pub fn fhe_add_int8(
+    encrypted_a: FheUint8,
+    encrypted_b: FheUint8, 
+    server_keys: CudaServerKey,
+) -> FheUint8 {
+    rayon::broadcast(|_| set_server_key(server_keys.clone()));
+
+    let result = &encrypted_a * &encrypted_b;
+    result
+}
+
+pub fn fhe_add_int32(
+    encrypted_a: FheUint32,
+    encrypted_b: FheUint32, 
+    server_keys: CudaServerKey,
+) -> FheUint32 {
+    rayon::broadcast(|_| set_server_key(server_keys.clone()));
+
+    let result = &encrypted_a + &encrypted_b;
+    result
+}
+
+pub fn fhe_add_int64(
+    encrypted_a: FheUint64,
+    encrypted_b: FheUint64, 
+    server_keys: CudaServerKey,
+) -> FheUint64 {
+    rayon::broadcast(|_| set_server_key(server_keys.clone()));
+
+    let result = &encrypted_a * &encrypted_b;
+    result
+}
+
 /* GPU-oriented integer-based addition for 8 bits floating points (E4M3) */
 pub fn fhe_add8_gpu(
     encrypted_a: FheUint8,

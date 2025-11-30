@@ -112,11 +112,10 @@ where
                 }
                 
                 let prediction = activations.last().unwrap();
-                prediction.print_tensor();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
                 println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
-                
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
+                //grad.print_tensor();
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);

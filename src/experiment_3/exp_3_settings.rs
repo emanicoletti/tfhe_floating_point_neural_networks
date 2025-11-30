@@ -53,6 +53,7 @@ pub fn experiment_3_fp32() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+
 #[allow(dead_code)]
 pub fn experiment_3_fp16() -> Result<(), Box<dyn std::error::Error>> {
 

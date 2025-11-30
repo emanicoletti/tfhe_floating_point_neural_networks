@@ -457,16 +457,20 @@ impl<T: PlainElement> PlainTensor<T> {
             return;
         }
 
-        for b in 0..1 {
-            for c in 0..1 {
-                println!("\nPrediction for Batch {}, Channel {}", b, c);
-                for i in 0..1 {
+        for b in 0..size {
+            println!("\n=== Batch {} ===", b);
+            for c in 0..channel {
+                println!("--- Channel {} ---", c);
+                for i in 0..rows {
                     print!("[");
-                    for j in 0..1 {
-                        let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
-                        print!("{:<6} ", flat[index].to_f32());
+                    for j in 0..cols {
+                        let index = b * channel * rows * cols
+                            + c * rows * cols
+                            + i * cols
+                            + j;
+                        print!("{:<6.3} ", flat[index].to_f32());
                     }
-                    print!("]\n");
+                    println!("]");
                 }
             }
         }

@@ -34,18 +34,14 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(32, 3);
 
         // Train and validate the plain model
-        plain_model.train_and_validate(
-            10,
+        plain_model.train(
+            1,
             2,
-            0.1,
+            0.3,
             &train_inputs,
             &train_labels,
-            &val_inputs,
-            &val_labels,
-            vec![50, 1, 16, 16],
-            vec![50, 1, 1, 3],
-            vec![5000, 1, 16, 16],
-            vec![5000, 1, 1, 3],
+            vec![2, 1, 16, 16],
+            vec![2, 1, 1, 3],
         );
 
         // Print model weights and biases
@@ -70,12 +66,12 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
         // Train the encrypted model
         model.train(
             1,
-            2,
+            1,
             0.3,
             &train_inputs,
             &train_labels,
-            vec![2, 1, 16, 16],
-            vec![2, 1, 1, 3],
+            vec![1, 1, 16, 16],
+            vec![1, 1, 1, 3],
         );
 
         // Print model weights and biases
@@ -190,18 +186,14 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_dense(32, 3);
 
         // Train and validate the plain model
-        plain_model.train_and_validate(
-            3,
-            2,
+        plain_model.train(
+            1,
+            1,
             0.3,
             &train_inputs,
             &train_labels,
-            &val_inputs,
-            &val_labels,
-            vec![50, 1, 16, 16],
-            vec![50, 1, 1, 3],
-            vec![5000, 1, 16, 16],
-            vec![5000, 1, 1, 3],
+            vec![1, 1, 16, 16],
+            vec![1, 1, 1, 3],
         );
 
         // Print model weights and biases
@@ -232,12 +224,12 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
         // Train the encrypted model
         model.train(
             1,
-            2,
+            1,
             0.3,
             &train_inputs,
             &train_labels,
-            vec![2, 1, 16, 16],
-            vec![2, 1, 1, 3],
+            vec![1, 1, 16, 16],
+            vec![1, 1, 1, 3],
         );
 
         // Print model weights and biases
