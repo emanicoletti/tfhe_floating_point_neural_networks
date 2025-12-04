@@ -1,4 +1,4 @@
-use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainBatchNormLayer}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
+use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainAvgPoolingLayer, PlainBatchNormLayer}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
 
 
 pub struct PlainNeuralNetworkImpl<T: PlainElement> {
@@ -65,6 +65,17 @@ where
         self.layers.push(Box::new(max_pooling_layer));
     }
 
+    pub fn add_avg_pooling(
+        &mut self,
+        input_dim: Vec<usize>,
+        kernel_size: usize,
+        stride: usize,
+    ) {
+        let id = format!("AvgPooling{}", self.layers.len() + 1);
+        let avg_pooling_layer = PlainAvgPoolingLayer::new(id, input_dim, kernel_size, stride);
+        self.layers.push(Box::new(avg_pooling_layer));
+    }
+
     pub fn add_conv(&mut self, weights: PlainTensor<T>, biases: PlainTensor<T>, grad_weights: PlainTensor<T>, grad_biases: PlainTensor<T>, stride: usize, padding: usize) {
         let id = format!("Conv{}", self.layers.len() + 1);
         let conv_layer = PlainConv2DLayer {
@@ -113,7 +124,7 @@ where
                 
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                //println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 //grad.print_tensor();
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
@@ -167,7 +178,6 @@ where
                 }
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {

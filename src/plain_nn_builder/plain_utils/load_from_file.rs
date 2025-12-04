@@ -31,10 +31,18 @@ pub fn load_data(exp_number: i8) -> Result<(Array2<f32>, Array2<f32>, Array2<f32
             (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
         },
         4 => {
-            let x_train: Array2<f32> = read_npy(Path::new("res/MNIST/x_train.npy"))?;
-            let y_train: Array2<f32> = read_npy(Path::new("res/MNIST/y_train.npy"))?;
-            let x_test: Array2<f32> = read_npy(Path::new("res/MNIST/x_test.npy"))?;
-            let y_test: Array2<f32> = read_npy(Path::new("res/MNIST/y_test.npy"))?;
+            let x_train: Array2<f32> = read_npy(Path::new("res/mnist/x_train.npy"))?;
+            let y_train: Array2<f32> = read_npy(Path::new("res/mnist/y_train.npy"))?;
+            let x_test: Array2<f32> = read_npy(Path::new("res/mnist/x_test.npy"))?;
+            let y_test: Array2<f32> = read_npy(Path::new("res/mnist/y_test.npy"))?;
+            let empty_array = Array2::<f32>::zeros((0, 0));
+            (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
+        },
+        5 => {
+            let x_train: Array2<f32> = read_npy(Path::new("res/f_mnist/x_train.npy"))?;
+            let y_train: Array2<f32> = read_npy(Path::new("res/f_mnist/y_train.npy"))?;
+            let x_test: Array2<f32> = read_npy(Path::new("res/f_mnist/x_val.npy"))?;
+            let y_test: Array2<f32> = read_npy(Path::new("res/f_mnist/y_val.npy"))?;
             let empty_array = Array2::<f32>::zeros((0, 0));
             (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
         }

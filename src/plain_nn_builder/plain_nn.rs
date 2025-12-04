@@ -21,6 +21,7 @@ pub trait PlainNeuralNetwork {
     fn add_tanh_activation(&mut self, size: usize);
     fn add_relu_activation(&mut self, size: usize);
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize);
+    fn add_avg_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize);
     fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize);
     fn add_batch_norm(&mut self, size:usize);
     fn train(
@@ -101,6 +102,10 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
     
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize){
         self.inner.add_max_pooling(input_dim, kernel_size, stride);
+    }
+
+    fn add_avg_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize){
+        self.inner.add_avg_pooling(input_dim, kernel_size, stride);
     }
 
     fn add_conv(&mut self,in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
@@ -185,6 +190,8 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
                 let cols = shape[3];
                 let flat = weights.data;
 
+                println!("Weights data length: {}", flat.len());
+
                 if flat.len() != in_channels * out_channels * rows * cols {
                     println!("Shape mismatch: expected {} elements, got {}", in_channels * out_channels * rows * cols, flat.len());
                     return;
@@ -234,7 +241,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 impl PlainNeuralNetworkU32 {
 
     fn init_weights(&mut self, input_size: usize, output_size: usize, in_channels: usize, out_channels: usize, experiment: Option<i8>) -> PlainTensor<u32> {
-        println!("Experiment: {:?}", experiment);
         if experiment == Some(1) {
             // Initialize weights for experiment 1
             if output_size == 16 {
@@ -302,18 +308,67 @@ impl PlainNeuralNetworkU32 {
         }
         else if experiment == Some(4) {
             let weights_file: Array2<f32> = if out_channels == 6 && in_channels == 1 {
-                read_npy(Path::new("src/MNIST_exp/initializations/conv1_weight.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/conv1_weight.npy"))
                     .expect("Failed to read conv1 weights")
             } else if out_channels == 16 && in_channels == 6 {
-                read_npy(Path::new("src/MNIST_exp/initializations/conv2_weight.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/conv2_weight.npy"))
                     .expect("Failed to read conv2 weights")
             } else if input_size == 84 && output_size == 9216 {
-                read_npy(Path::new("src/MNIST_exp/initializations/fc1_weight.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/fc1_weight.npy"))
                     .expect("Failed to read fc1 weights")
             } else if input_size == 10 && output_size == 84 {
-                read_npy(Path::new("src/MNIST_exp/initializations/fc2_weight.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/fc2_weight.npy"))
                     .expect("Failed to read fc2 weights")
             } else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        }
+        else if experiment == Some(5) {
+            let weights_file: Array2<f32> = if input_size == 200 && output_size == 784 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_1/fc1_weight.npy")).expect("Failed to load fc1 weights")
+            } else if input_size == 10 && output_size == 200 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_1/fc2_weight.npy")).expect("Failed to load fc2 weights")
+            } else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        }
+        else if experiment == Some(6) {
+            let weights_file: Array2<f32> = if in_channels == 1 && out_channels == 6 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/conv1_weight.npy"))
+                    .expect("Failed to read conv1 weights")
+            } else if in_channels == 6 && out_channels == 16 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/conv2_weight.npy"))
+                    .expect("Failed to read conv2 weights")
+            } else if input_size == 120 && output_size == 400 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc1_weight.npy"))
+                    .expect("Failed to read fc1 weights")
+            } else if input_size == 84 && output_size == 120 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc2_weight.npy"))
+                    .expect("Failed to read fc2 weights")
+            }
+            else if input_size == 10 && output_size == 84 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc3_weight.npy"))
+                    .expect("Failed to read fc3 weights")
+            }
+            else { 
                 panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
             };
 
@@ -432,6 +487,55 @@ impl PlainNeuralNetworkU32 {
                 .collect();
             PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
         } 
+        else if experiment == Some(5) {
+            let biases_file: Array2<f32> = if output_size == 200 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_1/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 10 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_1/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            };
+
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(6) {
+             
+            let biases_file: Array2<f32> = if output_size == 6 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/conv1_bias.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if output_size == 16 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/conv2_bias.npy"))
+                    .expect("Failed to read conv2 biases")
+            } else if output_size == 120 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 84 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            }
+            else if output_size == 10 {
+                read_npy(Path::new("src/f_mnist_exp/initializations_2/fc3_bias.npy"))
+                    .expect("Failed to read fc3 biases")
+            }
+            else { 
+                panic!("No matching biases file for given layer dimensions {:?}",  output_size);
+            };
+
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        }
         else {
             let biases = vec![0u32; output_size];
             PlainTensor::new(biases, vec![1, 1, 1, output_size])
@@ -558,6 +662,10 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
 
     fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize){
         self.inner.add_max_pooling(input_dim, kernel_size, stride);
+    }
+
+    fn add_avg_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize){
+        self.inner.add_avg_pooling(input_dim, kernel_size, stride);
     }
 
     fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
