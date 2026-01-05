@@ -168,16 +168,20 @@ where
     )
     {
         for epoch in 0..epochs{
+            
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
+                //activations.last().unwrap().print_tensor();
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
                 }
                 let prediction = activations.last().unwrap();
+                //prediction.print_tensor();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
+                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
@@ -227,13 +231,17 @@ where
                     .map(|(idx, _)| idx)
                     .unwrap();
 
+                //println!("Predicted: {}, Actual: {}", predicted_class, actual_class);
+
                 if predicted_class == actual_class {
                     correct += 1;
                 }
             }
             println!("Epoch {:?} Validation Accuracy: {:.2}%", epoch+1, (correct as f32 / total as f32) * 100.0);
+        
         }
     }
+
 
     fn iter_batches(
         &self,

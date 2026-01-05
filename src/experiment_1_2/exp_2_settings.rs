@@ -35,13 +35,13 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
 
         // Train and validate the plain model
         plain_model.train(
-            1,
+            3,
             2,
             0.3,
             &train_inputs,
             &train_labels,
-            vec![2, 1, 16, 16],
-            vec![2, 1, 1, 3],
+            vec![50, 1, 16, 16],
+            vec![50, 1, 1, 3],
         );
 
         // Print model weights and biases

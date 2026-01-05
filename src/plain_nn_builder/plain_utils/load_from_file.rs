@@ -45,6 +45,22 @@ pub fn load_data(exp_number: i8) -> Result<(Array2<f32>, Array2<f32>, Array2<f32
             let y_test: Array2<f32> = read_npy(Path::new("res/f_mnist/y_val.npy"))?;
             let empty_array = Array2::<f32>::zeros((0, 0));
             (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
+        },
+        6 => {
+            let x_train: Array2<f32> = read_npy(Path::new("res/skin_cancer_mnist/x_train.npy"))?;
+            let y_train: Array2<f32> = read_npy(Path::new("res/skin_cancer_mnist/y_train.npy"))?;
+            let x_test: Array2<f32> = read_npy(Path::new("res/skin_cancer_mnist/x_test.npy"))?;
+            let y_test: Array2<f32> = read_npy(Path::new("res/skin_cancer_mnist/y_test.npy"))?;
+            let empty_array = Array2::<f32>::zeros((0, 0));
+            (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
+        },
+        7 => {
+            let x_train: Array2<f32> = read_npy(Path::new("res/blood_mnist/x_train.npy"))?;
+            let y_train: Array2<f32> = read_npy(Path::new("res/blood_mnist/y_train.npy"))?;
+            let x_test: Array2<f32> = read_npy(Path::new("res/blood_mnist/x_test.npy"))?;
+            let y_test: Array2<f32> = read_npy(Path::new("res/blood_mnist/y_test.npy"))?;
+            let empty_array = Array2::<f32>::zeros((0, 0));
+            (x_train, y_train, empty_array.clone(), empty_array.clone(), x_test, y_test)
         }
         _ => return Err("Invalid experiment number".into()),
     };

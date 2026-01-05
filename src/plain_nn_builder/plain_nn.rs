@@ -56,6 +56,7 @@ pub trait PlainNeuralNetwork {
     );
     fn print_plain_weights(&self, id: String);
     fn print_plain_biases(&self, id:String);
+    fn get_depth(&self) -> usize;
 }
 
 pub struct PlainNeuralNetworkU32 {
@@ -84,7 +85,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 
     fn add_dense(&mut self, input_size: usize, output_size: usize) {
         let weights = self.init_weights(output_size, input_size, 1, 1, self.experiment);
-        let biases = self.init_biases(output_size, self.experiment);
+        let biases = self.init_biases(input_size, output_size, self.experiment);
         let grad_weights = self.init_gradients(&[output_size, input_size]);
         let grad_biases = self.init_gradients(&[output_size]);
         self.inner.add_dense(weights, biases, grad_weights, grad_biases);
@@ -110,14 +111,14 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
 
     fn add_conv(&mut self,in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
         let weights = self.init_weights(kernel_width, kernel_height, in_channels, out_channels, self.experiment);
-        let biases = self.init_biases(out_channels, self.experiment);
+        let biases = self.init_biases(in_channels, out_channels, self.experiment);
         let grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
         let grad_biases = self.init_gradients(&[out_channels]);
         self.inner.add_conv(weights, biases, grad_weights, grad_biases, stride, padding);
     }
 
     fn add_batch_norm(&mut self, size:usize) {
-        let (x_hat, mean, variance, gamma, beta) = self.init_batch_norm(&[size]);
+        let (x_hat, mean, variance, gamma, beta) = self.init_batch_norm(&[size, self.get_depth()], self.experiment);
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
     }
 
@@ -237,6 +238,11 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
             }
         }
     }
+
+    fn get_depth(&self) -> usize {
+        self.inner.layers.len()
+    }
+
 }
 impl PlainNeuralNetworkU32 {
 
@@ -381,6 +387,65 @@ impl PlainNeuralNetworkU32 {
 
             return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
         }
+        else if experiment == Some(7){
+            let weights_file: Array2<f32> = if in_channels == 3 && out_channels == 64 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/conv1_weight.npy"))
+                    .expect("Failed to read conv1 weights")
+            } else if in_channels == 64 && out_channels == 96 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/conv2_weight.npy"))
+                    .expect("Failed to read conv2 weights")
+            } else if input_size == 128 && output_size == 2400 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/fc1_weight.npy"))
+                    .expect("Failed to read fc1 weights")
+            } else if input_size == 7 && output_size == 128 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/fc2_weight.npy"))
+                    .expect("Failed to read fc2 weights")
+            }
+            else { 
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        }
+        else if experiment == Some(8){
+            let weights_file: Array2<f32> = if in_channels == 3 && out_channels == 64 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_conv1_w.npy"))
+                    .expect("Failed to read conv1 weights")
+            } else if in_channels == 64 && out_channels == 64 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_conv2_w.npy"))
+                    .expect("Failed to read conv2 weights")
+            } else if in_channels == 64 && out_channels == 96 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_conv1_w.npy"))
+                    .expect("Failed to read conv3 weights")
+            } else if in_channels == 96 && out_channels == 96 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_conv2_w.npy"))
+                    .expect("Failed to read conv4 weights")
+            } else if input_size == 128 && output_size == 1536 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/fc1_w.npy"))
+                    .expect("Failed to read fc1 weights")
+            } else if input_size == 8 && output_size == 128 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/fc2_w.npy"))
+                    .expect("Failed to read fc2 weights")
+            }
+            else { 
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        }
         else {
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
             let normal = Normal::new(0.0, std_dev).unwrap();
@@ -402,7 +467,7 @@ impl PlainNeuralNetworkU32 {
         }
     }
 
-    fn init_biases(&mut self, output_size:usize, experiment: Option<i8>) -> PlainTensor<u32> {
+    fn init_biases(&mut self, input_size: usize, output_size:usize, experiment: Option<i8>) -> PlainTensor<u32> {
 
         if experiment == Some(1) {
             if output_size == 4 {
@@ -535,6 +600,58 @@ impl PlainNeuralNetworkU32 {
                 .map(|x| x.to_bits())
                 .collect();
             PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(7){
+            let biases_file: Array2<f32> = if output_size == 64 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/conv1_bias.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if output_size == 96 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/conv2_bias.npy"))
+                    .expect("Failed to read conv2 biases")
+            } else if output_size == 128 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 7 {
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else { 
+                panic!("No matching weight file for given layer dimensions");
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(8){
+            let biases_file: Array2<f32> = if input_size == 3 && output_size == 64 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_conv1_b.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if input_size == 64 && output_size == 64 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_conv2_b.npy"))
+                    .expect("Failed to read conv2 biases")
+            } else if input_size == 64 && output_size == 96 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_conv1_b.npy"))
+                    .expect("Failed to read conv3 biases")
+            } else if input_size == 96 && output_size == 96 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_conv2_b.npy"))
+                    .expect("Failed to read conv4 biases")
+            } else if output_size == 128 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/fc1_b.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 8 {
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/fc2_b.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
         }
         else {
             let biases = vec![0u32; output_size];
@@ -568,26 +685,60 @@ impl PlainNeuralNetworkU32 {
         PlainTensor::new(zeros, shapes)
     }
 
-    fn init_batch_norm(&self, shape: &[usize]) -> (PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>) {
-        let size = shape.iter().product();
+    fn init_batch_norm(&self, shape: &[usize], experiment: Option<i8>) -> (PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>, PlainTensor<u32>) {
+        let size = shape[0];
         let zeros = vec![0u32; size];
         let ones = vec![1065353216u32; size];
         let x_hat = PlainTensor::new(zeros.clone(), [1, 1, 1, shape[0]].to_vec());
         let mean = PlainTensor::new(zeros.clone(), [1, 1, 1, shape[0]].to_vec());
         let variance = PlainTensor::new(ones.clone(), [1, 1, 1, shape[0]].to_vec());
 
-        let (beta_file, gamma_file): (Array2<f32>, Array2<f32>) = if shape[0] == 32{
-            (read_npy(Path::new("src/experiment_3/initializations/bn1_bias.npy")).expect("Failed to read batch norm 32"), 
-            read_npy(Path::new("src/experiment_3/initializations/bn1_weight.npy")).expect("Failed to read batch norm 32"))
-        } else if shape[0] == 64 {
-            (read_npy(Path::new("src/experiment_3/initializations/bn2_bias.npy")).expect("Failed to read batch norm 64"), 
-            read_npy(Path::new("src/experiment_3/initializations/bn2_weight.npy")).expect("Failed to read batch norm 64"))
-        } else if shape[0] == 128 {
-            (read_npy(Path::new("src/experiment_3/initializations/bn3_bias.npy")).expect("Failed to read batch norm 128"), 
-            read_npy(Path::new("src/experiment_3/initializations/bn3_weight.npy")).expect("Failed to read batch norm 128"))
-        } else {
+        let (beta_file, gamma_file): (Array2<f32>, Array2<f32>) = if experiment == Some(3) {
+            if shape[0] == 32 {
+                (read_npy(Path::new("src/experiment_3/initializations/bn1_bias.npy")).expect("Failed to read batch norm 32"), 
+                read_npy(Path::new("src/experiment_3/initializations/bn1_weight.npy")).expect("Failed to read batch norm 32"))
+            } else if shape[0] == 64 {
+                (read_npy(Path::new("src/experiment_3/initializations/bn2_bias.npy")).expect("Failed to read batch norm 64"), 
+                read_npy(Path::new("src/experiment_3/initializations/bn2_weight.npy")).expect("Failed to read batch norm 64"))
+            } else if shape[0] == 128 {
+                (read_npy(Path::new("src/experiment_3/initializations/bn3_bias.npy")).expect("Failed to read batch norm 128"), 
+                read_npy(Path::new("src/experiment_3/initializations/bn3_weight.npy")).expect("Failed to read batch norm 128"))
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(7) {
+            if shape[0] == 64 {
+                (read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/bn1_bias.npy")).expect("Failed to read batch norm 64"), 
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/bn1_weight.npy")).expect("Failed to read batch norm 64"))
+            } else if shape[0] == 96 {
+                (read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/bn2_bias.npy")).expect("Failed to read batch norm 96"), 
+                read_npy(Path::new("src/skin_cancer_mnist/initializations_glyph/bn2_weight.npy")).expect("Failed to read batch norm 96"))
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            }
+        }
+        else if experiment == Some(8) {
+            if shape[0] == 64 && shape[1] == 1 {
+                (read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_bn1_b.npy")).expect("Failed to read batch norm 64"), 
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_bn1_w.npy")).expect("Failed to read batch norm 64"))
+            } else if shape[0] == 64 && shape[1] == 4 {
+                (read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_bn2_b.npy")).expect("Failed to read batch norm 64"), 
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b1_bn2_w.npy")).expect("Failed to read batch norm 64"))
+            } else if shape[0] == 96 && shape[1] == 8 {
+                (read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_bn1_b.npy")).expect("Failed to read batch norm 96"), 
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_bn1_w.npy")).expect("Failed to read batch norm 96"))
+            } else if shape[0] == 96 && shape[1] == 11 {
+                (read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_bn2_b.npy")).expect("Failed to read batch norm 96"), 
+                read_npy(Path::new("src/blood_mnist/vgg_initializations/b2_bn2_w.npy")).expect("Failed to read batch norm 96"))
+            } else {
+                panic!("No matching weight file for given layer dimensions");
+            }
+        }
+        else {
             panic!("No matching weight file for given layer dimensions");
         };
+        
 
         let vec_vec_beta = array2_to_vecvec(&beta_file);
         let vec_vec_gamma = array2_to_vecvec(&gamma_file);
@@ -789,6 +940,12 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
             }
         }
     }
+
+
+    fn get_depth(&self) -> usize {
+        self.inner.layers.len()
+    }
+
 }
 
 impl PlainNeuralNetworkU16 {
