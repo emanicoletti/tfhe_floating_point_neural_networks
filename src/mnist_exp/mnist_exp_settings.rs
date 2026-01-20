@@ -36,7 +36,7 @@ pub fn mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: bool, 
 
         // Train and validate the model
         plain_model.train_and_validate(
-            10,
+            5,
             60,
             1.0,
             &train_inputs,

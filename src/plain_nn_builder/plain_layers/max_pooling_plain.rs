@@ -28,7 +28,7 @@ impl<T: PlainElement> PlainMaxPoolingLayer<T>{
 
 impl<T> PlainLayer<T> for PlainMaxPoolingLayer<T>
 where 
-    T: PlainElement + Copy + Ord, 
+    T: PlainElement + Copy + Ord,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         let kernel = self.kernel_size;

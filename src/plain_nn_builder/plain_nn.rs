@@ -24,6 +24,11 @@ pub trait PlainNeuralNetwork {
     fn add_avg_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize);
     fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize);
     fn add_batch_norm(&mut self, size:usize);
+    fn add_residual_block(
+        &mut self,
+        residual_block: ResidualBlock<u32>
+    );
+    fn add_global_avg_pooling(&mut self);
     fn train(
         &mut self,
         epochs: usize,
@@ -109,7 +114,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         self.inner.add_avg_pooling(input_dim, kernel_size, stride);
     }
 
-    fn add_conv(&mut self,in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
+    fn add_conv(&mut self, in_channels: usize, out_channels: usize, kernel_width: usize, kernel_height: usize, stride: usize, padding: usize) {
         let weights = self.init_weights(kernel_width, kernel_height, in_channels, out_channels, self.experiment);
         let biases = self.init_biases(in_channels, out_channels, self.experiment);
         let grad_weights = self.init_gradients(&[out_channels, in_channels * kernel_width * kernel_height]);
@@ -120,6 +125,15 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
     fn add_batch_norm(&mut self, size:usize) {
         let (x_hat, mean, variance, gamma, beta) = self.init_batch_norm(&[size, self.get_depth()], self.experiment);
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
+    }
+
+    fn add_residual_block(&mut self, residual_block: ResidualBlock<u32>)
+    {
+        self.inner.add_residual_block(residual_block);
+    }
+
+    fn add_global_avg_pooling(&mut self) {
+        self.inner.add_global_avg_pooling();
     }
 
     fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
@@ -445,6 +459,24 @@ impl PlainNeuralNetworkU32 {
                 .collect();
 
             return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        } else if experiment == Some(9) {
+            let weights_file: Array2<f32> = if in_channels == 3 && out_channels == 16 {
+                read_npy(Path::new("src/cifar10/initializations/conv1_weight.npy")).expect("Failed to read conv1 weights")
+            } else if input_size == 10 && output_size == 64 {
+                read_npy(Path::new("src/cifar10/initializations/fc_weight.npy")).expect("Failed to read fc1 weights")
+            }
+            else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
         }
         else {
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
@@ -529,16 +561,16 @@ impl PlainNeuralNetworkU32 {
         }
          else if experiment == Some(4) {
             let biases_file: Array2<f32> = if output_size == 6 {
-                read_npy(Path::new("src/MNIST_exp/initializations/conv1_bias.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/conv1_bias.npy"))
                     .expect("Failed to read conv1 biases")
             } else if output_size == 16 {
-                read_npy(Path::new("src/MNIST_exp/initializations/conv2_bias.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/conv2_bias.npy"))
                     .expect("Failed to read conv2 biases")
             } else if output_size == 84 {
-                read_npy(Path::new("src/MNIST_exp/initializations/fc1_bias.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/fc1_bias.npy"))
                     .expect("Failed to read fc1 biases")
             } else if output_size == 10 {
-                read_npy(Path::new("src/MNIST_exp/initializations/fc2_bias.npy"))
+                read_npy(Path::new("src/mnist_exp/initializations/fc2_bias.npy"))
                     .expect("Failed to read fc2 biases")
             } else {
                 panic!("No matching weight file for given layer dimensions");
@@ -652,6 +684,23 @@ impl PlainNeuralNetworkU32 {
                 .map(|x| x.to_bits())
                 .collect();
             PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(9) {
+            let biases_file: Array2<f32>  = if output_size == 16 {
+                read_npy(Path::new("src/cifar10/initializations/conv1_bias.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if output_size == 10 {
+                read_npy(Path::new("src/cifar10/initializations/fc_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else {
+                panic!("No matching biases file for given layer dimensions {:?}",  output_size);
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
         }
         else {
             let biases = vec![0u32; output_size];
@@ -736,7 +785,14 @@ impl PlainNeuralNetworkU32 {
             }
         }
         else {
-            panic!("No matching weight file for given layer dimensions");
+            let x_hat = PlainTensor::new(zeros.clone(), [1, 1, 1, size].to_vec());
+            let mean = PlainTensor::new(zeros.clone(), [1, 1, 1, size].to_vec());
+            let variance = PlainTensor::new(ones.clone(), [1, 1, 1, size].to_vec());
+
+            let beta = PlainTensor::new(ones.clone(), [1, 1, 1, size].to_vec());
+            let gamma = PlainTensor::new(zeros.clone(), [1, 1, 1, size].to_vec());
+
+            return (x_hat, mean, variance, gamma, beta);
         };
         
 
@@ -832,6 +888,14 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
     }
 
+    fn add_residual_block(&mut self, residual_block: ResidualBlock<u32>
+    ) {
+        unimplemented!()
+    }
+
+    fn add_global_avg_pooling(&mut self) {
+        self.inner.add_global_avg_pooling();
+    }
     
     fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
         let u32_learning_rate = f16::from_f32(learning_rate).to_bits();

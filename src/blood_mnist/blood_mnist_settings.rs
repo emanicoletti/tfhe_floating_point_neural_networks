@@ -53,22 +53,50 @@ pub fn blood_vgg_fp32(train_plain_network: bool, train_encrypted_network: bool, 
         plain_model.add_dense(1536, 128); 
         plain_model.add_relu_activation(128);
         plain_model.add_dense(128, 8);
-        //plain_model.add_relu_activation(8);
 
-        // Train and validate the model
+        /* 
         plain_model.train_and_validate(
-            10,
+            1,
             64,
             0.1,
             &train_inputs,
             &train_labels,
             &test_inputs,
             &test_labels,
-            vec![640, 3, 28, 28],
-            vec![640, 1, 1, 8],
-            vec![100, 3, 28, 28],
-            vec![100, 1, 1, 8],
+            vec![1367, 3, 28, 28],
+            vec![1367, 1, 1, 8],
+            vec![1, 3, 28, 28],
+            vec![1, 1, 1, 8],
         );
+        */
+
+         
+        // Train and validate the model
+        plain_model.train_and_validate(
+            1,
+            64,
+            0.1,
+            &train_inputs,
+            &train_labels,
+            &test_inputs,
+            &test_labels,
+            vec![13671, 3, 28, 28],
+            vec![13671, 1, 1, 8],
+            vec![3421, 3, 28, 28],
+            vec![3421, 1, 1, 8],
+        );
+        
+
+        /*
+        plain_model.print_plain_weights("BatchNorm2".to_string());
+        plain_model.print_plain_biases("BatchNorm2".to_string());
+        plain_model.print_plain_weights("BatchNorm5".to_string());
+        plain_model.print_plain_biases("BatchNorm5".to_string());
+        plain_model.print_plain_weights("BatchNorm9".to_string());
+        plain_model.print_plain_biases("BatchNorm9".to_string());
+        plain_model.print_plain_weights("BatchNorm12".to_string());
+        plain_model.print_plain_biases("BatchNorm12".to_string());
+        */
 
 
     }

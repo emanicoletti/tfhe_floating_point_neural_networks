@@ -457,9 +457,9 @@ impl<T: PlainElement> PlainTensor<T> {
             return;
         }
 
-        for b in 0..size {
+        for b in 0..1 {
             println!("\n=== Batch {} ===", b);
-            for c in 0..channel {
+            for c in 0..1 {
                 println!("--- Channel {} ---", c);
                 for i in 0..rows {
                     print!("[");

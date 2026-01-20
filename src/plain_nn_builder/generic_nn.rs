@@ -1,4 +1,6 @@
-use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainAvgPoolingLayer, PlainBatchNormLayer}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
+use rand_distr::num_traits::ToPrimitive;
+
+use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainAvgPoolingLayer, PlainBatchNormLayer, ResidualBlock, GlobalAveragePooling}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
 
 
 pub struct PlainNeuralNetworkImpl<T: PlainElement> {
@@ -103,6 +105,19 @@ where
         self.layers.push(Box::new(batch_norm_layer));
     }
 
+    pub fn add_residual_block(
+        &mut self,
+        residual_block: ResidualBlock<T>,
+    ) {
+        self.layers.push(Box::new(residual_block));
+    }
+
+    pub fn add_global_avg_pooling(&mut self) {
+        let id = format!("GlobalAvgPooling{}", self.layers.len() + 1);
+        let global_avg_pooling_layer = GlobalAveragePooling::new(id);
+        self.layers.push(Box::new(global_avg_pooling_layer));
+    }
+
     pub fn train( 
         &mut self,
         epochs: usize,
@@ -166,14 +181,13 @@ where
         val_inputs: PlainTensor<T>,
         val_labels: PlainTensor<T>,
     )
-    {
+    {   
+        let mut current_step = 0;
         for epoch in 0..epochs{
-            
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
-                //activations.last().unwrap().print_tensor();
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
@@ -188,11 +202,12 @@ where
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
                 }
+                //let lr = self.linear_one_cycle(current_step, T::to_f32(learning_rate), 20*1563, 0.3);
                 for layer in &mut self.layers{
                     layer.update_parameters(learning_rate.clone());
                 }
                 i_batch += 1;
-
+                current_step += 1;
             }
 
             let mut correct = 0;
@@ -301,5 +316,40 @@ where
     
         batches
     }
+
+    fn linear_one_cycle(&self, current_step: usize, max_lr: f32, total_steps: usize, pct_start: f32) -> f32 {
+        // 1. Define Constants (Standard OneCycle defaults)
+        let div_factor = 25.0;
+        let final_div_factor = 10000.0;
+
+        // 2. Calculate Boundaries
+        let start_lr = max_lr / div_factor;
+        let min_lr = start_lr / final_div_factor;
+        
+        // Cast strict types to float for calculation
+        let current_step_f = current_step as f32;
+        let total_steps_f = total_steps as f32;
+        let warmup_steps = total_steps_f * pct_start;
+
+        // 3. Phase 1: Warm-up (Linear Increase)
+        if current_step_f <= warmup_steps {
+            // Progress goes from 0.0 to 1.0
+            let progress = current_step_f / warmup_steps;
+            
+            // Formula: start + (diff * progress)
+            return start_lr + (max_lr - start_lr) * progress;
+        } 
+        // 4. Phase 2: Cool-down (Linear Decrease)
+        else {
+            let cooldown_steps = total_steps_f - warmup_steps;
+            let steps_into_cooldown = current_step_f - warmup_steps;
+            
+            // Progress goes from 0.0 to 1.0 (Careful: clamp it to 1.0 to avoid going negative)
+            let progress = (steps_into_cooldown / cooldown_steps).min(1.0);
+            
+            // Formula: max - (diff * progress)
+            return max_lr - (max_lr - min_lr) * progress;
+        }
+}
 
 }

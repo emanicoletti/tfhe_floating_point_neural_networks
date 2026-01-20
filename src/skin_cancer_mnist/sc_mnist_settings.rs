@@ -57,9 +57,9 @@ pub fn vgg_fp32(train_plain_network: bool, train_encrypted_network: bool, test_p
 
         // Train and validate the model
         plain_model.train_and_validate(
-            10,
+            15,
             64,
-            0.05,
+            0.1,
             &train_inputs,
             &train_labels,
             &test_inputs,
@@ -138,11 +138,11 @@ pub fn sc_mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.add_conv(3, 64, 3, 3, 1, 0);
         plain_model.add_batch_norm(64);
         plain_model.add_relu_activation(43264);
-        plain_model.add_max_pooling(vec![26, 26], 2, 2);
+        plain_model.add_avg_pooling(vec![26, 26], 2, 2);
         plain_model.add_conv(64, 96, 3, 3, 1, 0);
         plain_model.add_batch_norm(96);
         plain_model.add_relu_activation(11616);
-        plain_model.add_max_pooling(vec![11, 11], 2, 2);
+        plain_model.add_avg_pooling(vec![11, 11], 2, 2);
         plain_model.add_dense(2400, 128);
         plain_model.add_relu_activation(128);
         plain_model.add_dense(128, 7);

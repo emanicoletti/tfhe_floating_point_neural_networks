@@ -60,7 +60,7 @@ impl PlainMul for u32 {
 
         #[cfg(feature = "lmul")]
         { return lmul32(self, other); }
-
+        
         #[cfg(feature = "pam")]
         { return pam_mul32(self, other); }
     }
@@ -126,13 +126,15 @@ impl PlainSqrt for u32 {
 
 impl PlainMulInf for u32 {
     fn mul_inf(self, other: Self) -> Self {
-        lmul32(self, other) 
+        canonical_mul32(self, other) 
+        //lmul32(self, other)
     }
 }
 
 impl PlainDivInf for u32 {
     fn div_inf(self, other: Self) -> Self {
-        ldiv32(self, other)
+        canonical_div32(self, other)
+        //ldiv32(self, other)
     }
 }
 
