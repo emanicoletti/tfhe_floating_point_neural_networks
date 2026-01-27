@@ -15,6 +15,8 @@ pub struct PlainBatchNormLayer<T: PlainElement> {
     pub batch_variance: PlainTensor<T>,
     pub grad_gamma: Option<PlainTensor<T>>,
     pub grad_beta: Option<PlainTensor<T>>,
+    pub velocity_gamma: Option<PlainTensor<T>>,
+    pub velocity_beta: Option<PlainTensor<T>>,
 }
 
 impl<T: PlainElement> PlainBatchNormLayer<T> {
@@ -38,6 +40,8 @@ impl<T: PlainElement> PlainBatchNormLayer<T> {
             },
             grad_gamma: None,
             grad_beta: None,
+            velocity_gamma: None,
+            velocity_beta: None,
         }
     }
 }
@@ -266,12 +270,68 @@ where
         }
     }
 
-    fn update_parameters(&mut self, learning_rate: T) {
-        if let (Some(grad_gamma), Some(grad_beta)) = (&self.grad_gamma, &self.grad_beta) {
-            for i in 0..self.gamma.data.len() {
-                self.gamma.data[i] = self.gamma.data[i].sub(grad_gamma.data[i].mul(learning_rate));
-                self.beta.data[i] = self.beta.data[i].sub(grad_beta.data[i].mul(learning_rate));
-            }
+    fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) 
+    where 
+        T: Send + Sync + Copy + PlainElement 
+    {
+        // 1. Inizializzazione Lazy delle Velocity
+        if self.velocity_gamma.is_none() {
+            self.velocity_gamma = Some(PlainTensor{
+                    data: vec![T::from_f32(0.0); self.gamma.data.len()],
+                    shape: self.gamma.shape.clone(),
+            });
+        }
+        if self.velocity_beta.is_none() {
+            self.velocity_beta = Some(PlainTensor{
+                    data: vec![T::from_f32(0.0); self.beta.data.len()],
+                    shape: self.beta.shape.clone(),
+            });
+        }
+
+        // 2. Estrazione sicura
+        if let (Some(grad_gamma), Some(grad_beta), Some(vel_gamma), Some(vel_beta)) = (
+            &self.grad_gamma,
+            &self.grad_beta,
+            &mut self.velocity_gamma,
+            &mut self.velocity_beta
+        ) {
+            // --- UPDATE GAMMA (Scale) ---
+            // Applica Momentum + Weight Decay
+            self.gamma.data.par_iter_mut()
+                .zip(grad_gamma.data.par_iter())
+                .zip(vel_gamma.data.par_iter_mut())
+                .for_each(|((gamma_val, &grad), v)| {
+                    // 1. Weight Decay: g' = g + (wd * gamma)
+                    let wd_term = gamma_val.mul(weight_decay);
+                    let g_prime = grad.add(wd_term);
+
+                    // 2. Momentum: v = (mu * v) + g'
+                    let v_momentum = v.mul_inf(momentum);
+                    *v = v_momentum.add(g_prime);
+
+                    // 3. Update: gamma = gamma - (lr * v)
+                    let step = v.mul(learning_rate);
+                    *gamma_val = gamma_val.sub(step);
+                });
+
+            // --- UPDATE BETA (Shift) ---
+            // Applica SOLO Momentum (No Weight Decay sui termini di bias/shift)
+            self.beta.data.par_iter_mut()
+                .zip(grad_beta.data.par_iter())
+                .zip(vel_beta.data.par_iter_mut())
+                .for_each(|((beta_val, &grad), v)| {
+                    // 1. Momentum: v = (mu * v) + g
+                    let v_momentum = v.mul(momentum);
+                    *v = v_momentum.add(grad);
+
+                    // 2. Update: beta = beta - (lr * v)
+                    let step = v.mul(learning_rate);
+                    *beta_val = beta_val.sub(step);
+                });
+
+        } else {
+            // Opzionale: Panic o Log se mancano i gradienti
+            // panic!("Batch Norm gradients missing update skipped");
         }
     }
 

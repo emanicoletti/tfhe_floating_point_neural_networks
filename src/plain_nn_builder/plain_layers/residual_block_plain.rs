@@ -112,14 +112,14 @@ where T: PlainElement + PlainAdd + Default
         grad_main.add(&grad_skip)
     }
 
-    fn update_parameters(&mut self, learning_rate: T) {
+    fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) {
         // Aggiorniamo i pesi del path principale
         for layer in &mut self.main_layers {
-            layer.update_parameters(learning_rate.clone());
+            layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
         }
         // Aggiorniamo i pesi della skip connection (se ne ha, es. Conv1x1)
         for layer in &mut self.skip_layers {
-            layer.update_parameters(learning_rate.clone());
+            layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
         }
     }
 
@@ -154,6 +154,8 @@ impl ResidualBlock<u32>
             grad_biases: Some(self.init_gradients(&[out_channels])),
             stride,
             padding,
+            velocity_weights: None,
+            velocity_biases: None,
         };
         if is_in_skip_path{
             self.skip_layers.push(Box::new(conv_layer));

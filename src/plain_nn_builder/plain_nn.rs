@@ -34,6 +34,8 @@ pub trait PlainNeuralNetwork {
         epochs: usize,
         batch_size: usize,
         learning_rate: f32,
+        weight_decay: f32,
+        momentum: f32,
         train_inputs: &[Vec<f32>],   
         train_labels: &[Vec<f32>],  
         input_shapes: Vec<usize>,
@@ -50,6 +52,8 @@ pub trait PlainNeuralNetwork {
         epochs: usize,
         batch_size: usize,
         learning_rate: f32,
+        weight_decay: f32,
+        momentum: f32,
         train_inputs: &[Vec<f32>],
         train_labels: &[Vec<f32>],
         val_inputs: &[Vec<f32>],
@@ -136,11 +140,13 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         self.inner.add_global_avg_pooling();
     }
 
-    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
+    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, weight_decay: f32, momentum: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
         let u32_learning_rate = learning_rate.to_bits();
+        let u32_weight_decay = weight_decay.to_bits();
+        let u32_momentum = momentum.to_bits();
         let train_inputs = self.dataset(train_inputs, input_shapes.clone());
         let train_labels = self.dataset(train_labels, label_shapes.clone());
-        self.inner.train(epochs, batch_size, u32_learning_rate.clone(), train_inputs.clone(), train_labels.clone());
+        self.inner.train(epochs, batch_size, u32_learning_rate.clone(), u32_weight_decay.clone(), u32_momentum.clone(), train_inputs.clone(), train_labels.clone());
     }
 
     fn inference(&mut self, input: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) -> Vec<f32>{
@@ -169,6 +175,8 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
             epochs: usize,
             batch_size: usize,
             learning_rate: f32,
+            weight_decay: f32,
+            momentum: f32,
             train_inputs: &[Vec<f32>],
             train_labels: &[Vec<f32>],
             val_inputs: &[Vec<f32>],
@@ -183,7 +191,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         let train_labels = self.dataset(train_labels, label_shapes.clone());
         let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
         let val_labels = self.dataset(val_labels, val_label_shapes.clone());
-        self.inner.train_and_validate(epochs, batch_size, learning_rate.to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+        self.inner.train_and_validate(epochs, batch_size, learning_rate.to_bits(), weight_decay.to_bits(), momentum.to_bits(), train_inputs, train_labels, val_inputs, val_labels);
     }
     
     fn print_plain_weights(&self, id: String) {
@@ -897,11 +905,13 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         self.inner.add_global_avg_pooling();
     }
     
-    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
+    fn train(&mut self, epochs: usize, batch_size: usize, learning_rate: f32, weight_decay: f32, momentum: f32, train_inputs: &[Vec<f32>], train_labels: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) {
         let u32_learning_rate = f16::from_f32(learning_rate).to_bits();
+        let u32_weight_decay = f16::from_f32(weight_decay).to_bits();
+        let u32_momentum = f16::from_f32(momentum).to_bits();
         let train_inputs = self.dataset(train_inputs, input_shapes.clone());
         let train_labels = self.dataset(train_labels, label_shapes.clone());
-        self.inner.train(epochs, batch_size, u32_learning_rate.clone(), train_inputs.clone(), train_labels.clone());
+        self.inner.train(epochs, batch_size, u32_learning_rate.clone(), u32_weight_decay.clone(), u32_momentum.clone(), train_inputs.clone(), train_labels.clone());
     }
 
     fn inference(&mut self, input: &[Vec<f32>], input_shapes: Vec<usize>, label_shapes: Vec<usize>) -> Vec<f32>{
@@ -931,6 +941,8 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
             epochs: usize,
             batch_size: usize,
             learning_rate: f32,
+            weight_decay: f32,
+            momentum: f32,
             train_inputs: &[Vec<f32>],
             train_labels: &[Vec<f32>],
             val_inputs: &[Vec<f32>],
@@ -945,7 +957,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         let train_labels = self.dataset(train_labels, label_shapes.clone());
         let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
         let val_labels = self.dataset(val_labels, val_label_shapes.clone());
-        self.inner.train_and_validate(epochs, batch_size, f16::from_f32(learning_rate).to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+        self.inner.train_and_validate(epochs, batch_size, f16::from_f32(learning_rate).to_bits(), f16::from_f32(weight_decay).to_bits(), f16::from_f32(momentum).to_bits(), train_inputs, train_labels, val_inputs, val_labels);
     }
     
     fn print_plain_weights(&self, id: String) {

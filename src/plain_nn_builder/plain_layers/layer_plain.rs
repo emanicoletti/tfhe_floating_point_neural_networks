@@ -15,7 +15,9 @@ where
 
     fn update_parameters(
         &mut self,
-        learning_rate: T
+        learning_rate: T,
+        weight_decay: T,
+        momentum: T,
     );
 
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T>;

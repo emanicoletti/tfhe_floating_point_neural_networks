@@ -2,6 +2,70 @@ use half::f16;
 
 /* EXACT INTEGER-BASED OPERATIONS FP-32 */
 
+/* 
+pub fn add32 (
+    mut a: u32,
+    mut b: u32
+ ) -> u32 {
+
+    let abs_a = a & 0x7FFF_FFFF;
+    let abs_b = b & 0x7FFF_FFFF;
+
+    if abs_b > abs_a {
+        std::mem::swap(&mut a, &mut b);
+    }
+
+    if abs_b == 0 { return a; }
+
+    let sign_a = a & 0x8000_0000;
+    let sign_b = b & 0x8000_0000;
+    
+    let exp_a = (a >> 23) & 0xFF;
+    let exp_b = (b >> 23) & 0xFF;
+
+    let mant_a = (a & 0x007F_FFFF) | 0x0080_0000;
+    let mut mant_b = (b & 0x007F_FFFF) | 0x0080_0000;
+
+    let align = exp_a - exp_b;
+    if align > 24 {
+        return a; 
+    }
+    mant_b >>= align;
+
+    let mant_res = if sign_a == sign_b {
+        mant_a + mant_b
+    } else {
+        mant_a - mant_b
+    };
+
+    if mant_res == 0 {
+        return 0; 
+    }
+
+    let lz = mant_res.leading_zeros();
+    let shift = 8i32 - lz as i32;
+
+    let (result_mant, new_exp) = if shift > 0 {
+        let shift_u = shift as u32;
+        ((mant_res >> shift_u) & 0x007F_FFFF, exp_a + shift_u)
+    } else if shift < 0 {
+        let shift_u = (-shift) as u32;
+        if shift_u >= exp_a {
+            return sign_a; 
+        }
+        ((mant_res << shift_u) & 0x007F_FFFF, exp_a - shift_u)
+    } else {
+        (mant_res & 0x007F_FFFF, exp_a)
+    };
+
+    if new_exp >= 255 {
+        return sign_a | 0x7F80_0000; 
+    }
+
+    sign_a | (new_exp << 23) | result_mant
+}
+*/
+
 pub fn add32 (
     a: u32,
     b: u32

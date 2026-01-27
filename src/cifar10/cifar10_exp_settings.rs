@@ -187,9 +187,11 @@ pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, t
         plain_model.add_dense(64, 10);
 
         plain_model.train_and_validate(
-            10, 
+            25, 
             32, 
             0.1, 
+            0.0001,
+            0.9,
             &train_inputs, 
             &train_labels, 
             &test_inputs, 

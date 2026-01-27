@@ -1,7 +1,6 @@
-use rand_distr::num_traits::ToPrimitive;
 
 use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainAvgPoolingLayer, PlainBatchNormLayer, ResidualBlock, GlobalAveragePooling}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
-
+use rayon::prelude::*;
 
 pub struct PlainNeuralNetworkImpl<T: PlainElement> {
     pub layers: Vec<Box<dyn PlainLayer<T>>>,
@@ -37,6 +36,8 @@ where
             biases: biases,
             grad_weights: Some(grad_weights),
             grad_biases: Some(grad_biases),
+            velocity_weights: None,
+            velocity_biases: None,
         };
         self.layers.push(Box::new(dense_layer));
     }
@@ -88,6 +89,8 @@ where
             grad_biases: Some(grad_biases),
             stride,
             padding,
+            velocity_weights: None,
+            velocity_biases: None,
         };
         self.layers.push(Box::new(conv_layer));
     }
@@ -123,6 +126,8 @@ where
         epochs: usize,
         batch_size: usize,
         learning_rate: T,
+        weight_decay: T,
+        momentum: T,
         train_inputs: PlainTensor<T>,
         train_labels: PlainTensor<T>,
     ) 
@@ -147,7 +152,7 @@ where
                     grad = layer.backward(input_to_layer, &grad);
                 }
                 for layer in &mut self.layers{
-                    layer.update_parameters(learning_rate.clone());
+                    layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
                 }
                 i_batch += 1;
             }
@@ -175,18 +180,20 @@ where
         &mut self,
         epochs: usize,
         batch_size: usize,
-        learning_rate: T,
+        mut learning_rate: T,
+        weight_decay: T,
+        momentum: T,
         train_inputs: PlainTensor<T>,
         train_labels: PlainTensor<T>,
         val_inputs: PlainTensor<T>,
         val_labels: PlainTensor<T>,
     )
     {   
-        let mut current_step = 0;
         for epoch in 0..epochs{
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+                //let start = std::time::Instant::now();
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
@@ -196,18 +203,20 @@ where
                 //prediction.print_tensor();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
                 println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
-                
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
                 }
-                //let lr = self.linear_one_cycle(current_step, T::to_f32(learning_rate), 20*1563, 0.3);
-                for layer in &mut self.layers{
-                    layer.update_parameters(learning_rate.clone());
+                if epoch >= 15 {
+                    learning_rate = T::from_f32(0.01);
                 }
+                self.layers.par_iter_mut().for_each(|layer| {
+                    layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
+                });
                 i_batch += 1;
-                current_step += 1;
+                //let duration = start.elapsed();
+                //println!("Time elapsed in batch {} is: {:?}", i_batch, duration);
             }
 
             let mut correct = 0;

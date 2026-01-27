@@ -83,7 +83,7 @@ where T: PlainElement + PlainMul + PlainAdd + PlainDiv + PlainValueType + Defaul
         PlainTensor::new(grad_input_data, shape.clone())
     }
 
-    fn update_parameters(&mut self, _learning_rate: T) {
+    fn update_parameters(&mut self, _learning_rate: T, _weight_decay: T, _momentum: T) {
         // GAP non ha parametri da aggiornare
     }
     

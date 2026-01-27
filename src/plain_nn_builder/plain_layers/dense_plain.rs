@@ -11,7 +11,9 @@ pub struct PlainDenseLayer<T: PlainElement> {
     pub weights: PlainTensor<T>,
     pub biases: PlainTensor<T>,
     pub grad_weights: Option<PlainTensor<T>>,
-    pub grad_biases: Option<PlainTensor<T>>
+    pub grad_biases: Option<PlainTensor<T>>,
+    pub velocity_weights: Option<PlainTensor<T>>,
+    pub velocity_biases: Option<PlainTensor<T>>,
 }
 
 impl<T: PlainElement> PlainDenseLayer<T>{
@@ -22,6 +24,8 @@ impl<T: PlainElement> PlainDenseLayer<T>{
             biases, 
             grad_weights: None,
             grad_biases: None,
+            velocity_weights: None,
+            velocity_biases: None,
         }
     }
 }
@@ -97,39 +101,73 @@ where
 
         }
 
-    fn update_parameters(&mut self, learning_rate: T)
-    {
-        if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-            let mut lr_grad_w_opt = None;
-            let mut lr_grad_b_opt = None;
-
-            scope(|s| {
-                s.spawn(|_| {
-                    lr_grad_w_opt = Some(grad_w.mul_scalar(&learning_rate));
+    fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) {
+            
+            // 1. Inizializzazione Lazy delle Velocity
+            // Se è il primo passo, le velocity sono None. Creiamo tensori di zeri.
+            if self.velocity_weights.is_none() {
+                // Assumo che tu abbia un metodo .zeros_like() o simile per creare un tensore vuoto
+                self.velocity_weights = Some(PlainTensor{
+                    data: vec![T::from_f32(0.0); self.weights.data.len()],
+                    shape: self.weights.shape.clone(),
+                }); 
+            }
+            if self.velocity_biases.is_none() {
+                self.velocity_biases = Some(PlainTensor{
+                    data: vec![T::from_f32(0.0); self.biases.data.len()],
+                    shape: self.biases.shape.clone(),
                 });
-                s.spawn(|_| {
-                    lr_grad_b_opt = Some(grad_b.mul_scalar(&learning_rate));
-                });
-            });
-    
-            let lr_grad_w = lr_grad_w_opt.expect("lr_grad_w not computed");
-            let lr_grad_b = lr_grad_b_opt.expect("lr_grad_b not computed");
 
-            let mut new_weights = None;
-            let mut new_biases = None;
+            // 2. Estrazione sicura dei riferimenti
+            // Usiamo un singolo blocco if let per assicurarci di avere tutto il necessario
+            // prima di lanciare i thread.
+            if let (Some(grad_w), Some(grad_b), Some(vel_w), Some(vel_b)) = (
+                &self.grad_weights,
+                &self.grad_biases,
+                &mut self.velocity_weights,
+                &mut self.velocity_biases,
+            ) {
+                let weights = &mut self.weights;
+                let biases = &mut self.biases;
 
-            scope(|s| {
-                s.spawn(|_| {
-                    new_weights = Some(self.weights.sub(&lr_grad_w));
-                });
-                s.spawn(|_| {
-                    new_biases = Some(self.biases.sub(&lr_grad_b));
-                });
-            });
-    
-            self.weights = new_weights.expect("weights update failed");
-            self.biases = new_biases.expect("biases update failed");
+                // 3. Esecuzione Parallela (Pesi su un thread, Bias sull'altro)
+                scope(|s| {
+                    
+                    // --- Thread 1: Aggiornamento PESI (Con Weight Decay) ---
+                    s.spawn(|_| {
+                        // A. Calcolo Gradiente con Weight Decay
+                        // Formula: g' = g + (lambda * w)
+                        // Nota: Applicare il weight decay direttamente al gradiente è un modo
+                        // standard per implementare L2 regularization.
+                        let wd_term = weights.mul_scalar(&weight_decay);
+                        let g_prime = grad_w.add(&wd_term);
 
+                        // B. Aggiornamento Velocity (Momentum)
+                        // Formula: v_new = (mu * v_old) + g'
+                        let momentum_term = vel_w.mul_scalar(&momentum);
+                        *vel_w = momentum_term.add(&g_prime); // Aggiorniamo lo stato velocity
+
+                        // C. Aggiornamento Pesi
+                        // Formula: w_new = w_old - (lr * v_new)
+                        let step = vel_w.mul_scalar(&learning_rate);
+                        *weights = weights.sub(&step);
+                    });
+
+                    // --- Thread 2: Aggiornamento BIAS (Senza Weight Decay) ---
+                    s.spawn(|_| {
+                        // Solitamente NON si applica weight decay ai bias per evitare underfitting.
+                        
+                        // A. Aggiornamento Velocity (Momentum)
+                        // Formula: v_new = (mu * v_old) + g
+                        let momentum_term = vel_b.mul_scalar(&momentum);
+                        *vel_b = momentum_term.add(grad_b);
+
+                        // B. Aggiornamento Bias
+                        let step = vel_b.mul_scalar(&learning_rate);
+                        *biases = biases.sub(&step);
+                    });
+                });
+            }
         }
     }
 

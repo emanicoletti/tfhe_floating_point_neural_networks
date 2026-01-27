@@ -49,6 +49,8 @@ where
     fn update_parameters(
         &mut self,
         _learning_rate: T,
+        _weight_decay: T,
+        _momentum: T,
     ) {
     // No parameters to update in tanh activation
     }
