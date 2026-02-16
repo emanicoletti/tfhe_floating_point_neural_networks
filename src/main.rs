@@ -52,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // blood_vgg_fp32()?;
 
     // Experiment 4 (ResNet-20 on CIFAR-10)
-    // resnet20_fp32()?;
+    resnet20_fp32()?;
 
     // Experiment 5 (MLP on Breast Cancer Wisconsin)
     // breast_cancer_fp32()?;
