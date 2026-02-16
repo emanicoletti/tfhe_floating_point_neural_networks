@@ -13,6 +13,8 @@ half = "2"
 ndarray = "0.15"
 ndarray-npy = "0.8"
 rand_chacha = "0.3"
+dhat = "0.3.3"
+serde = { version = "1.0.228", features = ["derive"] }
 
 [features]
 exact = []

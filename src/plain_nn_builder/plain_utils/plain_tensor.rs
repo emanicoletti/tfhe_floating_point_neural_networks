@@ -130,7 +130,7 @@ impl<T: PlainElement> PlainTensor<T> {
         other: &PlainTensor<T>,
     )-> PlainTensor<T>
     where 
-        T: PlainAdd + PlainMulInf + PlainValueType + Copy,
+        T: PlainAdd + PlainMulExact + PlainValueType + Copy,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
@@ -169,7 +169,7 @@ impl<T: PlainElement> PlainTensor<T> {
                 for k in 0..w1 {
                     let a_val = self.get(&[b_self, c, i, k]).clone();
                     let b_val = other.get(&[b_other, c, k, j]).clone();
-                    let prod = a_val.clone().mul_inf(b_val.clone());
+                    let prod = a_val.clone().mul_exact(b_val.clone());
                     products.push(prod);
                 }
     

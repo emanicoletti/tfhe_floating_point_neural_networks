@@ -13,7 +13,6 @@ pub fn fhe_lmul8_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -44,12 +43,10 @@ pub fn fhe_lmul8_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -66,7 +63,6 @@ pub fn fhe_lmul16_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -97,7 +93,6 @@ pub fn fhe_lmul16_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
@@ -117,7 +112,6 @@ pub fn fhe_lmul32_gpu(
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -134,7 +128,7 @@ pub fn fhe_lmul32_gpu(
         s.spawn(|_| {
             let x_exp = (&encrypted_a & 2139095040u32) >> 23u8;
             let y_exp = (&encrypted_b & 2139095040u32) >> 23u8;
-            let exp/* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */ = &x_exp + &y_exp;
+            let exp= &x_exp + &y_exp;
             let d = exp.lt(127u8);
             denorm = Some(d);
         });
@@ -148,12 +142,10 @@ pub fn fhe_lmul32_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
     final_result
@@ -169,7 +161,6 @@ pub fn fhe_lmul64_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -200,12 +191,10 @@ pub fn fhe_lmul64_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -224,7 +213,6 @@ pub fn fhe_lmul8_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -255,12 +243,10 @@ pub fn fhe_lmul8_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -275,9 +261,6 @@ pub fn fhe_lmul16_cpu(
     _server_keys: ServerKey,
 ) -> FheUint16 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -308,12 +291,10 @@ pub fn fhe_lmul16_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -328,9 +309,6 @@ pub fn fhe_lmul32_cpu(
     _server_keys: ServerKey,
 ) -> FheUint32 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -347,7 +325,7 @@ pub fn fhe_lmul32_cpu(
         s.spawn(|_| {
             let x_exp = (&encrypted_a & 2139095040u32) >> 23u8;
             let y_exp = (&encrypted_b & 2139095040u32) >> 23u8;
-            let exp/* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */ = &x_exp + &y_exp;
+            let exp = &x_exp + &y_exp;
             let d = exp.lt(127u8);
             denorm = Some(d);
         });
@@ -361,12 +339,10 @@ pub fn fhe_lmul32_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -381,9 +357,6 @@ pub fn fhe_lmul64_cpu(
     _server_keys: ServerKey,
 ) -> FheUint64 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -414,12 +387,10 @@ pub fn fhe_lmul64_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -436,7 +407,6 @@ pub fn fhe_pam_mul8_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -467,12 +437,10 @@ pub fn fhe_pam_mul8_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -489,7 +457,6 @@ pub fn fhe_pam_mul16_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -520,7 +487,6 @@ pub fn fhe_pam_mul16_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
@@ -540,7 +506,6 @@ pub fn fhe_pam_mul32_gpu(
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -557,7 +522,7 @@ pub fn fhe_pam_mul32_gpu(
         s.spawn(|_| {
             let x_exp = (&encrypted_a & 2139095040u32) >> 23u8;
             let y_exp = (&encrypted_b & 2139095040u32) >> 23u8;
-            let exp/* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */ = &x_exp + &y_exp;
+            let exp = &x_exp + &y_exp;
             let d = exp.lt(127u8);
             denorm = Some(d);
         });
@@ -571,12 +536,10 @@ pub fn fhe_pam_mul32_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
     final_result
@@ -592,7 +555,6 @@ pub fn fhe_pam_mul64_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -623,12 +585,10 @@ pub fn fhe_pam_mul64_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -645,9 +605,6 @@ pub fn fhe_pam_mul8_cpu(
     _server_keys: ServerKey,
 ) -> FheUint8 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -677,13 +634,10 @@ pub fn fhe_pam_mul8_cpu(
             result_digits = Some(digits);
         });
     });
-
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -698,9 +652,6 @@ pub fn fhe_pam_mul16_cpu(
     _server_keys: ServerKey,
 ) -> FheUint16 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -731,12 +682,10 @@ pub fn fhe_pam_mul16_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -751,9 +700,6 @@ pub fn fhe_pam_mul32_cpu(
     _server_keys: ServerKey,
 ) -> FheUint32 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -770,7 +716,7 @@ pub fn fhe_pam_mul32_cpu(
         s.spawn(|_| {
             let x_exp = (&encrypted_a & 2139095040u32) >> 23u8;
             let y_exp = (&encrypted_b & 2139095040u32) >> 23u8;
-            let exp/* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */ = &x_exp + &y_exp;
+            let exp = &x_exp + &y_exp;
             let d = exp.lt(127u8);
             denorm = Some(d);
         });
@@ -784,12 +730,10 @@ pub fn fhe_pam_mul32_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -804,9 +748,6 @@ pub fn fhe_pam_mul64_cpu(
     _server_keys: ServerKey,
 ) -> FheUint64 {
 
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -837,12 +778,10 @@ pub fn fhe_pam_mul64_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 

@@ -270,7 +270,6 @@ impl PlainNeuralNetworkU32 {
 
     fn init_weights(&mut self, input_size: usize, output_size: usize, in_channels: usize, out_channels: usize, experiment: Option<i8>) -> PlainTensor<u32> {
         if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 16 {
                 let fc1_weights = EXP1_W_FC1_32.to_vec();
                 let flattened_fc1_weight: Vec<u32> = fc1_weights.into_iter().flatten().collect();
@@ -473,6 +472,26 @@ impl PlainNeuralNetworkU32 {
             } else if input_size == 10 && output_size == 64 {
                 read_npy(Path::new("src/cifar10/initializations/fc_weight.npy")).expect("Failed to read fc1 weights")
             }
+            else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        } else if experiment == Some(10) {
+            let weights_file: Array2<f32> = if input_size == 16 && output_size == 30 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc1_weight.npy")).expect("Failed to read fc1 weights")
+            } else if input_size == 8 && output_size == 16 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc2_weight.npy")).expect("Failed to read fc2 weights")
+            } else if input_size == 2 && output_size == 8 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc3_weight.npy")).expect("Failed to read fc3 weights")
+            } 
             else {
                 panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
             };
@@ -709,6 +728,26 @@ impl PlainNeuralNetworkU32 {
                 .map(|x| x.to_bits())
                 .collect();
             PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(10) {
+            let biases_file: Array2<f32>  = if output_size == 16 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 8 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else if output_size == 2 {
+                read_npy(Path::new("src/breast_cancer/initializations/fc3_bias.npy"))
+                    .expect("Failed to read fc3 biases")
+            } else {
+                panic!("No matching biases file for given layer dimensions {:?}",  output_size);
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
         }
         else {
             let biases = vec![0u32; output_size];
@@ -843,16 +882,13 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
     fn create(experiment: Option<i8>) -> Self{
         let layers: Vec<Box<dyn PlainLayer<u16>>> = vec![];
 
-        // Step 4: Create the loss function
         let loss: Box<dyn PlainLossFunction<u16>> = Box::new(MseLoss{});
 
-        // Step 5: Build the inner EncryptedNeuralNetworkImpl
         let inner = PlainNeuralNetworkImpl {
             layers,
             loss,
         };
 
-        // Step 6: Wrap in the public struct
         PlainNeuralNetworkU16 { inner, experiment }
     }
 
@@ -929,7 +965,6 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         .map(|(idx, _)| idx)
         .unwrap();
 
-        // 2. Create one-hot encoded vector
         let mut one_hot: Vec<f32> = vec![0.0; prediction_f16.len()];
         one_hot[predicted_index] = 1.0;
         
@@ -1028,7 +1063,6 @@ impl PlainNeuralNetworkU16 {
     fn init_weights(&mut self, input_size: usize, output_size: usize, in_channels: usize, out_channels: usize, experiment: Option<i8>) -> PlainTensor<u16> {
 
        if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 16 {
                 let fc1_weights = EXP1_W_FC1_32.to_vec();
                 let flattened_fc1_weight: Vec<u16> = fc1_weights

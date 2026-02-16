@@ -45,7 +45,6 @@ where
         K: ServerKeyTrait + EncryptedMul<K, T> + EncryptedBackwardRelu<K, T>,
         T: Clone + EncryptableValueType<>,
     {
-        // grad_input = grad_output * derivative
         let grad_input_data: Vec<T> = grad_output
             .data
             .par_iter()

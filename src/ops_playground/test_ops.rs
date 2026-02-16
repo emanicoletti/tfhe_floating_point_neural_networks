@@ -17,8 +17,6 @@ use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, Fh
 use std::time::Instant;
 use rand::Rng;
 use half::f16;
-use tfhe::shortint::parameters::{PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64};
-use tfhe::shortint::parameters::v1_1::{V1_1_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_1_PARAM_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
 use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
 use crate::tfhe_nn_builder::add::*;
 use crate::tfhe_nn_builder::div::*;
@@ -29,6 +27,7 @@ use crate::tfhe_nn_builder::relu::*;
 use crate::tfhe_nn_builder::same_sign_add::*;
 use crate::tfhe_nn_builder::sqrt::*;
 use crate::tfhe_nn_builder::tanh::*;
+
 
 #[allow(dead_code)]
 /// PLA TANH Ranges for FP16
@@ -512,7 +511,10 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                         fhe_add32_cpu(encrypted_a, encrypted_b_negate, encrypted_mask, encrypted_zero, server_key.clone())
                     },
                     "lmul" => fhe_lmul32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone()),
-                    "ldiv" => fhe_ldiv32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone()),
+                    "ldiv" => {
+                        let _profiler = dhat::Profiler::new_heap();
+                        fhe_ldiv32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone())
+                    },
                     "lmul_tanh" => fhe_lmul_tanh32_cpu(encrypted_a, server_key.clone(), encrypted_zero, encrypted_mask, &ranges_32).0.clone(),
                     "pam_mul" => fhe_pam_mul32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone()),
                     "pam_div" => fhe_pam_div32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone()),

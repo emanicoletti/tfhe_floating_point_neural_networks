@@ -7,7 +7,7 @@ use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
 
 pub struct EncryptedMaxPoolingLayer<T: EncryptedElement> {
     _input: EncryptedTensor<T>,
-    _input_dim: Vec<usize>, // shape of the input tensor 
+    _input_dim: Vec<usize>, 
     kernel_size: usize,
     stride: usize,
     id: String,
@@ -94,11 +94,11 @@ fn backward(
     );
 
     let out_shape = [
-        grad_output.shape[0],              // batch size
-        grad_output.shape[1],              // channels
-        grad_output.shape[3] / kernel,     // output height after pooling
-        grad_output.shape[3] / kernel,     // output width after pooling
-      ]; // [B, C, OH, OW]
+        grad_output.shape[0],              
+        grad_output.shape[1],              
+        grad_output.shape[3] / kernel,     
+        grad_output.shape[3] / kernel,     
+      ]; 
     
     
     for n in 0..batch {

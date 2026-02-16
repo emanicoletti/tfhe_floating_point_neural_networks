@@ -1,4 +1,5 @@
 use half::f16;
+use rand_distr::num_traits::ToPrimitive;
 
 /* EXACT INTEGER-BASED OPERATIONS FP-32 */
 
@@ -679,11 +680,11 @@ pub fn lmul32 (
     
     let b_exp = (&b &  2139095040u32) >> 23u32;
     let exp = &a_exp + &b_exp;
-
-    if exp < 127u32 || a == 0u32 || b == 0u32 {
+ 
+    if exp < 127u32 {
         return 0u32;
     }
-    
+        
     let a_digits = &a & 2147483647u32;
     let b_digits = &b & 2147483647u32;
     let mut digits = &a_digits + &b_digits;
@@ -707,7 +708,7 @@ pub fn ldiv32 (
     let b_exp = (&b & 2139095040u32) >> 23u32;
     let exp = &a_exp - &b_exp + 127u32;
 
-    if exp > 255u32 || exp == 0u32{
+    if exp > 255u32 {
         return 0u32;
     }
     

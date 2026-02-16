@@ -131,7 +131,7 @@ where
         self.forward(input)
     }
 
-    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+    fn exact_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         self.forward(input)
     }
 
@@ -140,9 +140,7 @@ where
         _learning_rate: T,
         _weight_decay: T,
         _momentum: T,
-    ) {
-        // No parameters to update in max pooling
-    }
+    ) { }
 
     fn get_weights(&self) -> PlainTensor<T> {
         // No weights in max pooling

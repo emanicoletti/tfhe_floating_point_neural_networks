@@ -32,12 +32,12 @@ pub trait PlainSqrt where Self: Sized {
     fn sqrt(self) -> Self;
 }
 
-pub trait PlainMulInf {
-    fn mul_inf(self, other: Self) -> Self;
+pub trait PlainMulExact {
+    fn mul_exact(self, other: Self) -> Self;
 }
 
-pub trait PlainDivInf {
-    fn div_inf(self, other: Self) -> Self;
+pub trait PlainDivExact {
+    fn div_exact(self, other: Self) -> Self;
 }
 
 impl PlainAdd for u32 {
@@ -124,21 +124,17 @@ impl PlainSqrt for u32 {
     }
 }
 
-impl PlainMulInf for u32 {
-    fn mul_inf(self, other: Self) -> Self {
+impl PlainMulExact for u32 {
+    fn mul_exact(self, other: Self) -> Self {
         canonical_mul32(self, other) 
-        //lmul32(self, other)
     }
 }
 
-impl PlainDivInf for u32 {
-    fn div_inf(self, other: Self) -> Self {
+impl PlainDivExact for u32 {
+    fn div_exact(self, other: Self) -> Self {
         canonical_div32(self, other)
-        //ldiv32(self, other)
     }
 }
-
-// ==== u16 impls ====
 
 impl PlainAdd for u16 {
     fn add(self, other: Self) -> Self {
@@ -217,14 +213,14 @@ impl PlainSqrt for u16 {
     }
 }
 
-impl PlainMulInf for u16 {
-    fn mul_inf(self, other: Self) -> Self {
+impl PlainMulExact for u16 {
+    fn mul_exact(self, other: Self) -> Self {
         lmul16(self, other) 
     }
 }
 
-impl PlainDivInf for u16 {
-    fn div_inf(self, other: Self) -> Self {
+impl PlainDivExact for u16 {
+    fn div_exact(self, other: Self) -> Self {
         ldiv16(self, other)
     }
 }

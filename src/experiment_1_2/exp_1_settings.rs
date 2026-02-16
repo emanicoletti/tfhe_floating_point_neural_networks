@@ -24,7 +24,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     let test_labels = array2_to_vecvec(&test_labels_arr);
 
     // Declare the plain model structure
-    let mut plain_model = PlainNeuralNetworkU32::create(Some(8));
+    let mut plain_model = PlainNeuralNetworkU32::create(Some(1));
 
     if train_plain_network {
 
@@ -48,7 +48,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
 
         // Train and validate the model
         plain_model.train(
-            100,
+            3,
             5,
             0.1,
             0.0,

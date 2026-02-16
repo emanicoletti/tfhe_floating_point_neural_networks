@@ -17,8 +17,8 @@ where
     + PlainReLU
     + PlainBackwardReLU
     + PlainSqrt
-    + PlainDivInf
-    + PlainMulInf
+    + PlainDivExact
+    + PlainMulExact
     + PlainElement
     + PlainValueType
     + Clone
@@ -144,9 +144,8 @@ where
                 
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                //println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
-                //grad.print_tensor();
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
@@ -193,30 +192,32 @@ where
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
-                //let start = std::time::Instant::now();
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
                 }
                 let prediction = activations.last().unwrap();
-                //prediction.print_tensor();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                //println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
                 }
-                if epoch >= 15 {
+                
+                // Decomment to implement learning rate decay 
+                if epoch >= 15 && epoch < 38 {
                     learning_rate = T::from_f32(0.01);
+                } else if epoch >= 38 && epoch < 45{
+                    learning_rate = T::from_f32(0.001);
+                } else if epoch >= 45 {
+                    learning_rate = T::from_f32(0.0001);
                 }
                 self.layers.par_iter_mut().for_each(|layer| {
                     layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
                 });
                 i_batch += 1;
-                //let duration = start.elapsed();
-                //println!("Time elapsed in batch {} is: {:?}", i_batch, duration);
             }
 
             let mut correct = 0;
@@ -254,8 +255,6 @@ where
                     .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
                     .map(|(idx, _)| idx)
                     .unwrap();
-
-                //println!("Predicted: {}, Actual: {}", predicted_class, actual_class);
 
                 if predicted_class == actual_class {
                     correct += 1;
@@ -325,40 +324,5 @@ where
     
         batches
     }
-
-    fn linear_one_cycle(&self, current_step: usize, max_lr: f32, total_steps: usize, pct_start: f32) -> f32 {
-        // 1. Define Constants (Standard OneCycle defaults)
-        let div_factor = 25.0;
-        let final_div_factor = 10000.0;
-
-        // 2. Calculate Boundaries
-        let start_lr = max_lr / div_factor;
-        let min_lr = start_lr / final_div_factor;
-        
-        // Cast strict types to float for calculation
-        let current_step_f = current_step as f32;
-        let total_steps_f = total_steps as f32;
-        let warmup_steps = total_steps_f * pct_start;
-
-        // 3. Phase 1: Warm-up (Linear Increase)
-        if current_step_f <= warmup_steps {
-            // Progress goes from 0.0 to 1.0
-            let progress = current_step_f / warmup_steps;
-            
-            // Formula: start + (diff * progress)
-            return start_lr + (max_lr - start_lr) * progress;
-        } 
-        // 4. Phase 2: Cool-down (Linear Decrease)
-        else {
-            let cooldown_steps = total_steps_f - warmup_steps;
-            let steps_into_cooldown = current_step_f - warmup_steps;
-            
-            // Progress goes from 0.0 to 1.0 (Careful: clamp it to 1.0 to avoid going negative)
-            let progress = (steps_into_cooldown / cooldown_steps).min(1.0);
-            
-            // Formula: max - (diff * progress)
-            return max_lr - (max_lr - min_lr) * progress;
-        }
-}
 
 }

@@ -14,7 +14,7 @@ use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
 pub trait EncryptedAdd<K, T>
 where
-    K: ServerKeyTrait + Clone + Send + Sync, // or your ServerKeyTrait if already defined
+    K: ServerKeyTrait + Clone + Send + Sync,
 {
     fn add(&self, a: T, b: T, ctx: &EncryptedContext<K, T>) -> T;
 }

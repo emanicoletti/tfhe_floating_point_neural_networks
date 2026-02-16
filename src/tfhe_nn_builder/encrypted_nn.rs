@@ -18,7 +18,6 @@ use rand_distr::Distribution;
 use half::f16;
 use std::time::Instant;
 use tfhe::prelude::FheTryEncrypt;
-use tfhe::shortint::parameters::v1_2::*;
 use tfhe::{set_server_key, ClientKey, CompressedServerKey, ConfigBuilder, CudaServerKey, FheUint16, FheUint32};
 use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
 
@@ -433,7 +432,6 @@ impl EncryptedNeuralNetworkU16GPU {
     ) -> EncryptedTensor<FheUint16>{
         let plain_weights: Vec<u16>;
         if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 16 {
                 let fc1_weights = EXP1_W_FC1_32.to_vec();
                 let flattened_fc1_weight: Vec<u16> = fc1_weights
@@ -464,7 +462,6 @@ impl EncryptedNeuralNetworkU16GPU {
             }
         }
         else if experiment == Some(2) {
-            // Initialize weights for experiment 2
             if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u16> = fc_weights.into_iter()
@@ -486,7 +483,6 @@ impl EncryptedNeuralNetworkU16GPU {
             }
         }
         else if experiment == Some(3) {
-            // Initialize weights for experiment 1
             let weights_file: Array2<f32> = if output_size == 6272 && input_size == 256 {
                 read_npy(Path::new("src/experiment_3/initializations/fc1_weight.npy"))
                     .expect("Failed to read fc1 weights")
@@ -551,7 +547,6 @@ impl EncryptedNeuralNetworkU16GPU {
     ) -> EncryptedTensor<FheUint16> {
         let plain_biases: Vec<u16>;
          if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 4 {
                 let biases_u32 = EXP1_B_FC1_32.to_vec();
                 plain_biases = biases_u32.iter().map(|&x| f16::from_f32(f32::from_bits(x)).to_bits()).collect();
@@ -569,7 +564,6 @@ impl EncryptedNeuralNetworkU16GPU {
             }
         }
         else if experiment == Some(2) {
-            // Initialize weights for experiment 2
             if output_size == 3 {
                 let biases_u32 = EXP2_B_FC_32.to_vec();
                 plain_biases = biases_u32.iter().map(|&x| f16::from_f32(f32::from_bits(x)).to_bits()).collect();
@@ -583,7 +577,6 @@ impl EncryptedNeuralNetworkU16GPU {
             }
         }
         else if experiment == Some(3) {
-            // Initialize weights for experiment 3
             let biases_file: Array2<f32> = if output_size == 256 {
             read_npy(Path::new("src/experiment_3/initializations/fc1_bias.npy"))
                     .expect("Failed to read fc1 biases")
@@ -980,7 +973,6 @@ impl EncryptedNeuralNetworkU32GPU {
     ) -> EncryptedTensor<FheUint32>{
         let plain_weights: Vec<u32>;
         if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 16 {
                 let fc1_weights = EXP1_W_FC1_32.to_vec();
                 let flattened_fc1_weight: Vec<u32> = fc1_weights.into_iter().flatten().collect();
@@ -1001,7 +993,6 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
         else if experiment == Some(2) {
-            // Initialize weights for experiment 2
             if output_size == 32 {
                 let fc_weights = EXP2_W_FC_32.to_vec();
                 let flattened_fc_weights: Vec<u32> = fc_weights.into_iter().flatten().collect();
@@ -1017,7 +1008,6 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
         else if experiment == Some(3) {
-            // Initialize weights for experiment 3
             let weights_file: Array2<f32> = if output_size == 6272 && input_size == 256 {
                 read_npy(Path::new("src/experiment_3/initializations/fc1_weight.npy"))
                     .expect("Failed to read fc1 weights")
@@ -1081,7 +1071,6 @@ impl EncryptedNeuralNetworkU32GPU {
     ) -> EncryptedTensor<FheUint32> {
         let plain_biases: Vec<u32>;
          if experiment == Some(1) {
-            // Initialize weights for experiment 1
             if output_size == 4 {
                 plain_biases = EXP1_B_FC1_32.to_vec();
             }
@@ -1096,7 +1085,6 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
         else if experiment == Some(2) {
-            // Initialize weights for experiment 2
             if output_size == 3 {
                 plain_biases = EXP2_B_FC_32.to_vec();
             }
@@ -1108,7 +1096,6 @@ impl EncryptedNeuralNetworkU32GPU {
             }
         }
         else if experiment == Some(3) {
-            // Initialize weights for experiment 3
             let biases_file: Array2<f32> = if output_size == 256 {
             read_npy(Path::new("src/experiment_3/initializations/fc1_bias.npy"))
                     .expect("Failed to read fc1 biases")

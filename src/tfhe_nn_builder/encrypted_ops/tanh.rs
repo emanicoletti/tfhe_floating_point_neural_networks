@@ -18,7 +18,6 @@ pub fn fhe_lmul_tanh16_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint16>, Vec<FheUint16>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -55,7 +54,6 @@ pub fn fhe_lmul_tanh32_gpu(
 ) -> (FheUint32, FheUint32) {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint32>, Vec<FheUint32>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -93,7 +91,6 @@ pub fn fhe_lmul_tanh16_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint16>, Vec<FheUint16>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -129,9 +126,7 @@ pub fn fhe_lmul_tanh32_cpu(
     ranges: &[(FheUint32, FheUint32, FheUint32, FheUint32, FheUint32)],
 ) -> (FheUint32, FheUint32) {
     set_server_key(server_keys.clone());
-    //rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint32>, Vec<FheUint32>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -169,7 +164,6 @@ pub fn fhe_pam_tanh16_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint16>, Vec<FheUint16>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -207,7 +201,6 @@ pub fn fhe_pam_tanh32_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint32>, Vec<FheUint32>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -245,7 +238,6 @@ pub fn fhe_pam_tanh16_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint16>, Vec<FheUint16>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {
@@ -283,7 +275,6 @@ pub fn fhe_pam_tanh32_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Collect partial outputs and derivatives separately
     let (results, derivatives): (Vec<FheUint32>, Vec<FheUint32>) = ranges
         .par_iter()
         .map(|(min, max, a, b, derivative)| {

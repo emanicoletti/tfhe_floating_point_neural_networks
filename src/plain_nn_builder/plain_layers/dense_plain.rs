@@ -32,26 +32,16 @@ impl<T: PlainElement> PlainDenseLayer<T>{
 
 impl<T> PlainLayer<T> for PlainDenseLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + PlainMulInf + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default, 
+    T: PlainAdd + PlainSub + PlainMul + PlainMulExact + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default, 
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-        // 1. Flatten NCHW to (N, H*W*C) for matmul
         let batch_size = input.shape[0];
-        let in_features = input.data.len() / batch_size;
-        let out_features = self.biases.shape[3]; // Assuming weights are [out_features, in_features]
+        let out_features = self.biases.shape[3]; 
         let flatten_input = input.flatten_hw_to_1d();
-
-        // 2. Perform Matrix Multiplication: (N, in_features) x (in_features, out_features)
-        // Note: If your matmul is already parallelized, this is the heaviest part.
-        // We assume self.weights is already [Out, In], so we matmul with Transpose.
         let mut output = flatten_input.matmul(&self.weights.transpose());
 
-        // 3. Optimized Parallel Bias Addition
-        // Instead of creating 'expanded_biases' (which allocates batch_size * output_dim memory),
-        // we add the bias directly to each row of the output matrix in parallel.
         let bias_data = &self.biases.data;
 
-        // Use par_chunks_exact_mut to process each batch (row) in parallel
         output.data.par_chunks_exact_mut(out_features)
             .for_each(|row| {
                 for i in 0..out_features {
@@ -102,72 +92,67 @@ where
         }
 
     fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) {
-            
-            // 1. Inizializzazione Lazy delle Velocity
-            // Se è il primo passo, le velocity sono None. Creiamo tensori di zeri.
-            if self.velocity_weights.is_none() {
-                // Assumo che tu abbia un metodo .zeros_like() o simile per creare un tensore vuoto
-                self.velocity_weights = Some(PlainTensor{
-                    data: vec![T::from_f32(0.0); self.weights.data.len()],
-                    shape: self.weights.shape.clone(),
-                }); 
-            }
-            if self.velocity_biases.is_none() {
-                self.velocity_biases = Some(PlainTensor{
-                    data: vec![T::from_f32(0.0); self.biases.data.len()],
-                    shape: self.biases.shape.clone(),
-                });
+        
+        let zero = T::from_f32(0.0);
 
-            // 2. Estrazione sicura dei riferimenti
-            // Usiamo un singolo blocco if let per assicurarci di avere tutto il necessario
-            // prima di lanciare i thread.
-            if let (Some(grad_w), Some(grad_b), Some(vel_w), Some(vel_b)) = (
-                &self.grad_weights,
-                &self.grad_biases,
-                &mut self.velocity_weights,
-                &mut self.velocity_biases,
-            ) {
-                let weights = &mut self.weights;
-                let biases = &mut self.biases;
+        if self.velocity_weights.is_none() {
+            self.velocity_weights = Some(PlainTensor{
+                data: vec![T::from_f32(0.0); self.weights.data.len()],
+                shape: self.weights.shape.clone(),
+            }); 
+        }
+        if self.velocity_biases.is_none() {
+            self.velocity_biases = Some(PlainTensor{
+                data: vec![T::from_f32(0.0); self.biases.data.len()],
+                shape: self.biases.shape.clone(),
+            });
+        }
 
-                // 3. Esecuzione Parallela (Pesi su un thread, Bias sull'altro)
-                scope(|s| {
-                    
-                    // --- Thread 1: Aggiornamento PESI (Con Weight Decay) ---
-                    s.spawn(|_| {
-                        // A. Calcolo Gradiente con Weight Decay
-                        // Formula: g' = g + (lambda * w)
-                        // Nota: Applicare il weight decay direttamente al gradiente è un modo
-                        // standard per implementare L2 regularization.
+        if let (Some(grad_w), Some(grad_b), Some(vel_w), Some(vel_b)) = (
+            &self.grad_weights,
+            &self.grad_biases,
+            &mut self.velocity_weights,
+            &mut self.velocity_biases,
+        ) {
+            let weights = &mut self.weights;
+            let biases = &mut self.biases;
+
+            scope(|s| {
+
+                s.spawn(|_| {
+                    let g_prime = if weight_decay.to_f32() != zero.to_f32() {
                         let wd_term = weights.mul_scalar(&weight_decay);
-                        let g_prime = grad_w.add(&wd_term);
+                        grad_w.add(&wd_term)
+                    } else {
+                        grad_w.clone() 
+                    };
 
-                        // B. Aggiornamento Velocity (Momentum)
-                        // Formula: v_new = (mu * v_old) + g'
+                    if momentum.to_f32() != zero.to_f32() {
                         let momentum_term = vel_w.mul_scalar(&momentum);
-                        *vel_w = momentum_term.add(&g_prime); // Aggiorniamo lo stato velocity
-
-                        // C. Aggiornamento Pesi
-                        // Formula: w_new = w_old - (lr * v_new)
+                        *vel_w = momentum_term.add(&g_prime);
+                        
                         let step = vel_w.mul_scalar(&learning_rate);
                         *weights = weights.sub(&step);
-                    });
+                    } else {
+                        let step = g_prime.mul_scalar(&learning_rate);
+                        *weights = weights.sub(&step);
+                    }
+                });
 
-                    // --- Thread 2: Aggiornamento BIAS (Senza Weight Decay) ---
-                    s.spawn(|_| {
-                        // Solitamente NON si applica weight decay ai bias per evitare underfitting.
-                        
-                        // A. Aggiornamento Velocity (Momentum)
-                        // Formula: v_new = (mu * v_old) + g
+                s.spawn(|_| {
+
+                    if momentum.to_f32() != zero.to_f32() {
                         let momentum_term = vel_b.mul_scalar(&momentum);
                         *vel_b = momentum_term.add(grad_b);
-
-                        // B. Aggiornamento Bias
+                        
                         let step = vel_b.mul_scalar(&learning_rate);
                         *biases = biases.sub(&step);
-                    });
+                    } else {
+                        let step = grad_b.mul_scalar(&learning_rate);
+                        *biases = biases.sub(&step);
+                    }
                 });
-            }
+            });
         }
     }
 
@@ -175,7 +160,7 @@ where
         self.forward(input)
     }
 
-    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+    fn exact_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
 
         let flatten_input = input.flatten_hw_to_1d();
 

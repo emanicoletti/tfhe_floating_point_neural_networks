@@ -14,13 +14,10 @@ use std::path::Path;
 pub struct ResidualBlock<T> 
 where T: PlainElement 
 {
-    // Il percorso principale (es. Conv3x3 -> ReLU -> Conv3x3)
     main_layers: Vec<Box<dyn PlainLayer<T>>>,
     
-    // Il percorso skip (es. vuoto per Identity, oppure Conv1x1 per Projection)
     skip_layers: Vec<Box<dyn PlainLayer<T>>>,
 
-    // Cache separate per i due percorsi
     main_cache: Vec<PlainTensor<T>>,
     skip_cache: Vec<PlainTensor<T>>, 
 
@@ -50,22 +47,19 @@ impl<T> PlainLayer<T> for ResidualBlock<T>
 where T: PlainElement + PlainAdd + Default
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-        // === 1. Main Path ===
         self.main_cache.clear();
         let mut x_main = input.clone();
-        self.main_cache.push(x_main.clone()); // Cache input iniziale
+        self.main_cache.push(x_main.clone());
 
         for layer in &mut self.main_layers {
             x_main = layer.forward(&x_main);
             self.main_cache.push(x_main.clone());
         }
-        self.main_cache.pop(); // Rimuovi l'ultimo output (non serve come input)
+        self.main_cache.pop();
 
-        // === 2. Skip Path ===
         self.skip_cache.clear();
         let mut x_skip = input.clone();
         
-        // Se skip_layers è vuoto, x_skip rimane uguale a input (Identity)
         if !self.skip_layers.is_empty() {
              self.skip_cache.push(x_skip.clone());
              for layer in &mut self.skip_layers {
@@ -75,49 +69,38 @@ where T: PlainElement + PlainAdd + Default
              self.skip_cache.pop();
         }
 
-        // === 3. Somma ===
         x_main.add(&x_skip)
     }
 
     fn backward(
         &mut self,
         _input: &PlainTensor<T>, 
-        grad_output: &PlainTensor<T>, // dL/dy
+        grad_output: &PlainTensor<T>, 
     ) -> PlainTensor<T> {
         
-        // === Path A: Backward Main Path ===
         let mut grad_main = grad_output.clone();
         for (i, layer) in self.main_layers.iter_mut().rev().enumerate() {
             let cached_in = &self.main_cache[self.main_cache.len() - 1 - i];
             grad_main = layer.backward(cached_in, &grad_main);
         }
 
-        // === Path B: Backward Skip Path ===
         let mut grad_skip = grad_output.clone();
         
         if self.skip_layers.is_empty() {
-            // Identity Shortcut: Il gradiente passa intatto (moltiplicato per 1)
-            // grad_skip rimane uguale a grad_output
         } else {
-            // Projection Shortcut: Il gradiente attraversa i layer della skip (es. Conv1x1)
             for (i, layer) in self.skip_layers.iter_mut().rev().enumerate() {
                 let cached_in = &self.skip_cache[self.skip_cache.len() - 1 - i];
                 grad_skip = layer.backward(cached_in, &grad_skip);
             }
         }
 
-        // === Somma dei Gradienti rispetto all'Input ===
-        // L'input originale è stato inviato sia a Main che a Skip.
-        // La regola della catena dice che dobbiamo sommare i gradienti di ritorno.
         grad_main.add(&grad_skip)
     }
 
     fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) {
-        // Aggiorniamo i pesi del path principale
         for layer in &mut self.main_layers {
             layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
         }
-        // Aggiorniamo i pesi della skip connection (se ne ha, es. Conv1x1)
         for layer in &mut self.skip_layers {
             layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
         }
@@ -125,7 +108,6 @@ where T: PlainElement + PlainAdd + Default
 
     // ... Inference, Getters ...
     fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-        // Simile al forward ma chiamando inference
         let mut x_main = input.clone();
         for layer in &mut self.main_layers { x_main = layer.inference(&x_main); }
         
@@ -136,7 +118,7 @@ where T: PlainElement + PlainAdd + Default
     }
     
     fn get_id(&self) -> String { self.id.clone() }
-    fn approximate_inference(&mut self, _input: &PlainTensor<T>) -> PlainTensor<T> { todo!() }
+    fn exact_inference(&mut self, _input: &PlainTensor<T>) -> PlainTensor<T> { todo!() }
     fn get_weights(&self) -> PlainTensor<T> { todo!() }
     fn get_biases(&self) -> PlainTensor<T> { todo!() }
     fn get_grad_weights(&self) -> PlainTensor<T> { todo!() }

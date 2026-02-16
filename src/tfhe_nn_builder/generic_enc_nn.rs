@@ -102,37 +102,11 @@ where
             println!("labels shapes: {:?}", train_labels.shape);
             for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
                 let mut activations = vec![input_batch.clone()];
-                println!("Forward started...");
                 for layer in &mut self.layers {
+                    println!("Layer ID: {}", layer.get_id());
                     let output = layer.forward(activations.last().unwrap(), &self.context);
-                    activations.push(output.clone());
+                    activations.push(output);
                     println!("Layer passed");
-                    /* 
-                    let prediction = activations.last().unwrap();
-                    
-                    let size = prediction.shape[0];
-                    let rows = prediction.shape[2];
-                    let cols = prediction.shape[3];
-                    let flat = &prediction.data;
-        
-                    if flat.len() != size * rows * cols {
-                        println!("Shape mismatch: expected {} elements, got {}", size * rows * cols, flat.len());
-                        return;
-                    }
-        
-                    for b in 0..size {
-                        println!("\nBatch {}", b);
-                        for i in 0..rows {
-                            print!("[");
-                            for j in 0..cols {
-                                let index = b * rows * cols + i * cols + j;
-                                let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
-                                print!("{:<6} ", f16::from_bits(decrypted));
-                            }
-                            print!("]\n");
-                        }
-                    }
-                    */
                 }
                 let prediction = activations.last().unwrap();
                 
@@ -142,31 +116,6 @@ where
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad, &self.context);
-                    
-                    /* 
-                    let size = grad.shape[0];
-                    let rows = grad.shape[2];
-                    let cols = grad.shape[3];
-                    let flat = &grad.data;
-        
-                    if flat.len() != size * rows * cols {
-                        println!("Shape mismatch: expected {} elements, got {}", rows * cols, flat.len());
-                        return;
-                    }
-        
-                    for b in 0..size {
-                        println!("\nBatch {}", b);
-                        for i in 0..rows {
-                            print!("[");
-                            for j in 0..cols {
-                                let index = b * rows * cols + i * cols + j;
-                                let decrypted: u16 = EncryptableValueType::decrypt(&flat[index], &self.context.client_key);
-                                print!("{:<6} ", f16::from_bits(decrypted));
-                            }
-                            print!("]\n");
-                        }
-                    }
-                    */
                 }
                 println!("Backward ended...");
                 for layer in &mut self.layers{
@@ -221,7 +170,6 @@ where
         while start < num_samples {
             let end = usize::min(start + batch_size, num_samples);
     
-            // Slice input batch
             let input_start = start * input_sample_size;
             let input_end = end * input_sample_size;
             let input_batch_data = inputs.data[input_start..input_end].to_vec();
@@ -236,7 +184,6 @@ where
                 shape: input_batch_shape,
             };
     
-            // Slice label batch
             let label_start = start * label_sample_size;
             let label_end = end * label_sample_size;
             let label_batch_data = labels.data[label_start..label_end].to_vec();

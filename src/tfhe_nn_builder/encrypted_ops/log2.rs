@@ -66,7 +66,6 @@ pub fn fhe_log2_32_gpu(
     for _i in 0..23 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
             ||{
-                // LT branch
                 let while_res_exp_eq_zero = res_exp_value.eq(0u32);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u32), &sum_lt.clone());
                 diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32),&diff_exp_lt);
@@ -74,7 +73,6 @@ pub fn fhe_log2_32_gpu(
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
             ||{
-                // GE branch
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u32), &sum_gt);
                 diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32),&diff_exp_gt);
@@ -118,13 +116,13 @@ pub fn fhe_log2_16_gpu(
         },
     );
     exp_value = lt_15.select(&exp_value_lt, &exp_value_gt);
-    let neg_sign = encrypted_a.lt(15360u32); //less than 1
+    let neg_sign = encrypted_a.lt(15360u32); 
     let mut result = exp_value.clone() >> 1u16;
     let res_eq_zero = result.eq(0u16);
     let ilog_16: FheUint16 = result.ilog2().cast_into();
     result = (ilog_16 + 16u16) << 10u16;
     result = res_eq_zero.select(&((&encrypted_zero.clone() | 15u16) << 10u16), &result.clone());
-    result = neg_sign.select(&(result.clone() | 32768u16), &result); //add negative sign
+    result = neg_sign.select(&(result.clone() | 32768u16), &result); 
 
 
     let mut log_mant = encrypted_zero.clone();
@@ -165,7 +163,6 @@ pub fn fhe_log2_16_gpu(
     for _i in 0..10 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
             ||{
-                // LT branch
                 let while_res_exp_eq_zero = res_exp_value.eq(0u16);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u16), &sum_lt.clone());
                 diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16),&diff_exp_lt);
@@ -173,7 +170,6 @@ pub fn fhe_log2_16_gpu(
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
             ||{
-                // GE branch
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1100_0000_0000u16).eq(0u16);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u16), &sum_gt);
                 diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16),&diff_exp_gt);
@@ -262,7 +258,6 @@ pub fn fhe_log2_32_cpu(
     for _i in 0..23 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
             ||{
-                // LT branch
                 let while_res_exp_eq_zero = res_exp_value.eq(0u32);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u32), &sum_lt.clone());
                 diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32),&diff_exp_lt);
@@ -270,7 +265,6 @@ pub fn fhe_log2_32_cpu(
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
             ||{
-                // GE branch
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u32), &sum_gt);
                 diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32),&diff_exp_gt);
@@ -361,7 +355,6 @@ pub fn fhe_log2_16_cpu(
     for _i in 0..10 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
             ||{
-                // LT branch
                 let while_res_exp_eq_zero = res_exp_value.eq(0u16);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u16), &sum_lt.clone());
                 diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16),&diff_exp_lt);
@@ -369,7 +362,6 @@ pub fn fhe_log2_16_cpu(
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
             ||{
-                // GE branch
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1100_0000_0000u16).eq(0u16);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u16), &sum_gt);
                 diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16),&diff_exp_gt);

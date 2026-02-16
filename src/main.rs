@@ -1,3 +1,4 @@
+
 mod tfhe_nn_builder;
 mod plain_nn_builder;
 mod experiment_1_2;
@@ -8,34 +9,56 @@ mod skin_cancer_mnist;
 mod blood_mnist;
 mod ops_playground;
 mod cifar10;
+mod breast_cancer;
 
-use crate::cifar10::cifar10_exp_settings;
 #[allow(unused_imports)]
-use crate::experiment_1_2::exp_1_settings::*;
+use crate::cifar10::cifar10_exp_settings;
 #[allow(unused_imports)]
 use crate::experiment_1_2::exp_2_settings::*;
 #[allow(unused_imports)]
 use crate::experiment_3::exp_3_settings::*;
+#[allow(unused_imports)]
 use crate::f_mnist_exp::f_mnist_exp_settings::*;
+#[allow(unused_imports)]
 use crate::mnist_exp::mnist_exp_settings::*;
+#[allow(unused_imports)]
 use crate::skin_cancer_mnist::sc_mnist_settings::*;
+#[allow(unused_imports)]
 use crate::blood_mnist::blood_mnist_settings::*;
+#[allow(unused_imports)]
 use crate::cifar10::cifar10_exp_settings::*;
 #[allow(unused_imports)]
 use crate::ops_playground::test_ops::*;
+#[allow(unused_imports)]
+use crate::breast_cancer::breast_cancer_settings::*;
+use crate::plain_nn_builder::plain_ops::ops::*;
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    //test_encrypted_ops("test", 64, true, 10, -5.0, 5.0)?;
-    //experiment_1_fp32(true, false, true)?;
-    //blood_vgg_fp32(true, false, false)?;
-    //experiment_3_fp32()?;
-    //mnist_exp_fp32(true, false, false)?;
-    //fmnist_exp2_fp32(true, false, false)?;
-    //sc_mnist_exp_fp32(true, false, false)?;
-    //vgg_fp32(true, false, false)?;
-    //experiment_3_fp32()?;
-    resnet20_fp32(true, false, false)?;
+    // Uncomment the desired experiment to run
+
+    // Experiment 1 (MLP and CNN on Ternary-MNIST)
+    //let _profiler = dhat::Profiler::new_heap();
+    //experiment_1_fp32(false, true, false)?;
+    // experiment_2_fp32(true, false, true)?;
+
+    // Experiment 2 (MLP and LeNet-5 on Fashion-MNIST)
+    // fmnist_exp1_fp32()?;
+    //fmnist_exp2_fp32()?;
+
+    // Experiment 3 (VGG-like on Derma-MNIST and Blood-MNIST)
+    // sc_mnist_exp_fp32()?;
+    // blood_vgg_fp32()?;
+
+    // Experiment 4 (ResNet-20 on CIFAR-10)
+    // resnet20_fp32()?;
+
+    // Experiment 5 (MLP on Breast Cancer Wisconsin)
+    // breast_cancer_fp32()?;
+
+    // Test encrypted operations
+    // test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
 
     Ok(())
 }

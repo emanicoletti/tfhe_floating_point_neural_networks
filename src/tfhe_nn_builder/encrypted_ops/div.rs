@@ -13,7 +13,6 @@ pub fn fhe_ldiv8_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -45,12 +44,10 @@ pub fn fhe_ldiv8_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -67,7 +64,6 @@ pub fn fhe_ldiv16_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -99,12 +95,10 @@ pub fn fhe_ldiv16_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -121,7 +115,6 @@ pub fn fhe_ldiv32_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -153,12 +146,10 @@ pub fn fhe_ldiv32_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -175,7 +166,6 @@ pub fn fhe_ldiv64_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -207,12 +197,10 @@ pub fn fhe_ldiv64_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -231,7 +219,6 @@ pub fn fhe_ldiv8_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -263,12 +250,10 @@ pub fn fhe_ldiv8_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -285,7 +270,6 @@ pub fn fhe_ldiv16_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -317,12 +301,10 @@ pub fn fhe_ldiv16_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -339,7 +321,6 @@ pub fn fhe_ldiv32_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -371,12 +352,10 @@ pub fn fhe_ldiv32_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -393,7 +372,6 @@ pub fn fhe_ldiv64_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -425,12 +403,10 @@ pub fn fhe_ldiv64_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -447,7 +423,6 @@ pub fn fhe_pam_div8_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -479,12 +454,10 @@ pub fn fhe_pam_div8_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -501,7 +474,6 @@ pub fn fhe_pam_div16_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -533,12 +505,10 @@ pub fn fhe_pam_div16_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -554,8 +524,6 @@ pub fn fhe_pam_div32_gpu(
 ) -> FheUint32 {
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -587,12 +555,10 @@ pub fn fhe_pam_div32_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -609,7 +575,6 @@ pub fn fhe_pam_div64_gpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -641,12 +606,10 @@ pub fn fhe_pam_div64_gpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -665,7 +628,6 @@ pub fn fhe_pam_div8_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -697,12 +659,10 @@ pub fn fhe_pam_div8_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -719,7 +679,6 @@ pub fn fhe_pam_div16_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -751,12 +710,10 @@ pub fn fhe_pam_div16_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -773,7 +730,6 @@ pub fn fhe_pam_div32_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -805,12 +761,10 @@ pub fn fhe_pam_div32_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 
@@ -827,7 +781,6 @@ pub fn fhe_pam_div64_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    // Prepare mutable vars for results
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -859,12 +812,10 @@ pub fn fhe_pam_div64_cpu(
         });
     });
 
-    // Unwrap results (safe because scope waits for threads)
     let result_sign = result_sign.expect("sign result missing");
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    // Final processing as before
     result_digits = denorm.select(&encrypted_zero, &result_digits);
     let final_result = result_digits | result_sign;
 

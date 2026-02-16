@@ -9,8 +9,8 @@ use rayon::prelude::*;
 
 pub struct EncryptedConvLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>, // shape: [output_dim, input_dim, kernel_height, kernel_width]
-    pub biases: EncryptedTensor<T>,  // shape: [1, 1, 1, output_dim]
+    pub weights: EncryptedTensor<T>, 
+    pub biases: EncryptedTensor<T>,  
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
     pub stride: usize,
@@ -21,8 +21,8 @@ impl<T: EncryptedElement> EncryptedConvLayer<T> {
     pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, stride: usize, padding: usize) -> Self {
         Self {
             id,
-            weights, // expect shape [output_dim, input_dim, kernel_height, kernel_width]
-            biases,  // expect shape [1, 1, 1, output_dim]
+            weights, 
+            biases,  
             grad_weights: None,
             grad_biases: None,
             stride,
@@ -51,7 +51,6 @@ where
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
-        // Copy original input into padded tensor
         for b in 0..batch_size {
             for c in 0..in_channels {
                 for h in 0..in_height {
@@ -159,7 +158,6 @@ where
                     for ow in 0..out_width {
                         let grad_out_val = grad_output.data[grad_output.flatten_index(&[b, oc, oh, ow])].clone();
 
-                        // Bias gradient
                         grad_biases.data[oc] = ctx.server_key.add(grad_biases.data[oc].clone(), grad_out_val.clone(), ctx);
 
                         for ic in 0..in_channels {
@@ -198,7 +196,6 @@ where
             }
         }
 
-        // --- Remove padding from grad_input ---
         for b in 0..batch_size {
             for ic in 0..in_channels {
                 for h in 0..in_height {
@@ -211,7 +208,6 @@ where
             }
         }
 
-        // Save gradients for optimizer
         self.grad_weights = Some(grad_weights);
         self.grad_biases = Some(grad_biases);
 
@@ -234,7 +230,6 @@ where
                         *w = ctx.server_key.add(w.clone(), mul, ctx);
                     });
 
-                // Update biases in parallel
                 self.biases.data
                     .par_iter_mut()
                     .zip(grad_b.data.par_iter())

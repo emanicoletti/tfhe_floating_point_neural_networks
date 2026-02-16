@@ -317,8 +317,8 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     
     pub fn max<K>(&self, ctx: &EncryptedContext<K, T>) -> T
     where
-        K: ServerKeyTrait + EncryptedMax<K, T> + Sync,
-        T: EncryptableValueType + Send + Sync,
+    K: ServerKeyTrait + EncryptedMax<K, T> + Sync,
+    T: EncryptableValueType + Send + Sync,
     {
         self.data.iter()
             .cloned()

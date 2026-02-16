@@ -58,7 +58,7 @@ where
         self.forward(input)
     }
 
-    fn approximate_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
+    fn exact_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         self.forward(input)
     }
 

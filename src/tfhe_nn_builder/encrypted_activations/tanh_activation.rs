@@ -11,7 +11,7 @@ use crate::tfhe_nn_builder::server_key_trait::ServerKeyTrait;
 
 pub struct EncryptedTanhActivation<T: EncryptedElement> {
     pub id: String,
-    pub derivatives: EncryptedTensor<T>, // same shape as input, stores derivative per element
+    pub derivatives: EncryptedTensor<T>, 
     pub _ranges: Vec<(T, T, T, T, T)>,    // piecewise segments: (min, max, a, b, derivative)
 }
 

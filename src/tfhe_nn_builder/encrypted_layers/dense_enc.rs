@@ -12,8 +12,8 @@ use std::time::Instant;
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>, // shape: [1, 1, input_dim, output_dim]
-    pub biases: EncryptedTensor<T>,  // shape: [1, 1, 1, output_dim]
+    pub weights: EncryptedTensor<T>, 
+    pub biases: EncryptedTensor<T>,  
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
 }
@@ -22,8 +22,8 @@ impl<T: EncryptedElement> EncryptedDenseLayer<T> {
     pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
             id,
-            weights, // expect shape [1, 1, input_dim, output_dim]
-            biases,  // expect shape [1, 1, 1, output_dim]
+            weights, 
+            biases,  
             grad_weights: None,
             grad_biases: None,
         }
@@ -61,8 +61,8 @@ where
 
     fn backward(
         &mut self,
-        input: &EncryptedTensor<T>,          // [batch_size, input_dim]
-        grad_output: &EncryptedTensor<T>,    // [batch_size, output_dim]
+        input: &EncryptedTensor<T>,          
+        grad_output: &EncryptedTensor<T>,    
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>
     where
@@ -91,7 +91,6 @@ where
             });
         });
     
-        // Unwrap results (these will always be Some because the spawns run synchronously)
         let grad_weights = grad_weights_opt.expect("grad_weights not computed");
         let grad_biases = grad_biases_opt.expect("grad_biases not computed");
         let grad_input = grad_input_opt.expect("grad_input not computed");
@@ -111,7 +110,6 @@ where
             let mut lr_grad_w_opt = None;
             let mut lr_grad_b_opt = None;
     
-            // Compute scalar multiplications in parallel
             scope(|s| {
                 s.spawn(|_| {
                     lr_grad_w_opt = Some(grad_w.mul_scalar(&learning_rate, ctx));
@@ -127,7 +125,6 @@ where
             let mut new_weights = None;
             let mut new_biases = None;
     
-            // Subtractions can also be parallelized
             scope(|s| {
                 s.spawn(|_| {
                     new_weights = Some(self.weights.sub(&lr_grad_w, ctx));

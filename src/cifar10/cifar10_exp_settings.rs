@@ -3,19 +3,11 @@ use crate::plain_nn_builder::plain_utils::load_from_file::*;
 use crate::plain_nn_builder::plain_layers::residual_block_plain::ResidualBlock;
 
 #[allow(dead_code)]
-pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-    
-    if !train_plain_network && test_plain_network {
-        panic!("Cannot test plain network without training it first");
-    }
-    if !train_plain_network && !train_encrypted_network {
-        panic!("At least one of train_plain_network or train_encrypted_network must be true");
-    }
+pub fn resnet20_fp32() -> Result<(), Box<dyn std::error::Error>> {
 
-    // Load data from folder experiment_1_2 
+    // Load data from folder
     let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(8)?;
 
-    // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
     let test_inputs = array2_to_vecvec(&test_inputs_arr);
@@ -70,8 +62,6 @@ pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, t
     );
 
 
-    if train_plain_network {
-
         plain_model.add_conv(3, 16, 3, 3, 1, 1);
         plain_model.add_batch_norm(16);
 
@@ -111,7 +101,7 @@ pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, t
         // Fourth Stage
         residual_block_4.add_conv(false, 16, 32, 3, 3, 2, 1, "Rb4_conv1".to_string());
         residual_block_4.add_batch_norm(false, 32, "Rb4_bn1".to_string());
-        residual_block_4.add_relu_activation(false, 32*30*30, "Rb4_relu1".to_string());
+        residual_block_4.add_relu_activation(false, 32*16*16, "Rb4_relu1".to_string());
         
         residual_block_4.add_conv(false, 32, 32, 3, 3, 1, 1, "Rb4_conv2".to_string());
         residual_block_4.add_batch_norm(false, 32, "Rb4_bn2".to_string());
@@ -187,7 +177,7 @@ pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, t
         plain_model.add_dense(64, 10);
 
         plain_model.train_and_validate(
-            25, 
+            50, 
             32, 
             0.1, 
             0.0001,
@@ -202,43 +192,6 @@ pub fn resnet20_fp32(train_plain_network: bool, train_encrypted_network: bool, t
             vec![10000, 1, 1, 10],
         );
 
-    }
-
-    if test_plain_network {
-
-        // Validate the plain model
-        let mut correct = 0;
-        let total = test_labels.len();
-
-        for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
-            let input_shape = vec![1, 3, 32, 32];
-            let label_shape = vec![1, 1, 1, 10];
-
-            let prediction = plain_model.inference(&input_batch, input_shape, label_shape);
-
-            let predicted_class = prediction
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(idx, _)| idx)
-                .unwrap();
-
-            let actual_class = label
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(idx, _)| idx)
-                .unwrap();
-
-            if predicted_class == actual_class {
-                correct += 1;
-            }
-        }
-
-        let accuracy = correct as f32 / total as f32;
-        println!("Test Accuracy: {:.2}%", accuracy * 100.0);
-    }
-
     Ok(())
-}
+
+    }
