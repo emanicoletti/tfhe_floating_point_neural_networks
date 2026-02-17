@@ -9,9 +9,7 @@ pub fn fhe_add_int8(
     server_keys: CudaServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    let result = &encrypted_a * &encrypted_b;
-    result
+    &encrypted_a + &encrypted_b 
 }
 
 pub fn fhe_add_int32(
@@ -20,9 +18,7 @@ pub fn fhe_add_int32(
     server_keys: CudaServerKey,
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    let result = &encrypted_a + &encrypted_b;
-    result
+    &encrypted_a + &encrypted_b
 }
 
 pub fn fhe_add_int64(
@@ -31,9 +27,7 @@ pub fn fhe_add_int64(
     server_keys: CudaServerKey,
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
-    let result = &encrypted_a * &encrypted_b;
-    result
+    &encrypted_a + &encrypted_b 
 }
 
 /* GPU-oriented integer-based addition for 8 bits floating points (E4M3) */
@@ -46,75 +40,77 @@ pub fn fhe_add8_gpu(
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    
-    let ns_a = &encrypted_a & 0b0111_1111u8;
-    let ns_b = &encrypted_b & 0b0111_1111u8;
-    
-
+    let ns_a = &encrypted_a & 0x7Fu8;
+    let ns_b = &encrypted_b & 0x7Fu8;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1000u8;
-            let denorm_y = y_exp.eq(0u16);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0111u8),
-                &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
-            );
-            y_mant
+            let exp = &encrypted_x & 0x78u8;
+            let mant = (&encrypted_x & 0x07u8) | 0x08u8;
+            let sign = &encrypted_x & 0x80u8;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x78u8;
+            let mant = &encrypted_y & 0x07u8;
+            let sign = &encrypted_y & 0x80u8;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1000u8;
-                    let y_exp = &encrypted_y & 0b0111_1000u8;
-                    let diff_exp = (&x_exp - &y_exp) >> 3u16;
-                    let clipped_diff_exp = diff_exp.min(7u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u8);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x08u8))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
-                    let x_sign = &encrypted_x & 0b1000_0000u8;
-                    let y_sign = &encrypted_y & 0b1000_0000u8;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 3u8;
+                    diff_exp.min(7u8)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
-    let leading_zeros_16: FheUint16 = FheUint16::cast_from(op_mant.leading_zeros());
-    let leading_zeros: FheUint8 = FheUint8::cast_from(leading_zeros_16);
+    
+    // FIX RESTORED: Cast FheUint32 back down to FheUint8 safely
+    let leading_zeros_16 = FheUint16::cast_from(op_mant.leading_zeros());
+    let leading_zeros = FheUint8::cast_from(leading_zeros_16);
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
-            let overflow = leading_zeros.clone().eq(3u8);
-            let mant = (&op_mant & 0b0000_1110u8) >> 1u8;
-            let res_exp = &x_exp + 0b0000_1000u8;
+        || {
+            let overflow = leading_zeros.eq(3u8);
+            let mant = (&op_mant & 0x0Eu8) >> 1u8;
+            let res_exp = &x_exp + 0x08u8;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 4u8;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 3u8;
             let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 
@@ -131,72 +127,76 @@ pub fn fhe_add16_gpu(
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111u16;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111u16;
-
+    let ns_a = &encrypted_a & 0x7FFFu16;
+    let ns_b = &encrypted_b & 0x7FFFu16;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
-            let denorm_y = y_exp.eq(0u16);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0011_1111_1111u16),
-                &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
-            );
-            y_mant
+            let exp = &encrypted_x & 0x7C00u16;
+            let mant = (&encrypted_x & 0x03FFu16) | 0x0400u16;
+            let sign = &encrypted_x & 0x8000u16;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x7C00u16;
+            let mant = &encrypted_y & 0x03FFu16;
+            let sign = &encrypted_y & 0x8000u16;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1100_0000_0000u16;
-                    let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
-                    let diff_exp = (&x_exp - &y_exp) >> 10u16;
-                    let clipped_diff_exp = diff_exp.min(15u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u16);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0400u16))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000u16;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000u16;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 10u16;
+                    diff_exp.min(15u16)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
+    // FIX RESTORED: Cast FheUint32 back down to FheUint16
     let leading_zeros = FheUint16::cast_from(op_mant.leading_zeros());
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
+        || {
             let overflow = leading_zeros.eq(4u16);
-            let mant = (&op_mant & 0b0000_0111_1111_1110u16) >> 1u16;
-            let res_exp = &x_exp + 1024u16;
+            let mant = (&op_mant & 0x07FEu16) >> 1u16;
+            let res_exp = &x_exp + 0x0400u16;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 5u16;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 10u16;
             let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 
@@ -212,65 +212,69 @@ pub fn fhe_add32_gpu(
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
-
+    let ns_a = &encrypted_a & 0x7FFF_FFFFu32;
+    let ns_b = &encrypted_b & 0x7FFF_FFFFu32;
     let ab_cmp = ns_a.ge(&ns_b);
     let (encrypted_x, encrypted_y) = rayon::join(
-        || ab_cmp.select(&encrypted_a, &encrypted_b),
-        || ab_cmp.select(&encrypted_b, &encrypted_a),
+    || ab_cmp.select(&encrypted_a, &encrypted_b),
+    || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
-        || {
-            let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-            let denorm_y = y_exp.eq(0u32);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
-                &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
-            );
-            y_mant
-        },
+    let (
+        (x_exp, x_mant, x_sign),
+        (y_exp, y_mant_raw, y_sign)
+    ) = rayon::join(
+    || {
+        let exp = &encrypted_x & 0x7F80_0000u32;
+        let mant = (&encrypted_x & 0x007F_FFFFu32) | 0x0080_0000u32;
+        let sign = &encrypted_x & 0x8000_0000u32;
+        (exp, mant, sign)
+    },
+    || {
+        let exp = &encrypted_y & 0x7F80_0000u32;
+        let mant = &encrypted_y & 0x007F_FFFFu32;
+        let sign = &encrypted_y & 0x8000_0000u32;
+        (exp, mant, sign)
+    }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
-                || {
-                    let x_exp = &encrypted_x & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-                    let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-                    let diff_exp = (&x_exp - &y_exp) >> 23u16;
-                    let clipped_diff_exp = diff_exp.min(31u16);
-                    (x_exp, clipped_diff_exp)
-                },
-                || {
-                    let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+            || {
+                let denorm_y = y_exp.eq(0u32);
+                denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0080_0000u32))
+            },
+        || {
+                let diff_exp = (&x_exp - &y_exp) >> 23u16;
+                diff_exp.min(31u16)
+            }
             )
-        },
+     }
     );
 
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
+
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
     let leading_zeros = op_mant.leading_zeros();
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
+        || {
             let overflow = leading_zeros.clone().eq(7u32);
-            let mant = (&op_mant & 0b0000_0000_1111_1111_1111_1111_1111_1110u32) >> 1u16;
-            let res_exp = &x_exp + 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
+            let mant = (&op_mant & 0x00FF_FFFEu32) >> 1u16;
+            let res_exp = &x_exp + 0x0080_0000u32;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 8u32;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
             let sub_exp = &diff << 23u16;
             let res_exp = &x_exp - &sub_exp;
             let denorm = res_exp.gt(&x_exp);
@@ -279,8 +283,8 @@ pub fn fhe_add32_gpu(
             result
         }
     );
-
     overflow.select(&ov_result, &result)
+
 }
 
 /* GPU-oriented integer-based addition for 64 bits floating points */
@@ -293,72 +297,75 @@ pub fn fhe_add64_gpu(
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
     
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
-
+    let ns_a = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
+    let ns_b = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            let denorm_y = y_exp.eq(0u64);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
-                &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
-            );
-            y_mant
+            let exp = &encrypted_x & 0x7FF0_0000_0000_0000u64;
+            let mant = (&encrypted_x & 0x000F_FFFF_FFFF_FFFFu64) | 0x0010_0000_0000_0000u64;
+            let sign = &encrypted_x & 0x8000_0000_0000_0000u64;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x7FF0_0000_0000_0000u64;
+            let mant = &encrypted_y & 0x000F_FFFF_FFFF_FFFFu64;
+            let sign = &encrypted_y & 0x8000_0000_0000_0000u64;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let diff_exp = (&x_exp - &y_exp) >> 52u16;
-                    let clipped_diff_exp = diff_exp.min(1023u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u64);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0010_0000_0000_0000u64))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 52u64;
+                    diff_exp.min(1023u64)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
+    
     let leading_zeros = FheUint64::cast_from(op_mant.leading_zeros());
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
-            let overflow = leading_zeros.clone().eq(10u64);
-            let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u64;
-            let res_exp = &x_exp + 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
+        || {
+            let overflow = leading_zeros.eq(10u64);
+            let mant = (&op_mant & 0x001F_FFFF_FFFF_FFFEu64) >> 1u64;
+            let res_exp = &x_exp + 0x0010_0000_0000_0000u64;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 11u64;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 52u64;
             let res_exp = &x_exp - &sub_exp;
             let denorm = res_exp.gt(&x_exp);
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 
@@ -376,76 +383,77 @@ pub fn fhe_add8_cpu(
     server_keys: ServerKey,
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
-
     
-    let ns_a = &encrypted_a & 0b0111_1111u8;
-    let ns_b = &encrypted_b & 0b0111_1111u8;
-    
-
+    let ns_a = &encrypted_a & 0x7Fu8;
+    let ns_b = &encrypted_b & 0x7Fu8;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1000u8;
-            let denorm_y = y_exp.eq(0u16);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0111u8),
-                &((&encrypted_y & 0b0000_0111u8) | 0b0000_1000u8),
-            );
-            y_mant
+            let exp = &encrypted_x & 0x78u8;
+            let mant = (&encrypted_x & 0x07u8) | 0x08u8;
+            let sign = &encrypted_x & 0x80u8;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x78u8;
+            let mant = &encrypted_y & 0x07u8;
+            let sign = &encrypted_y & 0x80u8;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1000u8;
-                    let y_exp = &encrypted_y & 0b0111_1000u8;
-                    let diff_exp = (&x_exp - &y_exp) >> 3u16;
-                    let clipped_diff_exp = diff_exp.min(7u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u8);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x08u8))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0111u8) | 0b0000_1000u8;
-                    let x_sign = &encrypted_x & 0b1000_0000u8;
-                    let y_sign = &encrypted_y & 0b1000_0000u8;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 3u8;
+                    diff_exp.min(7u8)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
-    let leading_zeros_16: FheUint16 = FheUint16::cast_from(op_mant.leading_zeros());
-    let leading_zeros: FheUint8 = FheUint8::cast_from(leading_zeros_16);
+    
+    let leading_zeros_16 = FheUint16::cast_from(op_mant.leading_zeros());
+    let leading_zeros = FheUint8::cast_from(leading_zeros_16);
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
-            let overflow = leading_zeros.clone().eq(3u8);
-            let mant = (&op_mant & 0b0000_1110u8) >> 1u8;
-            let res_exp = &x_exp + 0b0000_1000u8;
+        || {
+            let overflow = leading_zeros.eq(3u8);
+            let mant = (&op_mant & 0x0Eu8) >> 1u8;
+            let res_exp = &x_exp + 0x08u8;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 4u8;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 3u8;
             let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 
@@ -458,75 +466,79 @@ pub fn fhe_add16_cpu(
     encrypted_b: FheUint16,
     encrypted_mask: FheUint16,
     encrypted_zero: FheUint16,
-    _server_keys: ServerKey,
+    server_keys: ServerKey,
 ) -> FheUint16 {
+    rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111u16;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111u16;
-
+    let ns_a = &encrypted_a & 0x7FFFu16;
+    let ns_b = &encrypted_b & 0x7FFFu16;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
-            let denorm_y = y_exp.eq(0u16);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0011_1111_1111u16),
-                &((&encrypted_y & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16),
-            );
-            y_mant
+            let exp = &encrypted_x & 0x7C00u16;
+            let mant = (&encrypted_x & 0x03FFu16) | 0x0400u16;
+            let sign = &encrypted_x & 0x8000u16;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x7C00u16;
+            let mant = &encrypted_y & 0x03FFu16;
+            let sign = &encrypted_y & 0x8000u16;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1100_0000_0000u16;
-                    let y_exp = &encrypted_y & 0b0111_1100_0000_0000u16;
-                    let diff_exp = (&x_exp - &y_exp) >> 10u16;
-                    let clipped_diff_exp = diff_exp.min(15u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u16);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0400u16))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0011_1111_1111u16) | 0b0000_0100_0000_0000u16;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000u16;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000u16;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 10u16;
+                    diff_exp.min(15u16)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
     
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
+    
     let leading_zeros = FheUint16::cast_from(op_mant.leading_zeros());
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
-            let overflow = leading_zeros.clone().eq(4u16);
-            let mant = (&op_mant & 0b0000_0111_1111_1110u16) >> 1u16;
-            let res_exp = &x_exp + 1024u16;
+        || {
+            let overflow = leading_zeros.eq(4u16);
+            let mant = (&op_mant & 0x07FEu16) >> 1u16;
+            let res_exp = &x_exp + 0x0400u16;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 5u16;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 10u16;
             let denorm = sub_exp.gt(&x_exp);
             let res_exp = &x_exp - &sub_exp;
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 
@@ -541,69 +553,76 @@ pub fn fhe_add32_cpu(
     encrypted_zero: FheUint32,
     _server_keys: ServerKey,
 ) -> FheUint32 {
- 
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111u32;
     
-
+    let ns_a = &encrypted_a & 0x7FFF_FFFFu32;
+    let ns_b = &encrypted_b & 0x7FFF_FFFFu32;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let (
+        (x_exp, x_mant, x_sign),
+        (y_exp, y_mant_raw, y_sign)
+    ) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-            let denorm_y = y_exp.eq(0u32);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32),
-                &((&encrypted_y & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32),
-            );
-            y_mant
+            let exp = &encrypted_x & 0x7F80_0000u32;
+            let mant = (&encrypted_x & 0x007F_FFFFu32) | 0x0080_0000u32;
+            let sign = &encrypted_x & 0x8000_0000u32;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x7F80_0000u32;
+            let mant = &encrypted_y & 0x007F_FFFFu32;
+            let sign = &encrypted_y & 0x8000_0000u32;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-                    let y_exp = &encrypted_y & 0b0111_1111_1000_0000_0000_0000_0000_0000u32;
-                    let diff_exp = (&x_exp - &y_exp) >> 23u16;
-                    let clipped_diff_exp = diff_exp.min(31u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u32);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0080_0000u32))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0000_0111_1111_1111_1111_1111_1111u32) | 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000u32;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 23u16; 
+                    diff_exp.min(31u16)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp; 
+
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
 
     let leading_zeros = op_mant.leading_zeros();
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
+        || {
             let overflow = leading_zeros.clone().eq(7u32);
-            let mant = (&op_mant & 0b0000_0000_1111_1111_1111_1111_1111_1110u32) >> 1u16;
-            let res_exp = &x_exp + 0b0000_0000_1000_0000_0000_0000_0000_0000u32;
+            let mant = (&op_mant & 0x00FF_FFFEu32) >> 1u16;
+            let res_exp = &x_exp + 0x0080_0000u32;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 8u32;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
-            let sub_exp = &diff << 23u16;
+
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
+            let sub_exp = &diff << 23u16; 
             let res_exp = &x_exp - &sub_exp;
             let denorm = res_exp.gt(&x_exp);
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
@@ -626,72 +645,75 @@ pub fn fhe_add64_cpu(
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
     
-    let ns_a = &encrypted_a & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
-    let ns_b = &encrypted_b & 0b0111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64;
-
+    let ns_a = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
+    let ns_b = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
     let ab_cmp = ns_a.ge(&ns_b);
+
     let (encrypted_x, encrypted_y) = rayon::join(
         || ab_cmp.select(&encrypted_a, &encrypted_b),
         || ab_cmp.select(&encrypted_b, &encrypted_a),
     );
 
-    // Extract mantissas, exponent difference, and sign in parallel
-    let (y_mant, ((x_exp, diff_exp), (x_mant, x_sign, same_sign))) = rayon::join(
+    let ((x_exp, x_mant, x_sign), (y_exp, y_mant_raw, y_sign)) = rayon::join(
         || {
-            let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-            let denorm_y = y_exp.eq(0u64);
-            let y_mant = denorm_y.select(
-                &(&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64),
-                &((&encrypted_y & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64)
-            );
-            y_mant
+            let exp = &encrypted_x & 0x7FF0_0000_0000_0000u64;
+            let mant = (&encrypted_x & 0x000F_FFFF_FFFF_FFFFu64) | 0x0010_0000_0000_0000u64;
+            let sign = &encrypted_x & 0x8000_0000_0000_0000u64;
+            (exp, mant, sign)
         },
+        || {
+            let exp = &encrypted_y & 0x7FF0_0000_0000_0000u64;
+            let mant = &encrypted_y & 0x000F_FFFF_FFFF_FFFFu64;
+            let sign = &encrypted_y & 0x8000_0000_0000_0000u64;
+            (exp, mant, sign)
+        }
+    );
+
+    let (same_sign, (y_mant, clipped_diff_exp)) = rayon::join(
+        || x_sign.eq(&y_sign),
         || {
             rayon::join(
                 || {
-                    let x_exp = &encrypted_x & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let y_exp = &encrypted_y & 0b0111_1111_1111_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let diff_exp = (&x_exp - &y_exp) >> 52u16;
-                    let clipped_diff_exp = diff_exp.min(1023u16);
-                    (x_exp, clipped_diff_exp)
+                    let denorm_y = y_exp.eq(0u64);
+                    denorm_y.select(&y_mant_raw, &(&y_mant_raw | 0x0010_0000_0000_0000u64))
                 },
                 || {
-                    let x_mant = (&encrypted_x & 0b0000_0000_0000_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111u64) | 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let x_sign = &encrypted_x & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let y_sign = &encrypted_y & 0b1000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
-                    let same_sign = x_sign.eq(&y_sign);
-                    (x_mant, x_sign, same_sign)
-                },
+                    let diff_exp = (&x_exp - &y_exp) >> 52u64;
+                    diff_exp.min(1023u64)
+                }
             )
-        },
+        }
     );
     
-    let shifted_y = &y_mant >> &diff_exp;
-    let sum_mant = &x_mant + &shifted_y;
-    let diff_mant = &x_mant - &shifted_y;
+    let shifted_y = &y_mant >> &clipped_diff_exp;
+    let (sum_mant, diff_mant) = rayon::join(
+        || &x_mant + &shifted_y,
+        || &x_mant - &shifted_y
+    );
 
     let op_mant = same_sign.select(&sum_mant, &diff_mant);
-
+    
     let leading_zeros = FheUint64::cast_from(op_mant.leading_zeros());
 
     let ((ov_result, overflow), result) = rayon::join(
-        ||{
-            let overflow = leading_zeros.clone().eq(10u8);
-            let mant = (&op_mant & 0b0000_0000_0001_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1111_1110u64) >> 1u8;
-            let res_exp = &x_exp + 0b0000_0000_0001_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000_0000u64;
+        || {
+            let overflow = leading_zeros.eq(10u64);
+            let mant = (&op_mant & 0x001F_FFFF_FFFF_FFFEu64) >> 1u64;
+            let res_exp = &x_exp + 0x0010_0000_0000_0000u64;
             let result = &x_sign | &res_exp | &mant;
             (result, overflow)
         },
-        ||{
+        || {
             let diff = &leading_zeros - 11u64;
-            let mask = &encrypted_mask >> &diff;
-            let mant = (&op_mant & &mask) << &diff;
+            let shifted_mant = &op_mant << &diff;
+            let mant = &shifted_mant & &encrypted_mask;
+            
             let sub_exp = &diff << 52u64;
             let res_exp = &x_exp - &sub_exp;
             let denorm = res_exp.gt(&x_exp);
             let final_exp = denorm.select(&encrypted_zero, &res_exp);
-            let result = &x_sign | &final_exp | &mant;
-            result
+            
+            &x_sign | &final_exp | &mant
         }
     );
 

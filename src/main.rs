@@ -34,6 +34,9 @@ use crate::breast_cancer::breast_cancer_settings::*;
 use crate::plain_nn_builder::plain_ops::ops::*;
 
 
+#[global_allocator]
+static ALLOC: dhat::Alloc = dhat::Alloc;
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Uncomment the desired experiment to run
@@ -45,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Experiment 2 (MLP and LeNet-5 on Fashion-MNIST)
     // fmnist_exp1_fp32()?;
-    //fmnist_exp2_fp32()?;
+    // fmnist_exp2_fp32()?;
 
     // Experiment 3 (VGG-like on Derma-MNIST and Blood-MNIST)
     // sc_mnist_exp_fp32()?;
@@ -58,7 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // breast_cancer_fp32()?;
 
     // Test encrypted operations
-    // test_encrypted_ops("lmul", 32, false, 1, -5.0, 5.0)?;
+    //test_encrypted_ops("sqrt", 16, true, 10, -5.0, 5.0)?;
 
     Ok(())
 }

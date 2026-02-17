@@ -140,6 +140,7 @@ pub fn add32 (
     if overflow_flag {
         ov_result
     } else {
+
         result
     }
 }
@@ -268,7 +269,10 @@ pub fn sqrt32(
         }
     }
     res_mantissa &= 0b0000_0000_0111_1111_1111_1111_1111_1111u32; // Mask to keep only the mantissa bits
-    (0u32 << 31u32) | (res_exp << 23u32) | res_mantissa
+
+    let fresult = (0u32 << 31u32) | (res_exp << 23u32) | res_mantissa;
+
+    fresult
 }
 
 #[allow(dead_code)]
@@ -681,7 +685,7 @@ pub fn lmul32 (
     let b_exp = (&b &  2139095040u32) >> 23u32;
     let exp = &a_exp + &b_exp;
  
-    if exp < 127u32 {
+    if exp < 127u32 || a == 0u32 || b == 0u32 {
         return 0u32;
     }
         
@@ -690,7 +694,7 @@ pub fn lmul32 (
     let mut digits = &a_digits + &b_digits;
     digits -= 1064828928u32;
     digits &= 2147483647u32;
-
+    
     return digits | sign
 }    
 
@@ -708,7 +712,7 @@ pub fn ldiv32 (
     let b_exp = (&b & 2139095040u32) >> 23u32;
     let exp = &a_exp - &b_exp + 127u32;
 
-    if exp > 255u32 {
+    if exp > 255u32 || a == 0u32{
         return 0u32;
     }
     

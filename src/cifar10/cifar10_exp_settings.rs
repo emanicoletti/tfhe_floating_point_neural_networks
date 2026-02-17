@@ -178,7 +178,7 @@ pub fn resnet20_fp32() -> Result<(), Box<dyn std::error::Error>> {
 
         plain_model.train_and_validate(
             50, 
-            32, 
+            64, 
             0.1, 
             0.0001,
             0.9,
@@ -186,8 +186,8 @@ pub fn resnet20_fp32() -> Result<(), Box<dyn std::error::Error>> {
             &train_labels, 
             &test_inputs, 
             &test_labels, 
-            vec![50000, 3, 32, 32],
-            vec![50000, 1, 1, 10],
+            vec![100000, 3, 32, 32],
+            vec![100000, 1, 1, 10],
             vec![10000, 3, 32, 32],
             vec![10000, 1, 1, 10],
         );
