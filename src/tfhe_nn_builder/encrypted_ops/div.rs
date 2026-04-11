@@ -99,7 +99,7 @@ pub fn fhe_ldiv32_gpu(
                         let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
                         let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
                         
-                        (&x_digits - &y_digits) + 0x3F80_0000u32
+                        (&x_digits - &y_digits) + 0x3F78_0000u32
                     }
                 )
             }
@@ -242,7 +242,7 @@ pub fn fhe_ldiv32_cpu(
                         let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
                         let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
                         
-                        (&x_digits - &y_digits) + 0x3F80_0000u32
+                        (&x_digits - &y_digits) + 0x3F78_0000u32
                     }
                 )
             }

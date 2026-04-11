@@ -55,13 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // blood_vgg_fp32()?;
 
     // Experiment 4 (ResNet-20 on CIFAR-10)
-    resnet20_fp32()?;
+    //resnet20_fp32()?;
 
     // Experiment 5 (MLP on Breast Cancer Wisconsin)
     // breast_cancer_fp32()?;
 
     // Test encrypted operations
-    //test_encrypted_ops("sqrt", 16, true, 10, -5.0, 5.0)?;
+    test_encrypted_ops("misc", 32, true, 1, -5.0, 5.0)?;
 
     Ok(())
 }
