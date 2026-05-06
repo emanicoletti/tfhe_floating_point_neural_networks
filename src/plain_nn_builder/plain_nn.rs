@@ -504,6 +504,46 @@ impl PlainNeuralNetworkU32 {
                 .collect();
 
             return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        } else if experiment == Some(11) {
+            let weights_file: Array2<f32> = if input_size == 128 && output_size == 784 {
+                read_npy(Path::new("src/he_securenet/initializations/fc1_weight.npy")).expect("Failed to read fc1 weights")
+            } else if input_size == 128 && output_size == 128 {
+                read_npy(Path::new("src/he_securenet/initializations/fc2_weight.npy")).expect("Failed to read fc2 weights")
+            } else if input_size == 10 && output_size == 128 {
+                read_npy(Path::new("src/he_securenet/initializations/fc3_weight.npy")).expect("Failed to read fc3 weights")
+            } 
+            else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
+        } else if experiment == Some(12) {
+            let weights_file: Array2<f32> = if in_channels == 1 && out_channels == 5 {
+                read_npy(Path::new("src/he_securenet/initializations/conv1_weight.npy")).expect("Failed to read conv1 weights")
+            } else if input_size == 128 && output_size == 980 {
+                read_npy(Path::new("src/he_securenet/initializations/cnn_fc2_weight.npy")).expect("Failed to read fc2 weights")
+            } else if input_size == 10 && output_size == 128 {
+                read_npy(Path::new("src/he_securenet/initializations/cnn_fc3_weight.npy")).expect("Failed to read fc3 weights")
+            }
+            else {
+                panic!("No matching weight file for given layer dimensions {:?}, {:?}, {:?}, {:?}", in_channels, out_channels, input_size, output_size);
+            };
+
+            let vec_vec_weights = array2_to_vecvec(&weights_file);
+            let weights: Vec<u32> = vec_vec_weights
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+
+            return PlainTensor::new(weights, vec![out_channels, in_channels, input_size, output_size]);
         }
         else {
             let std_dev = ((2.0 / (input_size + output_size) as f64).sqrt()) as f32;
@@ -737,6 +777,46 @@ impl PlainNeuralNetworkU32 {
                     .expect("Failed to read fc2 biases")
             } else if output_size == 2 {
                 read_npy(Path::new("src/breast_cancer/initializations/fc3_bias.npy"))
+                    .expect("Failed to read fc3 biases")
+            } else {
+                panic!("No matching biases file for given layer dimensions {:?}",  output_size);
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(11) {
+            let biases_file: Array2<f32>  = if output_size == 128 && input_size == 784{
+                read_npy(Path::new("src/he_securenet/initializations/fc1_bias.npy"))
+                    .expect("Failed to read fc1 biases")
+            } else if output_size == 128 && input_size == 128 {
+                read_npy(Path::new("src/he_securenet/initializations/fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else if output_size == 10 {
+                read_npy(Path::new("src/he_securenet/initializations/fc3_bias.npy"))
+                    .expect("Failed to read fc3 biases")
+            } else {
+                panic!("No matching biases file for given layer dimensions {:?}",  output_size);
+            };
+            let vec_vec_biases = array2_to_vecvec(&biases_file);
+            let biases: Vec<u32> = vec_vec_biases
+                .into_iter()
+                .flatten()
+                .map(|x| x.to_bits())
+                .collect();
+            PlainTensor::new(biases, [1, 1, 1, output_size].to_vec())
+        } else if experiment == Some(12) {
+            let biases_file: Array2<f32>  = if output_size == 5 {
+                read_npy(Path::new("src/he_securenet/initializations/conv1_bias.npy"))
+                    .expect("Failed to read conv1 biases")
+            } else if output_size == 128 {
+                read_npy(Path::new("src/he_securenet/initializations/cnn_fc2_bias.npy"))
+                    .expect("Failed to read fc2 biases")
+            } else if output_size == 10 {
+                read_npy(Path::new("src/he_securenet/initializations/cnn_fc3_bias.npy"))
                     .expect("Failed to read fc3 biases")
             } else {
                 panic!("No matching biases file for given layer dimensions {:?}",  output_size);

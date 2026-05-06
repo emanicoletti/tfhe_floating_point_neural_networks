@@ -12,12 +12,15 @@
 // [sqrt]: Square Root - Exact - Available fp formats: (FP16, FP32) - Execution: Very Slow
 // [log2]: Base-2 Logarithm - Exact - Available fp formats: (FP16, FP32) - Execution: Extremely Slow
 
-use tfhe::prelude::*;
-use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
+use tfhe::{CompressedCiphertextListBuilder, FheBool, prelude::*};
+use tfhe::shortint::atomic_pattern::compressed;
+use tfhe::shortint::ciphertext::CompressedCiphertextList;
+use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey, CompressedFheUint32};
 use std::time::Instant;
 use rand::Rng;
 use half::f16;
-use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40};
+use bincode::Options;
+use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,};
 use crate::tfhe_nn_builder::add::*;
 use crate::tfhe_nn_builder::div::*;
 use crate::tfhe_nn_builder::log2::*;
@@ -67,6 +70,7 @@ pub fn test_encrypted_ops(ops: &str, fp_size: usize, gpu: bool, num_ops: usize, 
     else{
         // Configure, generate and set the keys for CPU execution
         let config = ConfigBuilder::with_custom_parameters(V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40)
+            .enable_compression(V1_3_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64)
             .build();
         let (client_key, server_key) = generate_keys(config);
         rayon::broadcast(|_| set_server_key(server_key.clone()));
@@ -280,12 +284,11 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                             ("sub", 2),
                             ("lmul", 3),
                             ("ldiv", 2),
-                            ("relu", 2),
                             ("sqrt", 1),
                         ];
                         
                         let mut rng = rand::thread_rng();
-                        let num_iterations = 50000; 
+                        let num_iterations = 1; 
                         
                         let mut current_float_a = float_a;
                         let mut current_encrypted_a = encrypted_a;
@@ -310,13 +313,6 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                                 "lmul" => f32::from_bits(lmul32(current_float_a.to_bits(), step_clear_b)),
                                 "ldiv" => f32::from_bits(ldiv32(current_float_a.to_bits(), step_clear_b)),
                                 "sqrt" => f32::from_bits(sqrt32(current_float_a.to_bits())),
-                                "relu" => {
-                                    if current_float_a > 0.0 {
-                                        current_float_a
-                                    } else {
-                                        0.0
-                                    }
-                                },
                                 _ => 0.0,
                             };
 
@@ -331,9 +327,9 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                                 "lmul" => fhe_lmul32_gpu(current_encrypted_a, step_encrypted_b.clone(), encrypted_zero.clone(), server_key.clone()),
                                 "ldiv" => fhe_ldiv32_gpu(current_encrypted_a, step_encrypted_b.clone(), encrypted_zero.clone(), server_key.clone()),
                                 "sqrt" => fhe_sqrt32_gpu(current_encrypted_a, encrypted_zero.clone(), server_key.clone()),
-                                "relu" => fhe_relu32_gpu(current_encrypted_a, encrypted_zero.clone(), server_key.clone()),
                                 _ => panic!("Logic error in misc pool"),
                             };
+                            
 
                             if iter % 100 == 0 {
                                 println!("--- Iteration {} ---", iter);
@@ -343,8 +339,8 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                         // 4. Final Comparison/Verification
                         let decrypted_val = f32::from_bits(current_encrypted_a.decrypt(&client_key));
                         println!("--- Misc Chain Complete ({} operations) ---", num_iterations);
-                        println!("Final Plaintext Result: {}", current_float_a);
-                        println!("Final FHE Decrypted:    {}", decrypted_val);
+                        println!("Final Plaintext Result: {:.16}", current_float_a);
+                        println!("Final FHE Decrypted:    {:.16}", decrypted_val);
                         
                         let diff = (current_float_a - decrypted_val).abs();
                         if diff > 1e-5 {
@@ -584,6 +580,35 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 let encrypted_zero = FheUint32::try_encrypt(0u32, &client_key)?;
                 let encrypted_mask = FheUint32::try_encrypt(8388607u32, &client_key)?;
 
+                /* 
+                let compressed = CompressedFheUint32::try_encrypt(clear_a, &client_key).unwrap();
+
+                let compressed_bytes = bincode::serialize(&compressed).unwrap().len();
+                println!(
+                    "compressed size  : {} bytes ({:.2} MB)",
+                    compressed_bytes,
+                    compressed_bytes as f64 / 1_048_576.0
+                );
+
+                let decompressed = compressed.decompress();
+
+                let decompressed_bytes = bincode::serialize(&decompressed).unwrap().len();
+                println!(
+                    "decompressed size: {} bytes ({:.2} MB)",
+                    decompressed_bytes,
+                    decompressed_bytes as f64 / 1_048_576.0
+                );
+
+                let result = fhe_add32_cpu(decompressed, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone());
+                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
+
+                
+                let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
+                let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
+                let c: FheBool = compressed_list.get(2).unwrap().unwrap();
+                let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
+                */
+
                 // Perform the operation
                 let start = Instant::now();
                 let result = match ops {
@@ -595,7 +620,7 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     },
                     "lmul" => fhe_lmul32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone()),
                     "ldiv" => {
-                        let _profiler = dhat::Profiler::new_heap();
+                        //let _profiler = dhat::Profiler::new_heap();
                         fhe_ldiv32_cpu(encrypted_a, encrypted_b, encrypted_zero, server_key.clone())
                     },
                     "lmul_tanh" => fhe_lmul_tanh32_cpu(encrypted_a, server_key.clone(), encrypted_zero, encrypted_mask, &ranges_32).0.clone(),

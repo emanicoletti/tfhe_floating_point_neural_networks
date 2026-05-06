@@ -10,6 +10,7 @@ mod blood_mnist;
 mod ops_playground;
 mod cifar10;
 mod breast_cancer;
+mod he_securenet;
 
 #[allow(unused_imports)]
 use crate::cifar10::cifar10_exp_settings;
@@ -27,6 +28,8 @@ use crate::skin_cancer_mnist::sc_mnist_settings::*;
 use crate::blood_mnist::blood_mnist_settings::*;
 #[allow(unused_imports)]
 use crate::cifar10::cifar10_exp_settings::*;
+#[allow(unused_imports)]
+use crate::he_securenet::he_securenet_settings::*;
 #[allow(unused_imports)]
 use crate::ops_playground::test_ops::*;
 #[allow(unused_imports)]
@@ -61,7 +64,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // breast_cancer_fp32()?;
 
     // Test encrypted operations
-    test_encrypted_ops("misc", 32, true, 1, -5.0, 5.0)?;
+    //test_encrypted_ops("relu", 32, false, 1, -5.0, 5.0)?;
+
+    //securenet_exp1_fp32()?;
+
+    securenet_exp2_fp32()?;
+
+    //fmnist_exp2_fp32()?;
 
     Ok(())
 }
