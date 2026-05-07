@@ -64,11 +64,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // breast_cancer_fp32()?;
 
     // Test encrypted operations
-    //test_encrypted_ops("relu", 32, false, 1, -5.0, 5.0)?;
+    test_encrypted_ops("misc", 32, true, 1, -5.0, 5.0)?;
 
     //securenet_exp1_fp32()?;
 
-    securenet_exp2_fp32()?;
+    // securenet_exp2_fp32()?;
 
     //fmnist_exp2_fp32()?;
 

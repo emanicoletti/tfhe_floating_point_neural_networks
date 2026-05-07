@@ -288,12 +288,12 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                         ];
                         
                         let mut rng = rand::thread_rng();
-                        let num_iterations = 1; 
+                        let num_iterations = 50000; 
                         
                         let mut current_float_a = float_a;
                         let mut current_encrypted_a = encrypted_a;
 
-                        for iter in 0..num_iterations {
+                        for mut iter in 0..num_iterations {
                             let (selected_op, _) = pool.choose_weighted(&mut rng, |item| item.1).unwrap();
 
                             // 1. Generate a new, random B for this specific step
@@ -330,10 +330,9 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                                 _ => panic!("Logic error in misc pool"),
                             };
                             
-
-                            if iter % 100 == 0 {
-                                println!("--- Iteration {} ---", iter);
-                            }
+                            println!("\n--- Iteration {}: Operation: {} ---\n Plain Result: {}, Encrypted Result (decrypted): {}", iter + 1, selected_op, current_float_a, f32::from_bits(current_encrypted_a.decrypt(&client_key)));
+                            
+                            iter += 1;
                         }
 
                         // 4. Final Comparison/Verification
@@ -352,7 +351,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     _ => panic!("Unsupported operation: {}", ops),
                 };
                 let duration = start.elapsed();
-                println!("Result: {}\n", f32::from_bits(result.decrypt(&client_key)));
+                //println!("Result: {}\n", f32::from_bits(result.decrypt(&client_key)));
                 ops_duration += duration;
             },
             64 => {
