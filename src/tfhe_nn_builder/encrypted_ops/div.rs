@@ -1,3 +1,4 @@
+use rayon::result;
 use tfhe::prelude::*;
 use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 
@@ -27,14 +28,16 @@ pub fn fhe_ldiv8_gpu(
                 || {
                     let x_digits = &encrypted_a & 0x7Fu8;
                     let y_digits = &encrypted_b & 0x7Fu8;
-                    (&x_digits - &y_digits) + 0x37u8
+                    ((&x_digits - &y_digits) + 0x37u8) & 0x7Fu8
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let result_digits = result_digits | result_sign;
+
+    denorm.select(&encrypted_zero, &result_digits)
+
 }
 
 /* GPU-oriented addition-based division (LDIV) for 16 bits floating points */
@@ -61,14 +64,15 @@ pub fn fhe_ldiv16_gpu(
                 || {
                     let x_digits = &encrypted_a & 0x7FFFu16;
                     let y_digits = &encrypted_b & 0x7FFFu16;
-                    (&x_digits - &y_digits) + 0x3BC0u16
+                    ((&x_digits - &y_digits) + 0x3BC0u16) & 0x7FFFu16
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let safe_digits = safe_digits | result_sign;
+
+    denorm.select(&encrypted_zero, &result_digits)
 }
 
 /* GPU-oriented addition-based division (LDIV) for 32 bits floating points */
@@ -81,7 +85,7 @@ pub fn fhe_ldiv32_gpu(
 
         rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
             || {
                 (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32
             },
@@ -99,15 +103,16 @@ pub fn fhe_ldiv32_gpu(
                         let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
                         let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
                         
-                        (&x_digits - &y_digits) + 0x3F78_0000u32
+                        ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
                     }
                 )
             }
         );
 
-        let safe_digits = denorm.select(&encrypted_zero, &result_digits);
+        result_digits = result_digits | result_sign;
         
-        safe_digits | result_sign
+        denorm.select(&encrypted_zero, &result_digits)
+        
 }
 
 /* GPU-oriented addition-based division (LDIV) for 64 bits floating points */
@@ -134,14 +139,16 @@ pub fn fhe_ldiv64_gpu(
                 || {
                     let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
                     let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
-                    (&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64
+                    ((&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let safe_digits = safe_digits | result_sign;
+
+    denorm.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* CPU OPERATIONS */
@@ -170,14 +177,15 @@ pub fn fhe_ldiv8_cpu(
                 || {
                     let x_digits = &encrypted_a & 0x7Fu8;
                     let y_digits = &encrypted_b & 0x7Fu8;
-                    (&x_digits - &y_digits) + 0x37u8
+                    ((&x_digits - &y_digits) + 0x37u8) & 0x7Fu8
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let safe_digits = safe_digits | result_sign;
+    denorm.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* CPU-oriented addition-based division (LDIV) for 16 bits floating points */
@@ -204,14 +212,14 @@ pub fn fhe_ldiv16_cpu(
                 || {
                     let x_digits = &encrypted_a & 0x7FFFu16;
                     let y_digits = &encrypted_b & 0x7FFFu16;
-                    (&x_digits - &y_digits) + 0x3BC0u16
+                    ((&x_digits - &y_digits) + 0x3BC0u16) & 0x7FFFu16
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let safe_digits = safe_digits | result_sign;
+    denorm.select(&encrypted_zero, &result_digits)
 }
 
 /* CPU-oriented addition-based division (LDIV) for 32 bits floating points */
@@ -242,15 +250,15 @@ pub fn fhe_ldiv32_cpu(
                         let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
                         let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
                         
-                        (&x_digits - &y_digits) + 0x3F78_0000u32
+                        ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
                     }
                 )
             }
         );
 
-        let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-        
-        safe_digits | result_sign
+        let safe_digits = safe_digits | result_sign;
+
+        denorm.select(&encrypted_zero, &result_digits) 
 }
 
 /* CPU-oriented addition-based division (LDIV) for 64 bits floating points */
@@ -277,14 +285,14 @@ pub fn fhe_ldiv64_cpu(
                 || {
                     let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
                     let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
-                    (&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64
+                    ((&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64
                 }
             )
         }
     );
 
-    let safe_digits = denorm.select(&encrypted_zero, &result_digits);
-    safe_digits | result_sign
+    let safe_digits = safe_digits | result_sign;
+    denorm.select(&encrypted_zero, &result_digits)
 }
 
 /* GPU-oriented addition-based division (LDIV) for 8 bits floating points (E4M3)*/

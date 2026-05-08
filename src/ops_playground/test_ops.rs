@@ -330,8 +330,17 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                                 _ => panic!("Logic error in misc pool"),
                             };
                             
-                            println!("\n--- Iteration {}: Operation: {} ---\n Plain Result: {}, Encrypted Result (decrypted): {}", iter + 1, selected_op, current_float_a, f32::from_bits(current_encrypted_a.decrypt(&client_key)));
+                            let decr = f32::from_bits(current_encrypted_a.decrypt(&client_key));
+
+                            println!("a: {}, b: {}", current_float_a, step_float_b);
+                            println!("\n--- Iteration {}: Operation: {} ---\n Plain Result: {}, Encrypted Result (decrypted): {}", iter + 1, selected_op, current_float_a, decr);
                             
+                            if decr != current_float_a {
+                                let diff = (current_float_a - decr).abs();
+                                println!("Warning: Precision loss detected in iteration {}! Diff: {}", iter + 1, diff);
+                                break;
+                            }
+
                             iter += 1;
                         }
 

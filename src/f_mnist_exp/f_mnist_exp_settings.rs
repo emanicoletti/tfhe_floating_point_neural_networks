@@ -5,7 +5,7 @@ use crate::plain_nn_builder::plain_utils::load_from_file::*;
 pub fn fmnist_exp1_fp32() -> Result<(), Box<dyn std::error::Error>> {
     
     // Load data from folder
-    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(4)?;
+    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(5)?;
 
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
@@ -44,7 +44,7 @@ pub fn fmnist_exp1_fp32() -> Result<(), Box<dyn std::error::Error>> {
 pub fn fmnist_exp2_fp32() -> Result<(), Box<dyn std::error::Error>> {
 
     // Load data from folder
-    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(4)?;
+    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(5)?;
 
     // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -78,8 +78,8 @@ pub fn fmnist_exp2_fp32() -> Result<(), Box<dyn std::error::Error>> {
         &train_labels,
         &test_inputs,
         &test_labels,
-        vec![60000, 1, 28, 28],
-        vec![60000, 1, 1, 10],
+        vec![50000, 1, 28, 28],
+        vec![50000, 1, 1, 10],
         vec![10000, 1, 28, 28],
         vec![10000, 1, 1, 10],
     );

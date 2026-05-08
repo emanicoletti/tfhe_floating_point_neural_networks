@@ -36,7 +36,7 @@ pub fn fhe_lmul8_gpu(
             let x_digits = &encrypted_a & 0b0111_1111u8;
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 0b0011_0111u8;
+            digits = (digits - 0b0011_0111u8) & 0b0111_1111u8;
             result_digits = Some(digits);
         });
 
@@ -62,8 +62,10 @@ pub fn fhe_lmul8_gpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits = result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */
@@ -99,7 +101,7 @@ pub fn fhe_lmul16_gpu(
             let x_digits = &encrypted_a & 32767u16;
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 15296u16;
+            digits = (digits - 15296u16) & 32767u16;
             result_digits = Some(digits);
         });
 
@@ -125,8 +127,10 @@ pub fn fhe_lmul16_gpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits = result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 32 bits floating points */
@@ -161,7 +165,7 @@ pub fn fhe_lmul32_gpu(
             let x_digits = &encrypted_a & 2147483647u32;
             let y_digits = &encrypted_b & 2147483647u32;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 1064828928u32;
+            digits = (digits - 1064828928u32) & 2147483647u32;
             result_digits = Some(digits);
         });
         s.spawn(|_| {
@@ -169,10 +173,10 @@ pub fn fhe_lmul32_gpu(
             d_out = Some(exp.lt(127u8));
         });
         s.spawn(|_| {
-            d1_out = Some(x_exp.eq(0u32));
+            d1_out = Some(encrypted_a.eq(0u32));
         });
         s.spawn(|_| {
-            d2_out = Some(y_exp.eq(0u32));
+            d2_out = Some(encrypted_b.eq(0u32));
         });
     });
 
@@ -184,8 +188,10 @@ pub fn fhe_lmul32_gpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits = result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 64 bits floating points */
@@ -221,7 +227,7 @@ pub fn fhe_lmul64_gpu(
             let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
             let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 0x3FEF_0000_0000_0000u64;
+            digits = (digits - 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64;
             result_digits = Some(digits);
         });
 
@@ -247,8 +253,9 @@ pub fn fhe_lmul64_gpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits = result_digits | result_sign;
+    
+    denorm_flag.select(&encrypted_zero, &result_digits)
 }
 
 /* CPU OPERATIONS */
@@ -288,7 +295,7 @@ pub fn fhe_lmul8_cpu(
             let x_digits = &encrypted_a & 0b0111_1111u8;
             let y_digits = &encrypted_b & 0b0111_1111u8;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 0b0011_0111u8;
+            digits = (digits - 0b0011_0111u8) & 0b0111_1111u8;
             result_digits = Some(digits);
         });
     });
@@ -297,10 +304,10 @@ pub fn fhe_lmul8_cpu(
     let denorm = denorm.expect("denorm result missing");
     let mut result_digits = result_digits.expect("digits result missing");
 
-    result_digits = denorm.select(&encrypted_zero, &result_digits);
-    let final_result = result_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
-    final_result
+    denorm.select(&encrypted_zero, &result_digits)
+
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */
@@ -334,7 +341,7 @@ let (x_exp, y_exp) = rayon::join(
             let x_digits = &encrypted_a & 32767u16;
             let y_digits = &encrypted_b & 32767u16;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 15296u16;
+            digits = (digits - 15296u16) & 32767u16;
             result_digits = Some(digits);
         });
 
@@ -360,8 +367,10 @@ let (x_exp, y_exp) = rayon::join(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits = result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 32 bits floating points */
@@ -395,7 +404,7 @@ pub fn fhe_lmul32_cpu(
             let x_digits = &encrypted_a & 2147483647u32;
             let y_digits = &encrypted_b & 2147483647u32;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 1064828928u32;
+            digits = (digits - 1064828928u32) & 2147483647u32;
             result_digits = Some(digits);
         });
         s.spawn(|_| {
@@ -418,8 +427,10 @@ pub fn fhe_lmul32_cpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits =  result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
+    
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 64 bits floating points */
@@ -454,7 +465,7 @@ pub fn fhe_lmul64_cpu(
             let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
             let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
             let mut digits = &x_digits + &y_digits;
-            digits = digits - 0x3FEF_0000_0000_0000u64;
+            digits = (digits - 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64;
             result_digits = Some(digits);
         });
 
@@ -480,8 +491,9 @@ pub fn fhe_lmul64_cpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits = denorm_flag.select(&encrypted_zero, &result_digits);
-    result_digits | result_sign
+    result_digits =  result_digits | result_sign;
+
+    denorm_flag.select(&encrypted_zero, &result_digits)
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 8 bits floating points (E4M3)*/
