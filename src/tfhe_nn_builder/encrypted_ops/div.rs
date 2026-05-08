@@ -13,7 +13,7 @@ pub fn fhe_ldiv8_gpu(
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x80u8,
         || {
             rayon::join(
@@ -34,7 +34,7 @@ pub fn fhe_ldiv8_gpu(
         }
     );
 
-    let result_digits = result_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
 
@@ -49,7 +49,7 @@ pub fn fhe_ldiv16_gpu(
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x8000u16,
         || {
             rayon::join(
@@ -70,7 +70,7 @@ pub fn fhe_ldiv16_gpu(
         }
     );
 
-    let safe_digits = safe_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
 }
@@ -124,7 +124,7 @@ pub fn fhe_ldiv64_gpu(
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x8000_0000_0000_0000u64,
         || {
             rayon::join(
@@ -145,7 +145,7 @@ pub fn fhe_ldiv64_gpu(
         }
     );
 
-    let safe_digits = safe_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
     
@@ -162,7 +162,7 @@ pub fn fhe_ldiv8_cpu(
 ) -> FheUint8 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x80u8,
         || {
             rayon::join(
@@ -183,7 +183,7 @@ pub fn fhe_ldiv8_cpu(
         }
     );
 
-    let safe_digits = safe_digits | result_sign;
+    result_digits = result_digits | result_sign;
     denorm.select(&encrypted_zero, &result_digits)
     
 }
@@ -197,7 +197,7 @@ pub fn fhe_ldiv16_cpu(
 ) -> FheUint16 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x8000u16,
         || {
             rayon::join(
@@ -218,7 +218,7 @@ pub fn fhe_ldiv16_cpu(
         }
     );
 
-    let safe_digits = safe_digits | result_sign;
+    result_digits = result_digits | result_sign;
     denorm.select(&encrypted_zero, &result_digits)
 }
 
@@ -232,7 +232,7 @@ pub fn fhe_ldiv32_cpu(
 
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
             || {
                 (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32
             },
@@ -256,7 +256,7 @@ pub fn fhe_ldiv32_cpu(
             }
         );
 
-        let safe_digits = safe_digits | result_sign;
+        result_digits = result_digits | result_sign;
 
         denorm.select(&encrypted_zero, &result_digits) 
 }
@@ -270,7 +270,7 @@ pub fn fhe_ldiv64_cpu(
 ) -> FheUint64 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let (result_sign, (denorm, result_digits)) = rayon::join(
+    let (result_sign, (denorm, mut result_digits)) = rayon::join(
         || (&encrypted_a ^ &encrypted_b) & 0x8000_0000_0000_0000u64,
         || {
             rayon::join(
@@ -291,7 +291,7 @@ pub fn fhe_ldiv64_cpu(
         }
     );
 
-    let safe_digits = safe_digits | result_sign;
+    result_digits = result_digits | result_sign;
     denorm.select(&encrypted_zero, &result_digits)
 }
 
