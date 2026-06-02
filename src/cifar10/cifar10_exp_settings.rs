@@ -177,7 +177,7 @@ pub fn resnet20_fp32() -> Result<(), Box<dyn std::error::Error>> {
         plain_model.add_dense(64, 10);
 
         plain_model.train_and_validate(
-            12, 
+            25, 
             64, 
             0.1, 
             0.0001,

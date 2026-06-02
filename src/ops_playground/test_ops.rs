@@ -12,14 +12,12 @@
 // [sqrt]: Square Root - Exact - Available fp formats: (FP16, FP32) - Execution: Very Slow
 // [log2]: Base-2 Logarithm - Exact - Available fp formats: (FP16, FP32) - Execution: Extremely Slow
 
-use tfhe::{CompressedCiphertextListBuilder, FheBool, prelude::*};
-use tfhe::shortint::atomic_pattern::compressed;
-use tfhe::shortint::ciphertext::CompressedCiphertextList;
-use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey, CompressedFheUint32};
+use tfhe::{prelude::*};
+use tfhe::{set_server_key, generate_keys, ConfigBuilder, FheUint8, FheUint16, FheUint32, FheUint64, ClientKey, ServerKey, CompressedServerKey, CudaServerKey};
 use std::time::Instant;
 use rand::Rng;
 use half::f16;
-use bincode::Options;
+use rand::seq::SliceRandom;
 use tfhe::shortint::parameters::v1_3::{V1_3_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_PARAM_GPU_MULTI_BIT_GROUP_4_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M40, V1_3_COMP_PARAM_MESSAGE_2_CARRY_2_KS_PBS_GAUSSIAN_2M64,};
 use crate::tfhe_nn_builder::add::*;
 use crate::tfhe_nn_builder::div::*;
@@ -80,7 +78,7 @@ pub fn test_encrypted_ops(ops: &str, fp_size: usize, gpu: bool, num_ops: usize, 
 
 #[allow(dead_code)]
 /// GPU Test Function
-fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range: f32, client_key: ClientKey, server_key: CudaServerKey) -> Result<(), Box<dyn std::error::Error>> {
+fn gpu_test(ops: &str, fp_size: usize, mut num_ops: usize, min_range: f32, max_range: f32, client_key: ClientKey, server_key: CudaServerKey) -> Result<(), Box<dyn std::error::Error>> {
     
     println!("[{}]", ops);
     set_server_key(server_key.clone());
@@ -122,7 +120,12 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
         }
     }
 
-    // Execute the operations
+    let num_iterations = num_ops;
+    if ops == "misc" {
+        num_ops = 1;
+    }
+
+
     for _ in 0..num_ops {
 
         // Generate random input values
@@ -258,7 +261,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
 
                 // Perform the operation
                 let start = Instant::now();
-                let result = match ops {
+                match ops {
                     "test" => fhe_add_int32(encrypted_a, encrypted_b, server_key.clone()),
                     "add" => fhe_add32_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
                     "same_sign_add" => fhe_ss_add32_gpu(encrypted_a, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone()),
@@ -276,8 +279,6 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                     "sqrt" => fhe_sqrt32_gpu(encrypted_a, encrypted_zero, server_key.clone()),
                     "log2" => fhe_log2_32_gpu(encrypted_a, encrypted_zero, server_key.clone()),
                     "misc" => {
-                        use rand::seq::SliceRandom;
-                        use rand::Rng; 
                         
                         let pool = vec![
                             ("add", 3),
@@ -288,12 +289,11 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                         ];
                         
                         let mut rng = rand::thread_rng();
-                        let num_iterations = 50000; 
                         
                         let mut current_float_a = float_a;
                         let mut current_encrypted_a = encrypted_a;
 
-                        for mut iter in 0..num_iterations {
+                        for iter in 0..num_iterations {
                             let (selected_op, _) = pool.choose_weighted(&mut rng, |item| item.1).unwrap();
 
                             // 1. Generate a new, random B for this specific step
@@ -303,9 +303,7 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                             
                             // Encrypt the new B
                             let step_encrypted_b = FheUint32::try_encrypt(step_clear_b, &client_key)?;
-
-                            // println!("\n--- Operation: {} ---\n A: {}, B: {}", selected_op, current_float_a, step_float_b);
-
+                            
                             // 2. Perform Plaintext Operation
                             current_float_a = match *selected_op {
                                 "add" => f32::from_bits(add32(current_float_a.to_bits(), step_clear_b)),
@@ -340,15 +338,13 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                                 println!("Warning: Precision loss detected in iteration {}! Diff: {}", iter + 1, diff);
                                 break;
                             }
-
-                            iter += 1;
                         }
 
                         // 4. Final Comparison/Verification
                         let decrypted_val = f32::from_bits(current_encrypted_a.decrypt(&client_key));
-                        println!("--- Misc Chain Complete ({} operations) ---", num_iterations);
+                        println!("\n--- Misc Chain Complete ({} operations) ---", num_iterations);
                         println!("Final Plaintext Result: {:.16}", current_float_a);
-                        println!("Final FHE Decrypted:    {:.16}", decrypted_val);
+                        println!("Final FHE Decrypted:    {:.16}\n", decrypted_val);
                         
                         let diff = (current_float_a - decrypted_val).abs();
                         if diff > 1e-5 {
@@ -411,13 +407,15 @@ fn gpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
             _ => panic!("Unsupported floating point size: {}", fp_size),
         }
     }
-    println!("Average time for {} with fp{} over {} operations: {:?}", ops, fp_size, num_ops, ops_duration / num_ops as u32);
+    if ops != "misc" {
+        println!("Average time for {} with fp{} over {} operations: {:?}", ops, fp_size, num_ops, ops_duration / num_ops as u32);
+    }
     Ok(())
 }
 
 #[allow(dead_code)]
 /// CPU Test Function
-fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range: f32, client_key: ClientKey, server_key: ServerKey) -> Result<(), Box<dyn std::error::Error>> {
+fn cpu_test(ops: &str, fp_size: usize, mut num_ops: usize, min_range: f32, max_range: f32, client_key: ClientKey, server_key: ServerKey) -> Result<(), Box<dyn std::error::Error>> {
     
     println!("[{}]", ops);
     set_server_key(server_key.clone());
@@ -458,7 +456,12 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 .collect::<Vec<_>>();
         }
     }
-    // Execute the operations
+    
+    let num_iterations = num_ops;
+    if ops == "misc" {
+        num_ops = 1;
+    }
+
     for _ in 0..num_ops {
         // Generate random input values
         let mut float_a: f32 = rng.gen_range(min_range..max_range);
@@ -588,34 +591,6 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                 let encrypted_zero = FheUint32::try_encrypt(0u32, &client_key)?;
                 let encrypted_mask = FheUint32::try_encrypt(8388607u32, &client_key)?;
 
-                /* 
-                let compressed = CompressedFheUint32::try_encrypt(clear_a, &client_key).unwrap();
-
-                let compressed_bytes = bincode::serialize(&compressed).unwrap().len();
-                println!(
-                    "compressed size  : {} bytes ({:.2} MB)",
-                    compressed_bytes,
-                    compressed_bytes as f64 / 1_048_576.0
-                );
-
-                let decompressed = compressed.decompress();
-
-                let decompressed_bytes = bincode::serialize(&decompressed).unwrap().len();
-                println!(
-                    "decompressed size: {} bytes ({:.2} MB)",
-                    decompressed_bytes,
-                    decompressed_bytes as f64 / 1_048_576.0
-                );
-
-                let result = fhe_add32_cpu(decompressed, encrypted_b, encrypted_mask, encrypted_zero, server_key.clone());
-                println!("Result: {} \n", f32::from_bits(result.decrypt(&client_key)));
-
-                
-                let a: FheUint32 = compressed_list.get(0).unwrap().unwrap();
-                let b: FheInt64 = compressed_list.get(1).unwrap().unwrap();
-                let c: FheBool = compressed_list.get(2).unwrap().unwrap();
-                let d: FheUint2 = compressed_list.get(3).unwrap().unwrap();
-                */
 
                 // Perform the operation
                 let start = Instant::now();
@@ -641,6 +616,83 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
                         fhe_sqrt32_cpu(encrypted_a, encrypted_zero, server_key.clone())
                     },
                     "log2" => fhe_log2_32_cpu(encrypted_a, encrypted_zero, server_key.clone()),
+                    "misc" => {
+                        
+                        let pool = vec![
+                            ("add", 3),
+                            ("sub", 2),
+                            ("lmul", 3),
+                            ("ldiv", 2),
+                            ("sqrt", 1),
+                        ];
+                        
+                        let mut rng = rand::thread_rng();
+                        
+                        let mut current_float_a = float_a;
+                        let mut current_encrypted_a = encrypted_a;
+
+                        for iter in 0..num_iterations {
+                            let (selected_op, _) = pool.choose_weighted(&mut rng, |item| item.1).unwrap();
+
+                            // 1. Generate a new, random B for this specific step
+                            // (You can adjust the range -10.0..10.0 to whatever fits your precision needs)
+                            let step_float_b: f32 = rng.gen_range(-10.0..10.0);
+                            let step_clear_b: u32 = step_float_b.to_bits();
+                            
+                            // Encrypt the new B
+                            let step_encrypted_b = FheUint32::try_encrypt(step_clear_b, &client_key)?;
+
+                            // println!("\n--- Operation: {} ---\n A: {}, B: {}", selected_op, current_float_a, step_float_b);
+
+                            // 2. Perform Plaintext Operation
+                            current_float_a = match *selected_op {
+                                "add" => f32::from_bits(add32(current_float_a.to_bits(), step_clear_b)),
+                                "sub" => f32::from_bits(sub32(current_float_a.to_bits(), step_clear_b)),
+                                "lmul" => f32::from_bits(lmul32(current_float_a.to_bits(), step_clear_b)),
+                                "ldiv" => f32::from_bits(ldiv32(current_float_a.to_bits(), step_clear_b)),
+                                "sqrt" => f32::from_bits(sqrt32(current_float_a.to_bits())),
+                                _ => 0.0,
+                            };
+
+                            // 3. Perform FHE Operation
+                            // Notice we are passing `step_encrypted_b` instead of the outer `encrypted_b`
+                            current_encrypted_a = match *selected_op {
+                                "add" => fhe_add32_cpu(current_encrypted_a, step_encrypted_b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_key.clone()),
+                                "sub" => {
+                                    let encrypted_b_negate = fhe_negate32_cpu(step_encrypted_b, server_key.clone());
+                                    fhe_add32_cpu(current_encrypted_a, encrypted_b_negate, encrypted_mask.clone(), encrypted_zero.clone(), server_key.clone())
+                                },
+                                "lmul" => fhe_lmul32_cpu(current_encrypted_a, step_encrypted_b.clone(), encrypted_zero.clone(), server_key.clone()),
+                                "ldiv" => fhe_ldiv32_cpu(current_encrypted_a, step_encrypted_b.clone(), encrypted_zero.clone(), server_key.clone()),
+                                "sqrt" => fhe_sqrt32_cpu(current_encrypted_a, encrypted_zero.clone(), server_key.clone()),
+                                _ => panic!("Logic error in misc pool"),
+                            };
+                            
+                            let decr = f32::from_bits(current_encrypted_a.decrypt(&client_key));
+
+                            println!("a: {}, b: {}", current_float_a, step_float_b);
+                            println!("\n--- Iteration {}: Operation: {} ---\n Plain Result: {}, Encrypted Result (decrypted): {}", iter + 1, selected_op, current_float_a, decr);
+                            
+                            if decr != current_float_a {
+                                let diff = (current_float_a - decr).abs();
+                                println!("Warning: Precision loss detected in iteration {}! Diff: {}", iter + 1, diff);
+                                break;
+                            }
+                        }
+
+                        // 4. Final Comparison/Verification
+                        let decrypted_val = f32::from_bits(current_encrypted_a.decrypt(&client_key));
+                        println!("\n--- Misc Chain Complete ({} operations) ---", num_iterations);
+                        println!("Final Plaintext Result: {:.16}", current_float_a);
+                        println!("Final FHE Decrypted:    {:.16}\n", decrypted_val);
+                        
+                        let diff = (current_float_a - decrypted_val).abs();
+                        if diff > 1e-5 {
+                            println!("⚠️ Warning: Precision loss detected! Diff: {}", diff);
+                        }
+
+                        current_encrypted_a 
+                    }
                     _ => panic!("Unsupported operation: {}", ops),
                 };
                 let duration = start.elapsed();
@@ -694,6 +746,8 @@ fn cpu_test(ops: &str, fp_size: usize, num_ops: usize, min_range: f32, max_range
             _ => panic!("Unsupported floating point size: {}", fp_size),
         }
     }
-    println!("Average time for {} with fp{} over {} operations: {:?}", ops, fp_size, num_ops, ops_duration / num_ops as u32);
+    if ops != "misc" {
+        println!("Average time for {} with fp{} over {} operations: {:?}", ops, fp_size, num_ops, ops_duration / num_ops as u32);
+    }
     Ok(())
 }

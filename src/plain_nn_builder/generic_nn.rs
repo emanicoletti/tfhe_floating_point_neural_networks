@@ -186,6 +186,7 @@ where
         train_labels: PlainTensor<T>,
         val_inputs: PlainTensor<T>,
         val_labels: PlainTensor<T>,
+        experiment: i8
     )
     {   
         for epoch in 0..epochs{
@@ -206,14 +207,24 @@ where
                     grad = layer.backward(input_to_layer, &grad);
                 }
                 
-                // Decomment to implement learning rate decay 
-                if epoch >= 15 && epoch < 38 {
-                    learning_rate = T::from_f32(0.01);
-                } else if epoch >= 38 && epoch < 45{
-                    learning_rate = T::from_f32(0.001);
-                } else if epoch >= 45 {
-                    learning_rate = T::from_f32(0.0001);
+                // ResNet learning rate schedule
+                if experiment == 9 {
+                    if epoch >= 15 && epoch < 38 {
+                        learning_rate = T::from_f32(0.01);
+                    } else if epoch >= 38 && epoch < 45{
+                        learning_rate = T::from_f32(0.001);
+                    } else if epoch >= 45 {
+                        learning_rate = T::from_f32(0.0001);
+                    }
                 }
+                // VGG on Blood Mnist learning rate schedule
+                else if experiment == 8{
+                    if epoch >= 15 {
+                        learning_rate = T::from_f32(0.01);
+                    }
+                }
+                // Decomment to implement learning rate decay 
+                
                 self.layers.par_iter_mut().for_each(|layer| {
                     layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
                 });

@@ -1,4 +1,3 @@
-use rayon::result;
 use tfhe::prelude::*;
 use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
 

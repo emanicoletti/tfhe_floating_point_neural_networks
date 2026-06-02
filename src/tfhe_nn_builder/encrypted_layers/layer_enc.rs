@@ -28,8 +28,12 @@ where
     
     fn get_biases(&self) -> EncryptedTensor<T>;
 
+    #[allow(dead_code)]
+    // Debugging method
     fn get_grad_weights(&self) -> EncryptedTensor<T>;
 
+    #[allow(dead_code)]
+    // Debugging method
     fn get_grad_biases(&self) -> EncryptedTensor<T>;
 
     fn get_id(&self) -> String;

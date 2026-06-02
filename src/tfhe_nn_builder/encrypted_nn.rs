@@ -412,6 +412,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU16GPU {
 
 impl EncryptedNeuralNetworkU16GPU {
 
+    #[allow(dead_code)]
+    // Debugging method
     fn decrypt_tensor(
         &self, 
         encrypted_tensor: &EncryptedTensor<FheUint16>
@@ -954,6 +956,8 @@ impl EncryptedNeuralNetwork for EncryptedNeuralNetworkU32GPU {
 
 impl EncryptedNeuralNetworkU32GPU {
 
+    #[allow(dead_code)]
+    // Debugging method
     fn decrypt_tensor(
         &self, 
         encrypted_tensor: &EncryptedTensor<FheUint32>

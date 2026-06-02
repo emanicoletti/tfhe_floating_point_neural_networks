@@ -126,6 +126,7 @@ where
         }
     }
 
+    #[allow(dead_code)]
     pub fn inference(
         &mut self,
         input: &EncryptedTensor<T>

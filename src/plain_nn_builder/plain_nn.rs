@@ -191,7 +191,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU32 {
         let train_labels = self.dataset(train_labels, label_shapes.clone());
         let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
         let val_labels = self.dataset(val_labels, val_label_shapes.clone());
-        self.inner.train_and_validate(epochs, batch_size, learning_rate.to_bits(), weight_decay.to_bits(), momentum.to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+        self.inner.train_and_validate(epochs, batch_size, learning_rate.to_bits(), weight_decay.to_bits(), momentum.to_bits(), train_inputs, train_labels, val_inputs, val_labels, self.experiment.unwrap());
     }
     
     fn print_plain_weights(&self, id: String) {
@@ -1012,7 +1012,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         self.inner.add_batch_norm(x_hat, mean, variance, gamma, beta);
     }
 
-    fn add_residual_block(&mut self, residual_block: ResidualBlock<u32>
+    fn add_residual_block(&mut self, _residual_block: ResidualBlock<u32>
     ) {
         unimplemented!()
     }
@@ -1072,7 +1072,7 @@ impl PlainNeuralNetwork for PlainNeuralNetworkU16 {
         let train_labels = self.dataset(train_labels, label_shapes.clone());
         let val_inputs = self.dataset(val_inputs, val_input_shapes.clone());
         let val_labels = self.dataset(val_labels, val_label_shapes.clone());
-        self.inner.train_and_validate(epochs, batch_size, f16::from_f32(learning_rate).to_bits(), f16::from_f32(weight_decay).to_bits(), f16::from_f32(momentum).to_bits(), train_inputs, train_labels, val_inputs, val_labels);
+        self.inner.train_and_validate(epochs, batch_size, f16::from_f32(learning_rate).to_bits(), f16::from_f32(weight_decay).to_bits(), f16::from_f32(momentum).to_bits(), train_inputs, train_labels, val_inputs, val_labels, self.experiment.unwrap());
     }
     
     fn print_plain_weights(&self, id: String) {

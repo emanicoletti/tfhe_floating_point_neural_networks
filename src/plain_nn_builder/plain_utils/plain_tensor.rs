@@ -125,7 +125,9 @@ impl<T: PlainElement> PlainTensor<T> {
         PlainTensor::new(result_data, result_shape)
     }
 
-    pub fn approx_matmul(
+    #[allow(dead_code)]
+    // Exact matmul for testing and debugging
+    pub fn exact_matmul(
         &self,
         other: &PlainTensor<T>,
     )-> PlainTensor<T>
@@ -444,6 +446,8 @@ impl<T: PlainElement> PlainTensor<T> {
         }
     }
 
+    #[allow(dead_code)]
+    // Debugging method
     pub fn print_tensor(&self) where T: PlainValueType + Copy {
         let prediction = self.clone();
         let size = prediction.shape[0];

@@ -32,10 +32,13 @@ pub trait PlainSqrt where Self: Sized {
     fn sqrt(self) -> Self;
 }
 
+// Exact multiplication is used for momentum update
 pub trait PlainMulExact {
     fn mul_exact(self, other: Self) -> Self;
 }
 
+#[allow(dead_code)]
+// Exact division is never used in the framework
 pub trait PlainDivExact {
     fn div_exact(self, other: Self) -> Self;
 }

@@ -35,7 +35,6 @@ where
     T: PlainAdd + PlainSub + PlainMul + PlainMulExact + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default, 
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-        let batch_size = input.shape[0];
         let out_features = self.biases.shape[3]; 
         let flatten_input = input.flatten_hw_to_1d();
         let mut output = flatten_input.matmul(&self.weights.transpose());
@@ -164,7 +163,7 @@ where
 
         let flatten_input = input.flatten_hw_to_1d();
 
-        let mut weighted_sum = flatten_input.approx_matmul(&self.weights.transpose());
+        let mut weighted_sum = flatten_input.exact_matmul(&self.weights.transpose());
 
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
