@@ -16,19 +16,31 @@ pub trait PlainSub {
     fn sub(self, other: Self) -> Self;
 }
 
-pub trait PlainTanh where Self: Sized {
+pub trait PlainTanh
+where
+    Self: Sized,
+{
     fn tanh(self) -> (Self, Self);
 }
 
-pub trait PlainReLU where Self: Sized {
+pub trait PlainReLU
+where
+    Self: Sized,
+{
     fn relu(self) -> (Self, Self);
 }
 
-pub trait PlainBackwardReLU where Self: Sized {
+pub trait PlainBackwardReLU
+where
+    Self: Sized,
+{
     fn backward_relu(self, grad_output: Self) -> Self;
 }
 
-pub trait PlainSqrt where Self: Sized {
+pub trait PlainSqrt
+where
+    Self: Sized,
+{
     fn sqrt(self) -> Self;
 }
 
@@ -46,90 +58,122 @@ pub trait PlainDivExact {
 impl PlainAdd for u32 {
     fn add(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_add32(self, other); }
+        {
+            return canonical_add32(self, other);
+        }
 
         #[cfg(feature = "lmul")]
-        { return add32(self, other); }
+        {
+            return add32(self, other);
+        }
 
         #[cfg(feature = "pam")]
-        { return add32(self, other); }
+        {
+            return add32(self, other);
+        }
     }
 }
 
 impl PlainMul for u32 {
     fn mul(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_mul32(self, other); }
+        {
+            return canonical_mul32(self, other);
+        }
 
         #[cfg(feature = "lmul")]
-        { return lmul32(self, other); }
-        
+        {
+            return lmul32(self, other);
+        }
+
         #[cfg(feature = "pam")]
-        { return pam_mul32(self, other); }
+        {
+            return pam_mul32(self, other);
+        }
     }
 }
 
 impl PlainDiv for u32 {
     fn div(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_div32(self, other); }
+        {
+            return canonical_div32(self, other);
+        }
 
         #[cfg(feature = "lmul")]
-        { return ldiv32(self, other); }
+        {
+            return ldiv32(self, other);
+        }
 
         #[cfg(feature = "pam")]
-        { return pam_div32(self, other); }
+        {
+            return pam_div32(self, other);
+        }
     }
 }
 
 impl PlainSub for u32 {
     fn sub(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_sub32(self, other); }
+        {
+            return canonical_sub32(self, other);
+        }
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
-        { return sub32(self, other); }
+        {
+            return sub32(self, other);
+        }
     }
 }
 
 impl PlainTanh for u32 {
     fn tanh(self) -> (Self, Self) {
         #[cfg(feature = "exact")]
-        { return canonical_tanh32(self); }
+        {
+            return canonical_tanh32(self);
+        }
 
         #[cfg(feature = "lmul")]
-        { return lmul_tanh32(self); }
+        {
+            return lmul_tanh32(self);
+        }
 
         #[cfg(feature = "pam")]
-        { return pam_tanh32(self); }
+        {
+            return pam_tanh32(self);
+        }
     }
 }
 
 impl PlainReLU for u32 {
     fn relu(self) -> (Self, Self) {
-        relu32(self) 
+        relu32(self)
     }
 }
 
 impl PlainBackwardReLU for u32 {
     fn backward_relu(self, grad_output: Self) -> Self {
-        backward_relu32(self, grad_output) 
+        backward_relu32(self, grad_output)
     }
 }
 
 impl PlainSqrt for u32 {
     fn sqrt(self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_sqrt32(self); }
+        {
+            return canonical_sqrt32(self);
+        }
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
-        { return sqrt32(self); }
+        {
+            return sqrt32(self);
+        }
     }
 }
 
 impl PlainMulExact for u32 {
     fn mul_exact(self, other: Self) -> Self {
-        canonical_mul32(self, other) 
+        canonical_mul32(self, other)
     }
 }
 
@@ -142,83 +186,109 @@ impl PlainDivExact for u32 {
 impl PlainAdd for u16 {
     fn add(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_add16(self, other); }
+        {
+            return canonical_add16(self, other);
+        }
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
-        { return add16(self, other); }
+        {
+            return add16(self, other);
+        }
     }
 }
 
 impl PlainMul for u16 {
     fn mul(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_mul16(self, other); }
+        {
+            return canonical_mul16(self, other);
+        }
 
         #[cfg(feature = "lmul")]
-        { return lmul16(self, other); }
+        {
+            return lmul16(self, other);
+        }
 
         #[cfg(feature = "pam")]
-        { return pam_mul16(self, other); }
+        {
+            return pam_mul16(self, other);
+        }
     }
 }
 
 impl PlainDiv for u16 {
     fn div(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_div16(self, other); }
+        {
+            return canonical_div16(self, other);
+        }
 
         #[cfg(feature = "lmul")]
-        { return ldiv16(self, other); }
+        {
+            return ldiv16(self, other);
+        }
 
         #[cfg(feature = "pam")]
-        { return pam_div16(self, other); }
+        {
+            return pam_div16(self, other);
+        }
     }
 }
 
 impl PlainSub for u16 {
     fn sub(self, other: Self) -> Self {
         #[cfg(feature = "exact")]
-        { return canonical_sub16(self, other); }
+        {
+            return canonical_sub16(self, other);
+        }
 
         #[cfg(any(feature = "lmul", feature = "pam"))]
-        { return sub16(self, other); }
+        {
+            return sub16(self, other);
+        }
     }
 }
 
 impl PlainTanh for u16 {
     fn tanh(self) -> (Self, Self) {
         #[cfg(feature = "exact")]
-        { return canonical_tanh16(self); }
+        {
+            return canonical_tanh16(self);
+        }
 
         #[cfg(feature = "lmul")]
-        { return lmul_tanh16(self); }
+        {
+            return lmul_tanh16(self);
+        }
 
         #[cfg(feature = "pam")]
-        { return pam_tanh16(self); }
+        {
+            return pam_tanh16(self);
+        }
     }
 }
 
 impl PlainReLU for u16 {
     fn relu(self) -> (Self, Self) {
-        relu16(self) 
+        relu16(self)
     }
 }
 
 impl PlainBackwardReLU for u16 {
     fn backward_relu(self, grad_output: Self) -> Self {
-        backward_relu16(self, grad_output) 
+        backward_relu16(self, grad_output)
     }
 }
 
 impl PlainSqrt for u16 {
     fn sqrt(self) -> Self {
-        sqrt16(self) 
+        sqrt16(self)
     }
 }
 
 impl PlainMulExact for u16 {
     fn mul_exact(self, other: Self) -> Self {
-        lmul16(self, other) 
+        lmul16(self, other)
     }
 }
 
@@ -227,4 +297,3 @@ impl PlainDivExact for u16 {
         ldiv16(self, other)
     }
 }
-

@@ -3,9 +3,9 @@ use half::f16;
 pub trait PlainElement: Clone + Send + Sync {}
 
 impl PlainElement for u8 {}
-impl PlainElement for u16{}
-impl PlainElement for u32{}
-impl PlainElement for u64{}
+impl PlainElement for u16 {}
+impl PlainElement for u32 {}
+impl PlainElement for u64 {}
 
 pub trait PlainValueType: Sized {
     fn to_f32(self) -> f32;

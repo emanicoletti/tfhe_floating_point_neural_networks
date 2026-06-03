@@ -1,6 +1,6 @@
-use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64};
-use tfhe::prelude::*;
 use tfhe::ClientKey;
+use tfhe::prelude::*;
+use tfhe::{FheUint8, FheUint16, FheUint32, FheUint64};
 
 use half::f16;
 

@@ -1,11 +1,17 @@
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptedElement, EncryptableValueType};
-use crate::tfhe_nn_builder::encrypted_layers::{EncryptedLayer, EncryptedDenseLayer, EncryptedMaxPoolingLayer, EncryptedConvLayer};
-use crate::tfhe_nn_builder::encrypted_activations::{EncryptedTanhActivation, EncryptedReLUActivation};
+use crate::tfhe_nn_builder::encrypted_activations::{
+    EncryptedReLUActivation, EncryptedTanhActivation,
+};
+use crate::tfhe_nn_builder::encrypted_layers::{
+    EncryptedConvLayer, EncryptedDenseLayer, EncryptedLayer, EncryptedMaxPoolingLayer,
+};
 use crate::tfhe_nn_builder::encrypted_losses::loss_function::LossFunction;
-use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 use crate::tfhe_nn_builder::encrypted_ops::*;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{
+    EncryptableValueType, EncryptedElement,
+};
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 
 use std::time::Instant;
 
@@ -15,24 +21,30 @@ pub struct EncryptedNeuralNetworkImpl<K: ServerKeyTrait, T: EncryptedElement> {
     pub loss: Box<dyn LossFunction<K, T>>,
     pub context: EncryptedContext<K, T>,
 }
-impl<K, T> EncryptedNeuralNetworkImpl<K, T> 
+impl<K, T> EncryptedNeuralNetworkImpl<K, T>
 where
     K: ServerKeyTrait
-    + EncryptedAdd<K, T>
-    + EncryptedMul<K, T>
-    + EncryptedDiv<K, T>
-    + EncryptedNegate<K, T>
-    + EncryptedTanh<K, T>
-    + EncryptedMax<K, T> 
-    + EncryptedReLU<K, T>
-    + EncryptedBackwardRelu<K, T>
-    + EncryptedGradIfEqual<K, T>,
+        + EncryptedAdd<K, T>
+        + EncryptedMul<K, T>
+        + EncryptedDiv<K, T>
+        + EncryptedNegate<K, T>
+        + EncryptedTanh<K, T>
+        + EncryptedMax<K, T>
+        + EncryptedReLU<K, T>
+        + EncryptedBackwardRelu<K, T>
+        + EncryptedGradIfEqual<K, T>,
     T: EncryptedElement + Clone + EncryptableValueType + 'static,
 {
-    pub fn add_dense(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>) {
+    pub fn add_dense(
+        &mut self,
+        weights: EncryptedTensor<T>,
+        biases: EncryptedTensor<T>,
+        grad_weights: EncryptedTensor<T>,
+        grad_biases: EncryptedTensor<T>,
+    ) {
         let id = format!("Dense{}", self.layers.len() + 1);
         let dense_layer = EncryptedDenseLayer {
-            id: id, 
+            id: id,
             weights: weights,
             biases: biases,
             grad_weights: Some(grad_weights),
@@ -41,7 +53,15 @@ where
         self.layers.push(Box::new(dense_layer));
     }
 
-    pub fn add_conv(&mut self, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, grad_weights: EncryptedTensor<T>, grad_biases: EncryptedTensor<T>, stride: usize, padding: usize) {
+    pub fn add_conv(
+        &mut self,
+        weights: EncryptedTensor<T>,
+        biases: EncryptedTensor<T>,
+        grad_weights: EncryptedTensor<T>,
+        grad_biases: EncryptedTensor<T>,
+        stride: usize,
+        padding: usize,
+    ) {
         let id = format!("Conv{}", self.layers.len() + 1);
         let conv_layer = EncryptedConvLayer {
             id: id,
@@ -55,7 +75,11 @@ where
         self.layers.push(Box::new(conv_layer));
     }
 
-    pub fn add_tanh_activation(&mut self, derivatives: EncryptedTensor<T>, ranges: Vec<(T, T, T, T, T)>) {
+    pub fn add_tanh_activation(
+        &mut self,
+        derivatives: EncryptedTensor<T>,
+        ranges: Vec<(T, T, T, T, T)>,
+    ) {
         let id = format!("Tanh{}", self.layers.len() + 1);
         let tanh_layer = EncryptedTanhActivation {
             id: id,
@@ -65,7 +89,7 @@ where
         self.layers.push(Box::new(tanh_layer));
     }
 
-     pub fn add_relu_activation(&mut self, derivatives: EncryptedTensor<T>) {
+    pub fn add_relu_activation(&mut self, derivatives: EncryptedTensor<T>) {
         let id = format!("ReLU{}", self.layers.len() + 1);
         let relu_layer = EncryptedReLUActivation {
             id: id,
@@ -74,33 +98,29 @@ where
         self.layers.push(Box::new(relu_layer));
     }
 
-    pub fn add_max_pooling(
-        &mut self,
-        input_dim: Vec<usize>,
-        kernel_size: usize,
-        stride: usize,
-    ) {
+    pub fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize) {
         let id = format!("MaxPooling{}", self.layers.len() + 1);
         let max_pooling_layer = EncryptedMaxPoolingLayer::new(id, input_dim, kernel_size, stride);
         self.layers.push(Box::new(max_pooling_layer));
     }
-   
-    pub fn train( 
+
+    pub fn train(
         &mut self,
         epochs: usize,
         batch_size: usize,
         learning_rate: T,
         train_inputs: EncryptedTensor<T>,
         train_labels: EncryptedTensor<T>,
-    ) 
-    {
-        for epoch in 0..epochs{
+    ) {
+        for epoch in 0..epochs {
             println!("Epoch {}/{}", epoch + 1, epochs);
             let time = Instant::now();
             let forward_time = Instant::now();
             println!("input_shapes: {:?}", train_inputs.shape);
             println!("labels shapes: {:?}", train_labels.shape);
-            for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+            for (input_batch, label_batch) in
+                self.iter_batches(&train_inputs, &train_labels, batch_size)
+            {
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     println!("Layer ID: {}", layer.get_id());
@@ -109,7 +129,7 @@ where
                     println!("Layer passed");
                 }
                 let prediction = activations.last().unwrap();
-                
+
                 println!("Forward pass time: {:?}", forward_time.elapsed());
                 println!("Backward started...");
                 let mut grad = self.loss.gradient(&prediction, &label_batch, &self.context);
@@ -118,7 +138,7 @@ where
                     grad = layer.backward(input_to_layer, &grad, &self.context);
                 }
                 println!("Backward ended...");
-                for layer in &mut self.layers{
+                for layer in &mut self.layers {
                     layer.update_parameters(learning_rate.clone(), &self.context);
                 }
             }
@@ -127,16 +147,13 @@ where
     }
 
     #[allow(dead_code)]
-    pub fn inference(
-        &mut self,
-        input: &EncryptedTensor<T>
-    ) -> EncryptedTensor<T>{
+    pub fn inference(&mut self, input: &EncryptedTensor<T>) -> EncryptedTensor<T> {
         let mut activations = vec![input.clone()];
         for layer in &mut self.layers {
             let output = layer.forward(activations.last().unwrap(), &self.context);
             activations.push(output.clone());
         }
-        let prediction = EncryptedTensor{
+        let prediction = EncryptedTensor {
             data: activations.last().unwrap().data.clone(),
             shape: activations.last().unwrap().shape.clone(),
         };
@@ -160,17 +177,17 @@ where
             "Expected 2D or 4D label tensor, got shape {:?}",
             labels.shape
         );
-    
+
         let num_samples = inputs.shape[0];
         let input_sample_size = inputs.shape[1] * inputs.shape[2] * inputs.shape[3];
         let label_sample_size: usize = labels.shape.iter().skip(1).product();
-    
+
         let mut batches = Vec::new();
         let mut start = 0;
-    
+
         while start < num_samples {
             let end = usize::min(start + batch_size, num_samples);
-    
+
             let input_start = start * input_sample_size;
             let input_end = end * input_sample_size;
             let input_batch_data = inputs.data[input_start..input_end].to_vec();
@@ -184,7 +201,7 @@ where
                 data: input_batch_data,
                 shape: input_batch_shape,
             };
-    
+
             let label_start = start * label_sample_size;
             let label_end = end * label_sample_size;
             let label_batch_data = labels.data[label_start..label_end].to_vec();
@@ -194,11 +211,11 @@ where
                 data: label_batch_data,
                 shape: label_batch_shape,
             };
-    
+
             batches.push((input_batch, label_batch));
             start = end;
         }
-    
+
         batches
     }
 }

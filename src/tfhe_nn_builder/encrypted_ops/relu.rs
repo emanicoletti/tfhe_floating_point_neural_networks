@@ -1,4 +1,4 @@
-use tfhe::{prelude::*, set_server_key, CudaServerKey, ServerKey, FheUint16, FheUint32};
+use tfhe::{CudaServerKey, FheUint16, FheUint32, ServerKey, prelude::*, set_server_key};
 
 pub fn fhe_relu16_gpu(
     encrypted_a: FheUint16,
@@ -7,10 +7,7 @@ pub fn fhe_relu16_gpu(
 ) -> FheUint16 {
     set_server_key(server_keys.clone());
     let neg = encrypted_a.ge(32768u16);
-    neg.select(
-        &encrypted_zero.clone(),
-        &encrypted_a.clone(),
-    )
+    neg.select(&encrypted_zero.clone(), &encrypted_a.clone())
 }
 
 pub fn fhe_relu32_gpu(
@@ -20,10 +17,7 @@ pub fn fhe_relu32_gpu(
 ) -> FheUint32 {
     set_server_key(server_keys.clone());
     let neg = encrypted_a.ge(2147483648u32);
-    neg.select(
-        &encrypted_zero,
-        &encrypted_a.clone(),
-    )
+    neg.select(&encrypted_zero, &encrypted_a.clone())
 }
 
 pub fn backward_relu16_gpu(
@@ -34,10 +28,7 @@ pub fn backward_relu16_gpu(
 ) -> FheUint16 {
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u16);
-    pos.select(
-        &encrypted_zero,
-        &encrypted_grad_output,
-    )
+    pos.select(&encrypted_zero, &encrypted_grad_output)
 }
 
 pub fn backward_relu32_gpu(
@@ -48,10 +39,7 @@ pub fn backward_relu32_gpu(
 ) -> FheUint32 {
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u32);
-    pos.select(
-        &encrypted_zero,
-        &encrypted_grad_output,
-    )
+    pos.select(&encrypted_zero, &encrypted_grad_output)
 }
 
 pub fn fhe_relu16_cpu(
@@ -61,10 +49,7 @@ pub fn fhe_relu16_cpu(
 ) -> FheUint16 {
     set_server_key(server_keys.clone());
     let neg = encrypted_a.ge(32768u16);
-    neg.select(
-        &encrypted_zero.clone(),
-        &encrypted_a.clone(),
-    )
+    neg.select(&encrypted_zero.clone(), &encrypted_a.clone())
 }
 
 pub fn fhe_relu32_cpu(
@@ -74,10 +59,7 @@ pub fn fhe_relu32_cpu(
 ) -> FheUint32 {
     set_server_key(server_keys.clone());
     let neg = encrypted_a.ge(2147483648u32);
-    neg.select(
-        &encrypted_zero,
-        &encrypted_a.clone(),
-    )
+    neg.select(&encrypted_zero, &encrypted_a.clone())
 }
 
 #[allow(dead_code)]
@@ -89,10 +71,7 @@ pub fn backward_relu16_cpu(
 ) -> FheUint16 {
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u16);
-    pos.select(
-        &encrypted_zero,
-        &encrypted_grad_output,
-    )
+    pos.select(&encrypted_zero, &encrypted_grad_output)
 }
 
 #[allow(dead_code)]
@@ -104,9 +83,5 @@ pub fn backward_relu32_cpu(
 ) -> FheUint32 {
     set_server_key(server_keys.clone());
     let pos = encrypted_derivative.eq(0u32);
-    pos.select(
-        &encrypted_zero,
-        &encrypted_grad_output,
-    )
+    pos.select(&encrypted_zero, &encrypted_grad_output)
 }
-

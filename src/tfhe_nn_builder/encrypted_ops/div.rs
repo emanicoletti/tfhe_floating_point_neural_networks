@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, set_server_key};
 
 /* GPU OPERATIONS */
 
@@ -28,15 +28,14 @@ pub fn fhe_ldiv8_gpu(
                     let x_digits = &encrypted_a & 0x7Fu8;
                     let y_digits = &encrypted_b & 0x7Fu8;
                     ((&x_digits - &y_digits) + 0x37u8) & 0x7Fu8
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
-
 }
 
 /* GPU-oriented addition-based division (LDIV) for 16 bits floating points */
@@ -64,9 +63,9 @@ pub fn fhe_ldiv16_gpu(
                     let x_digits = &encrypted_a & 0x7FFFu16;
                     let y_digits = &encrypted_b & 0x7FFFu16;
                     ((&x_digits - &y_digits) + 0x3BC0u16) & 0x7FFFu16
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
@@ -81,37 +80,33 @@ pub fn fhe_ldiv32_gpu(
     encrypted_zero: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
-
-        rayon::broadcast(|_| set_server_key(server_keys.clone()));
+    rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let (result_sign, (denorm, mut result_digits)) = rayon::join(
-            || {
-                (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32
-            },
-            || {
-                rayon::join(
-                    || {
-                        let x_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u8;
-                        let y_exp = (&encrypted_b & 0x7F80_0000u32) >> 23u8;
-                        let exp = (&x_exp - &y_exp) + 127u32;
-                        let d = exp.gt(255u32);
-                        let d_zero = encrypted_a.eq(0u32);
-                        d | d_zero
-                    },
-                    || {
-                        let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
-                        let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
-                        
-                        ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
-                    }
-                )
-            }
-        );
+        || (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32,
+        || {
+            rayon::join(
+                || {
+                    let x_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u8;
+                    let y_exp = (&encrypted_b & 0x7F80_0000u32) >> 23u8;
+                    let exp = (&x_exp - &y_exp) + 127u32;
+                    let d = exp.gt(255u32);
+                    let d_zero = encrypted_a.eq(0u32);
+                    d | d_zero
+                },
+                || {
+                    let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
+                    let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
 
-        result_digits = result_digits | result_sign;
-        
-        denorm.select(&encrypted_zero, &result_digits)
-        
+                    ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
+                },
+            )
+        },
+    );
+
+    result_digits = result_digits | result_sign;
+
+    denorm.select(&encrypted_zero, &result_digits)
 }
 
 /* GPU-oriented addition-based division (LDIV) for 64 bits floating points */
@@ -139,15 +134,14 @@ pub fn fhe_ldiv64_gpu(
                     let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
                     let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
                     ((&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* CPU OPERATIONS */
@@ -177,14 +171,13 @@ pub fn fhe_ldiv8_cpu(
                     let x_digits = &encrypted_a & 0x7Fu8;
                     let y_digits = &encrypted_b & 0x7Fu8;
                     ((&x_digits - &y_digits) + 0x37u8) & 0x7Fu8
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
     denorm.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* CPU-oriented addition-based division (LDIV) for 16 bits floating points */
@@ -212,9 +205,9 @@ pub fn fhe_ldiv16_cpu(
                     let x_digits = &encrypted_a & 0x7FFFu16;
                     let y_digits = &encrypted_b & 0x7FFFu16;
                     ((&x_digits - &y_digits) + 0x3BC0u16) & 0x7FFFu16
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
@@ -228,36 +221,33 @@ pub fn fhe_ldiv32_cpu(
     encrypted_zero: FheUint32,
     server_keys: ServerKey,
 ) -> FheUint32 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let (result_sign, (denorm, mut result_digits)) = rayon::join(
-            || {
-                (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32
-            },
-            || {
-                rayon::join(
-                    || {
-                        let x_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u8;
-                        let y_exp = (&encrypted_b & 0x7F80_0000u32) >> 23u8;
-                        let exp = (&x_exp - &y_exp) + 127u32;
-                        let d = exp.gt(255u32);
-                        let d_zero = encrypted_a.eq(0u32);
-                        d | d_zero
-                    },
-                    || {
-                        let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
-                        let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
-                        
-                        ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
-                    }
-                )
-            }
-        );
+        || (&encrypted_a ^ &encrypted_b) & 0x8000_0000u32,
+        || {
+            rayon::join(
+                || {
+                    let x_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u8;
+                    let y_exp = (&encrypted_b & 0x7F80_0000u32) >> 23u8;
+                    let exp = (&x_exp - &y_exp) + 127u32;
+                    let d = exp.gt(255u32);
+                    let d_zero = encrypted_a.eq(0u32);
+                    d | d_zero
+                },
+                || {
+                    let x_digits = &encrypted_a & 0x7FFF_FFFFu32;
+                    let y_digits = &encrypted_b & 0x7FFF_FFFFu32;
 
-        result_digits = result_digits | result_sign;
+                    ((&x_digits - &y_digits) + 0x3F78_0000u32) & 0x7FFF_FFFFu32
+                },
+            )
+        },
+    );
 
-        denorm.select(&encrypted_zero, &result_digits) 
+    result_digits = result_digits | result_sign;
+
+    denorm.select(&encrypted_zero, &result_digits)
 }
 
 /* CPU-oriented addition-based division (LDIV) for 64 bits floating points */
@@ -285,9 +275,9 @@ pub fn fhe_ldiv64_cpu(
                     let x_digits = &encrypted_a & 0x7FFF_FFFF_FFFF_FFFFu64;
                     let y_digits = &encrypted_b & 0x7FFF_FFFF_FFFF_FFFFu64;
                     ((&x_digits - &y_digits) + 0x3FEF_0000_0000_0000u64) & 0x7FFF_FFFF_FFFF_FFFFu64
-                }
+                },
             )
-        }
+        },
     );
 
     result_digits = result_digits | result_sign;
@@ -301,7 +291,6 @@ pub fn fhe_pam_div8_gpu(
     encrypted_zero: FheUint8,
     server_keys: CudaServerKey,
 ) -> FheUint8 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -352,7 +341,6 @@ pub fn fhe_pam_div16_gpu(
     encrypted_zero: FheUint16,
     server_keys: CudaServerKey,
 ) -> FheUint16 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -403,7 +391,6 @@ pub fn fhe_pam_div32_gpu(
     encrypted_zero: FheUint32,
     server_keys: CudaServerKey,
 ) -> FheUint32 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
     let mut result_sign = None;
     let mut denorm = None;
@@ -453,7 +440,6 @@ pub fn fhe_pam_div64_gpu(
     encrypted_zero: FheUint64,
     server_keys: CudaServerKey,
 ) -> FheUint64 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -506,7 +492,6 @@ pub fn fhe_pam_div8_cpu(
     encrypted_zero: FheUint8,
     server_keys: ServerKey,
 ) -> FheUint8 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -557,7 +542,6 @@ pub fn fhe_pam_div16_cpu(
     encrypted_zero: FheUint16,
     server_keys: ServerKey,
 ) -> FheUint16 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -610,7 +594,7 @@ pub fn fhe_pam_div32_cpu(
 ) -> FheUint32 {
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-   let mut result_sign = None;
+    let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
 
@@ -658,7 +642,6 @@ pub fn fhe_pam_div64_cpu(
     encrypted_zero: FheUint64,
     server_keys: ServerKey,
 ) -> FheUint64 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;

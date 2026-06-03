@@ -1,9 +1,10 @@
-use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
+use crate::plain_nn_builder::plain_nn::{
+    PlainNeuralNetwork, PlainNeuralNetworkU16, PlainNeuralNetworkU32,
+};
 use crate::plain_nn_builder::plain_utils::load_from_file::*;
 
 #[allow(dead_code)]
 pub fn experiment_3_fp32() -> Result<(), Box<dyn std::error::Error>> {
-
     // Load data from folder experiment_3
     let (train_inputs_arr, train_labels_arr, _, _, val_inputs_arr, val_labels_arr) = load_data(3)?;
 
@@ -55,10 +56,8 @@ pub fn experiment_3_fp32() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-
 #[allow(dead_code)]
 pub fn experiment_3_fp16() -> Result<(), Box<dyn std::error::Error>> {
-
     // Load data from folder experiment_3
     let (train_inputs_arr, train_labels_arr, _, _, val_inputs_arr, val_labels_arr) = load_data(3)?;
 

@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, FheUint16, FheUint32, FheUint64, ServerKey, set_server_key};
 
 pub fn fhe_log2_32_gpu(
     encrypted_a: FheUint32,
@@ -9,24 +9,20 @@ pub fn fhe_log2_32_gpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-    let mut exp_value = (&encrypted_a &  0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
+    let mut exp_value = (&encrypted_a & 0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
     let lt_127 = exp_value.lt(127u32);
-    let (exp_value_lt, exp_value_gt) = rayon::join(
-        ||{
-            127u32 - exp_value.clone()
-        },
-        ||{
-            exp_value.clone() - 127u32
-        },
-    );
+    let (exp_value_lt, exp_value_gt) =
+        rayon::join(|| 127u32 - exp_value.clone(), || exp_value.clone() - 127u32);
     exp_value = lt_127.select(&exp_value_lt, &exp_value_gt);
     let neg_sign = encrypted_a.lt(1065353216u32);
     let mut result = exp_value.clone() >> 1u32;
     let res_eq_zero = result.eq(0u32);
     result = (result.ilog2() + 128u32) << 23u32;
-    result = res_eq_zero.select(&((&encrypted_zero.clone() | 127u32) << 23u32), &result.clone());
+    result = res_eq_zero.select(
+        &((&encrypted_zero.clone() | 127u32) << 23u32),
+        &result.clone(),
+    );
     result = neg_sign.select(&(result.clone() | 2147483648u32), &result);
-
 
     let mut log_mant = encrypted_zero.clone();
     let mut mant = &encrypted_a & 0b0000_0000_0111_1111_1111_1111_1111_1111u32;
@@ -53,7 +49,7 @@ pub fn fhe_log2_32_gpu(
         },
     );
     sum = neg_sign.select(&neg, &pos);
-    
+
     let mut res_exp_value = (sum.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
     let diff_exp: FheUint32;
     let res_exp_lt_exp = res_exp_value.lt(exp_value.clone());
@@ -65,23 +61,28 @@ pub fn fhe_log2_32_gpu(
 
     for _i in 0..23 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
-            ||{
+            || {
                 let while_res_exp_eq_zero = res_exp_value.eq(0u32);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u32), &sum_lt.clone());
-                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32),&diff_exp_lt);
-                res_exp_value = while_res_exp_eq_zero.select(&(sum_lt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32), &res_exp_value);
+                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32), &diff_exp_lt);
+                res_exp_value = while_res_exp_eq_zero.select(
+                    &(sum_lt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32),
+                    &res_exp_value,
+                );
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
-            ||{
-                let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
+            || {
+                let while_sum_eq_zero =
+                    (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u32), &sum_gt);
-                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32),&diff_exp_gt);
+                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32), &diff_exp_gt);
                 (sum_gt, diff_exp_gt)
             },
         );
     }
 
-    diff_exp_lt = res_exp_eq_zero.select(&diff_exp_lt, &(exp_value.ilog2() - res_exp_value.ilog2()));
+    diff_exp_lt =
+        res_exp_eq_zero.select(&diff_exp_lt, &(exp_value.ilog2() - res_exp_value.ilog2()));
     diff_exp = res_exp_lt_exp.select(&diff_exp_lt, &diff_exp_gt);
     sum = res_exp_lt_exp.select(&sum_lt.clone(), &sum_gt);
 
@@ -93,7 +94,6 @@ pub fn fhe_log2_32_gpu(
     result -= diff_exp << 23u32;
     result |= result_mant;
     result
-    
 }
 
 pub fn fhe_log2_16_gpu(
@@ -105,25 +105,21 @@ pub fn fhe_log2_16_gpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let denorm = encrypted_a.lt(1024u16);
-    let mut exp_value = (&encrypted_a &  0b0111_1100_0000_0000u16) >> 10u16;
+    let mut exp_value = (&encrypted_a & 0b0111_1100_0000_0000u16) >> 10u16;
     let lt_15 = exp_value.lt(15u16);
-    let (exp_value_lt, exp_value_gt) = rayon::join(
-        ||{
-            15u16 - exp_value.clone()
-        },
-        ||{
-            exp_value.clone() - 15u16
-        },
-    );
+    let (exp_value_lt, exp_value_gt) =
+        rayon::join(|| 15u16 - exp_value.clone(), || exp_value.clone() - 15u16);
     exp_value = lt_15.select(&exp_value_lt, &exp_value_gt);
-    let neg_sign = encrypted_a.lt(15360u32); 
+    let neg_sign = encrypted_a.lt(15360u32);
     let mut result = exp_value.clone() >> 1u16;
     let res_eq_zero = result.eq(0u16);
     let ilog_16: FheUint16 = result.ilog2().cast_into();
     result = (ilog_16 + 16u16) << 10u16;
-    result = res_eq_zero.select(&((&encrypted_zero.clone() | 15u16) << 10u16), &result.clone());
-    result = neg_sign.select(&(result.clone() | 32768u16), &result); 
-
+    result = res_eq_zero.select(
+        &((&encrypted_zero.clone() | 15u16) << 10u16),
+        &result.clone(),
+    );
+    result = neg_sign.select(&(result.clone() | 32768u16), &result);
 
     let mut log_mant = encrypted_zero.clone();
     let mut mant = &encrypted_a & 0b0000_0011_1111_1111u16;
@@ -150,7 +146,7 @@ pub fn fhe_log2_16_gpu(
         },
     );
     sum = neg_sign.select(&neg, &pos);
-    
+
     let mut res_exp_value = (sum.clone() & 0b0111_1100_0000_0000u16) >> 10u16;
     let diff_exp: FheUint16;
     let res_exp_lt_exp = res_exp_value.lt(exp_value.clone());
@@ -162,17 +158,18 @@ pub fn fhe_log2_16_gpu(
 
     for _i in 0..10 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
-            ||{
+            || {
                 let while_res_exp_eq_zero = res_exp_value.eq(0u16);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u16), &sum_lt.clone());
-                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16),&diff_exp_lt);
-                res_exp_value = while_res_exp_eq_zero.select(&(sum_lt.clone() & 0b0111_1100_0000_0000u16), &res_exp_value);
+                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16), &diff_exp_lt);
+                res_exp_value = while_res_exp_eq_zero
+                    .select(&(sum_lt.clone() & 0b0111_1100_0000_0000u16), &res_exp_value);
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
-            ||{
+            || {
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1100_0000_0000u16).eq(0u16);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u16), &sum_gt);
-                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16),&diff_exp_gt);
+                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16), &diff_exp_gt);
                 (sum_gt, diff_exp_gt)
             },
         );
@@ -200,25 +197,20 @@ pub fn fhe_log2_32_cpu(
     set_server_key(server_keys.clone());
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
-
-    let mut exp_value = (&encrypted_a &  0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
+    let mut exp_value = (&encrypted_a & 0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
     let lt_127 = exp_value.lt(127u32);
-    let (exp_value_lt, exp_value_gt) = rayon::join(
-        ||{
-            127u32 - exp_value.clone()
-        },
-        ||{
-            exp_value.clone() - 127u32
-        },
-    );
+    let (exp_value_lt, exp_value_gt) =
+        rayon::join(|| 127u32 - exp_value.clone(), || exp_value.clone() - 127u32);
     exp_value = lt_127.select(&exp_value_lt, &exp_value_gt);
     let neg_sign = encrypted_a.lt(1065353216u32);
     let mut result = exp_value.clone() >> 1u32;
     let res_eq_zero = result.eq(0u32);
     result = (result.ilog2() + 128u32) << 23u32;
-    result = res_eq_zero.select(&((&encrypted_zero.clone() | 127u32) << 23u32), &result.clone());
+    result = res_eq_zero.select(
+        &((&encrypted_zero.clone() | 127u32) << 23u32),
+        &result.clone(),
+    );
     result = neg_sign.select(&(result.clone() | 2147483648u32), &result);
-
 
     let mut log_mant = encrypted_zero.clone();
     let mut mant = &encrypted_a & 0b0000_0000_0111_1111_1111_1111_1111_1111u32;
@@ -245,7 +237,7 @@ pub fn fhe_log2_32_cpu(
         },
     );
     sum = neg_sign.select(&neg, &pos);
-    
+
     let mut res_exp_value = (sum.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32) >> 23u32;
     let diff_exp: FheUint32;
     let res_exp_lt_exp = res_exp_value.lt(exp_value.clone());
@@ -257,23 +249,28 @@ pub fn fhe_log2_32_cpu(
 
     for _i in 0..23 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
-            ||{
+            || {
                 let while_res_exp_eq_zero = res_exp_value.eq(0u32);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u32), &sum_lt.clone());
-                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32),&diff_exp_lt);
-                res_exp_value = while_res_exp_eq_zero.select(&(sum_lt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32), &res_exp_value);
+                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u32), &diff_exp_lt);
+                res_exp_value = while_res_exp_eq_zero.select(
+                    &(sum_lt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32),
+                    &res_exp_value,
+                );
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
-            ||{
-                let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
+            || {
+                let while_sum_eq_zero =
+                    (sum_gt.clone() & 0b0111_1111_1000_0000_0000_0000_0000_0000u32).eq(0u32);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u32), &sum_gt);
-                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32),&diff_exp_gt);
+                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u32), &diff_exp_gt);
                 (sum_gt, diff_exp_gt)
             },
         );
     }
 
-    diff_exp_lt = res_exp_eq_zero.select(&diff_exp_lt, &(exp_value.ilog2() - res_exp_value.ilog2()));
+    diff_exp_lt =
+        res_exp_eq_zero.select(&diff_exp_lt, &(exp_value.ilog2() - res_exp_value.ilog2()));
     diff_exp = res_exp_lt_exp.select(&diff_exp_lt, &diff_exp_gt);
     sum = res_exp_lt_exp.select(&sum_lt.clone(), &sum_gt);
 
@@ -285,7 +282,6 @@ pub fn fhe_log2_32_cpu(
     result -= diff_exp << 23u32;
     result |= result_mant;
     result
-    
 }
 
 pub fn fhe_log2_16_cpu(
@@ -297,25 +293,21 @@ pub fn fhe_log2_16_cpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let denorm = encrypted_a.lt(1024u16);
-    let mut exp_value = (&encrypted_a &  0b0111_1100_0000_0000u16) >> 10u16;
+    let mut exp_value = (&encrypted_a & 0b0111_1100_0000_0000u16) >> 10u16;
     let lt_15 = exp_value.lt(15u16);
-    let (exp_value_lt, exp_value_gt) = rayon::join(
-        ||{
-            15u16 - exp_value.clone()
-        },
-        ||{
-            exp_value.clone() - 15u16
-        },
-    );
+    let (exp_value_lt, exp_value_gt) =
+        rayon::join(|| 15u16 - exp_value.clone(), || exp_value.clone() - 15u16);
     exp_value = lt_15.select(&exp_value_lt, &exp_value_gt);
     let neg_sign = encrypted_a.lt(15360u32);
     let mut result = exp_value.clone() >> 1u16;
     let res_eq_zero = result.eq(0u16);
     let ilog_16: FheUint16 = result.ilog2().cast_into();
     result = (ilog_16 + 16u16) << 10u16;
-    result = res_eq_zero.select(&((&encrypted_zero.clone() | 15u16) << 10u16), &result.clone());
+    result = res_eq_zero.select(
+        &((&encrypted_zero.clone() | 15u16) << 10u16),
+        &result.clone(),
+    );
     result = neg_sign.select(&(result.clone() | 32768u16), &result);
-
 
     let mut log_mant = encrypted_zero.clone();
     let mut mant = &encrypted_a & 0b0000_0011_1111_1111u16;
@@ -342,7 +334,7 @@ pub fn fhe_log2_16_cpu(
         },
     );
     sum = neg_sign.select(&neg, &pos);
-    
+
     let mut res_exp_value = (sum.clone() & 0b0111_1100_0000_0000u16) >> 10u16;
     let diff_exp: FheUint16;
     let res_exp_lt_exp = res_exp_value.lt(exp_value.clone());
@@ -354,17 +346,18 @@ pub fn fhe_log2_16_cpu(
 
     for _i in 0..10 {
         ((sum_lt, res_exp_value, diff_exp_lt), (sum_gt, diff_exp_gt)) = rayon::join(
-            ||{
+            || {
                 let while_res_exp_eq_zero = res_exp_value.eq(0u16);
                 sum_lt = while_res_exp_eq_zero.select(&(sum_lt.clone() << 1u16), &sum_lt.clone());
-                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16),&diff_exp_lt);
-                res_exp_value = while_res_exp_eq_zero.select(&(sum_lt.clone() & 0b0111_1100_0000_0000u16), &res_exp_value);
+                diff_exp_lt = while_res_exp_eq_zero.select(&(&diff_exp_lt + 1u16), &diff_exp_lt);
+                res_exp_value = while_res_exp_eq_zero
+                    .select(&(sum_lt.clone() & 0b0111_1100_0000_0000u16), &res_exp_value);
                 (sum_lt, res_exp_value, diff_exp_lt)
             },
-            ||{
+            || {
                 let while_sum_eq_zero = (sum_gt.clone() & 0b0111_1100_0000_0000u16).eq(0u16);
                 sum_gt = while_sum_eq_zero.select(&(sum_gt.clone() << 1u16), &sum_gt);
-                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16),&diff_exp_gt);
+                diff_exp_gt = while_sum_eq_zero.select(&(&diff_exp_gt + 1u16), &diff_exp_gt);
                 (sum_gt, diff_exp_gt)
             },
         );

@@ -1,13 +1,13 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint16, FheUint32, ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, FheUint16, FheUint32, ServerKey, set_server_key};
 
 static SQRT_BITS_U16: [u16; 11] = [
-    1024u16, 256u16, 64u16, 16u16, 4u16, 1u16, 0u16, 0u16, 0u16, 0u16, 0u16
+    1024u16, 256u16, 64u16, 16u16, 4u16, 1u16, 0u16, 0u16, 0u16, 0u16, 0u16,
 ];
 
 static SQRT_BITS_U32: [u32; 24] = [
-    8388608u32, 2097152u32, 524288u32, 131072u32, 32768u32, 8192u32, 2048u32, 512u32, 128u32, 32u32, 8u32, 2u32, 0u32, 0u32, 0u32, 0u32,
-    0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32
+    8388608u32, 2097152u32, 524288u32, 131072u32, 32768u32, 8192u32, 2048u32, 512u32, 128u32,
+    32u32, 8u32, 2u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32, 0u32,
 ];
 
 pub fn fhe_sqrt16_gpu(
@@ -27,16 +27,16 @@ pub fn fhe_sqrt16_gpu(
         },
         || {
             let raw_exp = (&encrypted_a & 0x7C00u16) >> 10u16;
-            
+
             // MATH OPTIMIZATION: Safe Exponent Halving for FP16 (Bias 15)
             let exp_lsb = &raw_exp & 1u16;
             let res_exp = (&raw_exp >> 1u16) + 7u16 + &exp_lsb;
-            
-            let mut mantissa = (&encrypted_a & 0x03FFu16) | 0x0400u16; 
-            
+
+            let mut mantissa = (&encrypted_a & 0x03FFu16) | 0x0400u16;
+
             let exp_is_even = exp_lsb.eq(0u16);
             mantissa = exp_is_even.select(&(&mantissa << 1u16), &mantissa);
-            
+
             (res_exp, mantissa)
         },
     );
@@ -47,19 +47,12 @@ pub fn fhe_sqrt16_gpu(
 
     for i in 0..11 {
         // Step 1: Compute independent base values
-        let (res_plus_bit, lt_result) = rayon::join(
-            || &result + SQRT_BITS_U16[i],
-            || &result >> 1u16,
-        );
+        let (res_plus_bit, lt_result) =
+            rayon::join(|| &result + SQRT_BITS_U16[i], || &result >> 1u16);
 
         // Step 2: Compute dependent comparison and subtractions/additions
         let ((grt, ge_x), ge_result) = rayon::join(
-            || {
-                rayon::join(
-                    || x.ge(&res_plus_bit),
-                    || &x - &res_plus_bit,
-                )
-            },
+            || rayon::join(|| x.ge(&res_plus_bit), || &x - &res_plus_bit),
             || &lt_result + SQRT_BITS_U16[i],
         );
 
@@ -72,9 +65,9 @@ pub fn fhe_sqrt16_gpu(
                     || {
                         let ge_mantissa = &res_mantissa | (1u16 << (10 - i));
                         grt.select(&ge_mantissa, &res_mantissa)
-                    }
+                    },
                 )
-            }
+            },
         );
 
         x = new_x;
@@ -103,15 +96,15 @@ pub fn fhe_sqrt32_gpu(
         },
         || {
             let raw_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u32;
-            
+
             let exp_lsb = &raw_exp & 1u32;
             let res_exp = (&raw_exp >> 1u32) + 63u32 + &exp_lsb;
-            
-            let mut mantissa = (&encrypted_a & 0x007F_FFFFu32) | 0x0080_0000u32; 
-            
+
+            let mut mantissa = (&encrypted_a & 0x007F_FFFFu32) | 0x0080_0000u32;
+
             let exp_is_even = exp_lsb.eq(0u32);
             mantissa = exp_is_even.select(&(&mantissa << 1u32), &mantissa);
-            
+
             (res_exp, mantissa)
         },
     );
@@ -121,18 +114,11 @@ pub fn fhe_sqrt32_gpu(
     let mut x = mantissa;
 
     for i in 0..24 {
-        let (res_plus_bit, lt_result) = rayon::join(
-            || &result + SQRT_BITS_U32[i],
-            || &result >> 1u32,
-        );
+        let (res_plus_bit, lt_result) =
+            rayon::join(|| &result + SQRT_BITS_U32[i], || &result >> 1u32);
 
         let ((grt, ge_x), ge_result) = rayon::join(
-            || {
-                rayon::join(
-                    || x.ge(&res_plus_bit),
-                    || &x - &res_plus_bit,
-                )
-            },
+            || rayon::join(|| x.ge(&res_plus_bit), || &x - &res_plus_bit),
             || &lt_result + SQRT_BITS_U32[i],
         );
 
@@ -144,9 +130,9 @@ pub fn fhe_sqrt32_gpu(
                     || {
                         let ge_mantissa = &res_mantissa | (1u32 << (23 - i));
                         grt.select(&ge_mantissa, &res_mantissa)
-                    }
+                    },
                 )
-            }
+            },
         );
 
         x = new_x;
@@ -177,15 +163,15 @@ pub fn fhe_sqrt16_cpu(
         },
         || {
             let raw_exp = (&encrypted_a & 0x7C00u16) >> 10u16;
-            
+
             let exp_lsb = &raw_exp & 1u16;
             let res_exp = (&raw_exp >> 1u16) + 7u16 + &exp_lsb;
-            
-            let mut mantissa = (&encrypted_a & 0x03FFu16) | 0x0400u16; 
-            
+
+            let mut mantissa = (&encrypted_a & 0x03FFu16) | 0x0400u16;
+
             let exp_is_even = exp_lsb.eq(0u16);
             mantissa = exp_is_even.select(&(&mantissa << 1u16), &mantissa);
-            
+
             (res_exp, mantissa)
         },
     );
@@ -195,18 +181,11 @@ pub fn fhe_sqrt16_cpu(
     let mut x = mantissa;
 
     for i in 0..11 {
-        let (res_plus_bit, lt_result) = rayon::join(
-            || &result + SQRT_BITS_U16[i],
-            || &result >> 1u16,
-        );
+        let (res_plus_bit, lt_result) =
+            rayon::join(|| &result + SQRT_BITS_U16[i], || &result >> 1u16);
 
         let ((grt, ge_x), ge_result) = rayon::join(
-            || {
-                rayon::join(
-                    || x.ge(&res_plus_bit),
-                    || &x - &res_plus_bit,
-                )
-            },
+            || rayon::join(|| x.ge(&res_plus_bit), || &x - &res_plus_bit),
             || &lt_result + SQRT_BITS_U16[i],
         );
 
@@ -218,9 +197,9 @@ pub fn fhe_sqrt16_cpu(
                     || {
                         let ge_mantissa = &res_mantissa | (1u16 << (10 - i));
                         grt.select(&ge_mantissa, &res_mantissa)
-                    }
+                    },
                 )
-            }
+            },
         );
 
         x = new_x;
@@ -249,15 +228,15 @@ pub fn fhe_sqrt32_cpu(
         },
         || {
             let raw_exp = (&encrypted_a & 0x7F80_0000u32) >> 23u32;
-            
+
             let exp_lsb = &raw_exp & 1u32;
             let res_exp = (&raw_exp >> 1u32) + 63u32 + &exp_lsb;
-            
-            let mut mantissa = (&encrypted_a & 0x007F_FFFFu32) | 0x0080_0000u32; 
-            
+
+            let mut mantissa = (&encrypted_a & 0x007F_FFFFu32) | 0x0080_0000u32;
+
             let exp_is_even = exp_lsb.eq(0u32);
             mantissa = exp_is_even.select(&(&mantissa << 1u32), &mantissa);
-            
+
             (res_exp, mantissa)
         },
     );
@@ -267,18 +246,11 @@ pub fn fhe_sqrt32_cpu(
     let mut x = mantissa;
 
     for i in 0..24 {
-        let (res_plus_bit, lt_result) = rayon::join(
-            || &result + SQRT_BITS_U32[i],
-            || &result >> 1u32,
-        );
+        let (res_plus_bit, lt_result) =
+            rayon::join(|| &result + SQRT_BITS_U32[i], || &result >> 1u32);
 
         let ((grt, ge_x), ge_result) = rayon::join(
-            || {
-                rayon::join(
-                    || x.ge(&res_plus_bit),
-                    || &x - &res_plus_bit,
-                )
-            },
+            || rayon::join(|| x.ge(&res_plus_bit), || &x - &res_plus_bit),
             || &lt_result + SQRT_BITS_U32[i],
         );
 
@@ -290,9 +262,9 @@ pub fn fhe_sqrt32_cpu(
                     || {
                         let ge_mantissa = &res_mantissa | (1u32 << (23 - i));
                         grt.select(&ge_mantissa, &res_mantissa)
-                    }
+                    },
                 )
-            }
+            },
         );
 
         x = new_x;

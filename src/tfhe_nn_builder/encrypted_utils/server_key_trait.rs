@@ -1,4 +1,4 @@
-use tfhe::{ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, ServerKey};
 
 pub trait ServerKeyTrait: Clone + Send + Sync {}
 

@@ -1,10 +1,10 @@
+use crate::plain_nn_builder::plain_layers::PlainLayer;
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
-use crate::plain_nn_builder::plain_layers::PlainLayer;
 
 use rayon::iter::*;
-use rayon::scope;
 use rayon::prelude::*;
+use rayon::scope;
 
 pub struct PlainDenseLayer<T: PlainElement> {
     pub id: String,
@@ -16,12 +16,12 @@ pub struct PlainDenseLayer<T: PlainElement> {
     pub velocity_biases: Option<PlainTensor<T>>,
 }
 
-impl<T: PlainElement> PlainDenseLayer<T>{
+impl<T: PlainElement> PlainDenseLayer<T> {
     pub fn _new(id: String, weights: PlainTensor<T>, biases: PlainTensor<T>) -> Self {
         Self {
             id,
             weights,
-            biases, 
+            biases,
             grad_weights: None,
             grad_biases: None,
             velocity_weights: None,
@@ -32,16 +32,28 @@ impl<T: PlainElement> PlainDenseLayer<T>{
 
 impl<T> PlainLayer<T> for PlainDenseLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + PlainMulExact + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default, 
+    T: PlainAdd
+        + PlainSub
+        + PlainMul
+        + PlainMulExact
+        + Send
+        + Sync
+        + Clone
+        + PlainElement
+        + PlainValueType
+        + Copy
+        + Default,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-        let out_features = self.biases.shape[3]; 
+        let out_features = self.biases.shape[3];
         let flatten_input = input.flatten_hw_to_1d();
         let mut output = flatten_input.matmul(&self.weights.transpose());
 
         let bias_data = &self.biases.data;
 
-        output.data.par_chunks_exact_mut(out_features)
+        output
+            .data
+            .par_chunks_exact_mut(out_features)
             .for_each(|row| {
                 for i in 0..out_features {
                     row[i] = row[i].add(bias_data[i]);
@@ -51,11 +63,7 @@ where
         output
     }
 
-    fn backward(
-        &mut self,
-        input: &PlainTensor<T>,
-        grad_output: &PlainTensor<T>,
-    ) -> PlainTensor<T> {
+    fn backward(&mut self, input: &PlainTensor<T>, grad_output: &PlainTensor<T>) -> PlainTensor<T> {
         let mut grad_weights_opt = None;
         let mut grad_biases_opt = None;
         let mut grad_input_opt = None;
@@ -63,10 +71,12 @@ where
         scope(|s| {
             s.spawn(|_| {
                 let flatten_input = input.flatten_hw_to_1d();
-                let grad_weights = grad_output.transpose().matmul(&flatten_input).sum_on_first_axis();
+                let grad_weights = grad_output
+                    .transpose()
+                    .matmul(&flatten_input)
+                    .sum_on_first_axis();
                 grad_weights_opt = Some(grad_weights);
             });
-
 
             s.spawn(|_| {
                 let grad_biases = grad_output.sum_on_first_axis();
@@ -87,21 +97,19 @@ where
         self.grad_biases = Some(grad_biases.clone());
 
         grad_input
-
-        }
+    }
 
     fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) {
-        
         let zero = T::from_f32(0.0);
 
         if self.velocity_weights.is_none() {
-            self.velocity_weights = Some(PlainTensor{
+            self.velocity_weights = Some(PlainTensor {
                 data: vec![T::from_f32(0.0); self.weights.data.len()],
                 shape: self.weights.shape.clone(),
-            }); 
+            });
         }
         if self.velocity_biases.is_none() {
-            self.velocity_biases = Some(PlainTensor{
+            self.velocity_biases = Some(PlainTensor {
                 data: vec![T::from_f32(0.0); self.biases.data.len()],
                 shape: self.biases.shape.clone(),
             });
@@ -117,19 +125,18 @@ where
             let biases = &mut self.biases;
 
             scope(|s| {
-
                 s.spawn(|_| {
                     let g_prime = if weight_decay.to_f32() != zero.to_f32() {
                         let wd_term = weights.mul_scalar(&weight_decay);
                         grad_w.add(&wd_term)
                     } else {
-                        grad_w.clone() 
+                        grad_w.clone()
                     };
 
                     if momentum.to_f32() != zero.to_f32() {
                         let momentum_term = vel_w.mul_scalar(&momentum);
                         *vel_w = momentum_term.add(&g_prime);
-                        
+
                         let step = vel_w.mul_scalar(&learning_rate);
                         *weights = weights.sub(&step);
                     } else {
@@ -139,11 +146,10 @@ where
                 });
 
                 s.spawn(|_| {
-
                     if momentum.to_f32() != zero.to_f32() {
                         let momentum_term = vel_b.mul_scalar(&momentum);
                         *vel_b = momentum_term.add(grad_b);
-                        
+
                         let step = vel_b.mul_scalar(&learning_rate);
                         *biases = biases.sub(&step);
                     } else {
@@ -160,7 +166,6 @@ where
     }
 
     fn exact_inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
-
         let flatten_input = input.flatten_hw_to_1d();
 
         let mut weighted_sum = flatten_input.exact_matmul(&self.weights.transpose());
@@ -181,10 +186,9 @@ where
 
         weighted_sum = weighted_sum.add(&expanded_biases);
         weighted_sum
-
     }
 
-    fn get_weights(&self) -> PlainTensor<T>{
+    fn get_weights(&self) -> PlainTensor<T> {
         self.weights.clone()
     }
 
@@ -203,5 +207,4 @@ where
     fn get_id(&self) -> String {
         self.id.clone()
     }
-
 }

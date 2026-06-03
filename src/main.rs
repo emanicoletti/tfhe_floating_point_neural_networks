@@ -1,20 +1,25 @@
-
-mod tfhe_nn_builder;
-mod plain_nn_builder;
+mod blood_mnist;
+mod breast_cancer;
+mod cifar10;
+mod dataset_helper;
 mod experiment_1_2;
 mod experiment_3;
-mod mnist_exp;
 mod f_mnist_exp;
-mod skin_cancer_mnist;
-mod blood_mnist;
-mod ops_playground;
-mod cifar10;
-mod breast_cancer;
 mod he_securenet;
-mod dataset_helper;
+mod mnist_exp;
+mod ops_playground;
+mod plain_nn_builder;
+mod skin_cancer_mnist;
+mod tfhe_nn_builder;
 
 #[allow(unused_imports)]
+use crate::blood_mnist::blood_mnist_settings::*;
+#[allow(unused_imports)]
+use crate::breast_cancer::breast_cancer_settings::*;
+#[allow(unused_imports)]
 use crate::cifar10::cifar10_exp_settings;
+#[allow(unused_imports)]
+use crate::cifar10::cifar10_exp_settings::*;
 #[allow(unused_imports)]
 use crate::experiment_1_2::exp_1_settings::*;
 #[allow(unused_imports)]
@@ -24,23 +29,16 @@ use crate::experiment_3::exp_3_settings::*;
 #[allow(unused_imports)]
 use crate::f_mnist_exp::f_mnist_exp_settings::*;
 #[allow(unused_imports)]
-use crate::mnist_exp::mnist_exp_settings::*;
-#[allow(unused_imports)]
-use crate::skin_cancer_mnist::sc_mnist_settings::*;
-#[allow(unused_imports)]
-use crate::blood_mnist::blood_mnist_settings::*;
-#[allow(unused_imports)]
-use crate::cifar10::cifar10_exp_settings::*;
-#[allow(unused_imports)]
 use crate::he_securenet::he_securenet_settings::*;
+#[allow(unused_imports)]
+use crate::mnist_exp::mnist_exp_settings::*;
 #[allow(unused_imports)]
 use crate::ops_playground::test_ops::*;
 #[allow(unused_imports)]
-use crate::breast_cancer::breast_cancer_settings::*;
+use crate::skin_cancer_mnist::sc_mnist_settings::*;
 use clap::{Parser, ValueEnum};
-use dialoguer::{theme::ColorfulTheme, Select, Input};
 use dataset_helper::ensure_dataset_exists;
-
+use dialoguer::{Input, Select, theme::ColorfulTheme};
 
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
@@ -94,7 +92,7 @@ enum OpType {
     Relu,
     Sqrt,
     Log2,
-    Misc
+    Misc,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Debug)]
@@ -126,7 +124,7 @@ enum RunMode {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
-    
+
     // We capture if the user is in interactive mode so we know whether to prompt for sub-menus
     let is_interactive = cli.experiment.is_none();
 
@@ -172,19 +170,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // 2. Resolve the Execution Mode for Experiments 1 & 2
-    let run_mode = if (selected_experiment == Experiment::MlpTernaryMnist || selected_experiment == Experiment::CnnTernaryMnist) && is_interactive {
+    let run_mode = if (selected_experiment == Experiment::MlpTernaryMnist
+        || selected_experiment == Experiment::CnnTernaryMnist)
+        && is_interactive
+    {
         let sub_options = vec![
             "Run Plain version only",
             "Run Encrypted version only",
             "Run Both versions sequentially",
         ];
-        
+
         let sub_selection = Select::with_theme(&ColorfulTheme::default())
             .with_prompt("Choose execution variant")
             .default(2) // Default to 'Both'
             .items(&sub_options)
             .interact()?;
-            
+
         match sub_selection {
             0 => RunMode::Plain,
             1 => RunMode::Both,
@@ -197,13 +198,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 3. Execution Pipeline
     println!("\n========================================");
-    
+
     match selected_experiment {
         Experiment::MlpTernaryMnist => {
-
             ensure_dataset_exists(
-                "res/experiment_1_2", 
-                "https://zenodo.org/records/20510846/files/ternary_mnist.zip?download=1"
+                "res/experiment_1_2",
+                "https://zenodo.org/records/20510846/files/ternary_mnist.zip?download=1",
             )?;
 
             println!("Starting MLP Ternary-MNIST Experiment...");
@@ -219,10 +219,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Experiment::CnnTernaryMnist => {
-
             ensure_dataset_exists(
-                "res/experiment_1_2", 
-                "https://zenodo.org/records/20510846/files/ternary_mnist.zip?download=1"
+                "res/experiment_1_2",
+                "https://zenodo.org/records/20510846/files/ternary_mnist.zip?download=1",
             )?;
 
             println!("Starting CNN Ternary-MNIST Experiment...");
@@ -238,80 +237,72 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Experiment::MlpFashionMnist => {
-
             ensure_dataset_exists(
-                "res/f_mnist", 
-                "https://zenodo.org/records/20510846/files/fashion_mnist.zip?download=1"
+                "res/f_mnist",
+                "https://zenodo.org/records/20510846/files/fashion_mnist.zip?download=1",
             )?;
 
             println!("Starting MLP Fashion-MNIST Experiment...");
             fmnist_exp1_fp32()?;
         }
         Experiment::LeNet5FashionMnist => {
-
             ensure_dataset_exists(
-                "res/f_mnist", 
-                "https://zenodo.org/records/20510846/files/fashion_mnist.zip?download=1"
+                "res/f_mnist",
+                "https://zenodo.org/records/20510846/files/fashion_mnist.zip?download=1",
             )?;
 
             println!("Starting LeNet-5 Fashion-MNIST Experiment...");
             fmnist_exp2_fp32()?;
         }
         Experiment::CnnDermaMnist => {
-
             ensure_dataset_exists(
-                "res/skin_cancer_mnist", 
-                "https://zenodo.org/records/20510846/files/skin_cancer_mnist.zip?download=1"
+                "res/skin_cancer_mnist",
+                "https://zenodo.org/records/20510846/files/skin_cancer_mnist.zip?download=1",
             )?;
 
             println!("Starting CNN Derma-MNIST Experiment...");
             sc_mnist_exp_fp32()?;
         }
         Experiment::CnnBloodMnist => {
-
             ensure_dataset_exists(
-                "res/blood_mnist", 
-                "https://zenodo.org/records/20510846/files/blood_mnist.zip?download=1"
+                "res/blood_mnist",
+                "https://zenodo.org/records/20510846/files/blood_mnist.zip?download=1",
             )?;
 
             println!("Starting CNN Blood-MNIST Experiment...");
             blood_vgg_fp32()?;
         }
         Experiment::ResNet20Cifar10 => {
-
             ensure_dataset_exists(
-                "res/cifar10", 
-                "https://zenodo.org/records/20510846/files/cifar10.zip?download=1"
+                "res/cifar10",
+                "https://zenodo.org/records/20510846/files/cifar10.zip?download=1",
             )?;
 
             println!("Starting ResNet-20 CIFAR-10 Experiment...");
             resnet20_fp32()?;
         }
         Experiment::MlpBreastCancer => {
-
             ensure_dataset_exists(
-                "res/breast_cancer", 
-                "https://zenodo.org/records/20510846/files/breast_cancer.zip?download=1"
+                "res/breast_cancer",
+                "https://zenodo.org/records/20510846/files/breast_cancer.zip?download=1",
             )?;
 
             println!("Starting MLP Breast Cancer Experiment...");
             breast_cancer_fp32()?;
         }
         Experiment::HeSecurenetMlpMnist => {
-
             ensure_dataset_exists(
-                "res/mnist", 
-                "https://zenodo.org/records/20510846/files/mnist.zip?download=1"
+                "res/mnist",
+                "https://zenodo.org/records/20510846/files/mnist.zip?download=1",
             )?;
 
             println!("Starting HE-Securenet MLP MNIST Experiment...");
             securenet_exp1_fp32()?;
         }
         Experiment::HeSecurenetCnnMnist => {
-
             ensure_dataset_exists(
-                "res/mnist", 
-                "https://zenodo.org/records/20510846/files/mnist.zip?download=1"
+                "res/mnist",
+                "https://zenodo.org/records/20510846/files/mnist.zip?download=1",
             )?;
 
             println!("Starting HE-Securenet CNN MNIST Experiment...");
@@ -324,7 +315,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let selected_op = match cli.op {
                 Some(op) => op,
                 None if is_interactive => {
-                    let ops = vec!["Addition", "Same-Sign Addition", "Subtraction", "Lmul", "Ldiv", "Lmul Tanh", "PAM Multiplication", "PAM Division", "PAM Tanh", "ReLU Activation", "Square Root", "Base-2 Logarithm", "Miscellaneous"];
+                    let ops = vec![
+                        "Addition",
+                        "Same-Sign Addition",
+                        "Subtraction",
+                        "Lmul",
+                        "Ldiv",
+                        "Lmul Tanh",
+                        "PAM Multiplication",
+                        "PAM Division",
+                        "PAM Tanh",
+                        "ReLU Activation",
+                        "Square Root",
+                        "Base-2 Logarithm",
+                        "Miscellaneous",
+                    ];
                     let selection = Select::with_theme(&ColorfulTheme::default())
                         .with_prompt("Select the encrypted operation to test")
                         .default(0)
@@ -350,7 +355,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None => OpType::Lmul,
             };
 
-           let precision_bits: u32 = match selected_op {
+            let precision_bits: u32 = match selected_op {
                 OpType::Misc => {
                     println!("-> 'Miscellaneous' selected.");
                     32
@@ -362,7 +367,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Some(FpFormat::Fp32) => 32,
                     Some(FpFormat::Fp64) => 64,
                     None if is_interactive => {
-                        let formats = vec!["FP8 (8-bit)", "FP16 (16-bit)", "FP32 (32-bit)", "FP64 (64-bit)"];
+                        let formats = vec![
+                            "FP8 (8-bit)",
+                            "FP16 (16-bit)",
+                            "FP32 (32-bit)",
+                            "FP64 (64-bit)",
+                        ];
                         let selection = Select::with_theme(&ColorfulTheme::default())
                             .with_prompt("Select Floating-Point Format")
                             .default(2) // Updated to index 2 so FP32 is highlighted by default
@@ -376,19 +386,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             _ => unreachable!(),
                         }
                     }
-                    None => 32, 
-                }
+                    None => 32,
+                },
             };
 
             // 3. Resolve Chain Length
             let chain_length: u32 = match cli.chain {
                 Some(c) => c,
-                None if is_interactive => {
-                    Input::with_theme(&ColorfulTheme::default())
-                        .with_prompt("Enter the number of chained operations")
-                        .default(10)
-                        .interact_text()?
-                }
+                None if is_interactive => Input::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Enter the number of chained operations")
+                    .default(10)
+                    .interact_text()?,
                 None => 10,
             };
 
@@ -430,20 +438,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let is_gpu = selected_device == Device::Gpu;
 
             println!(
-                "\n-> Executing {} chained `{}` operations using {} format on {}...", 
-                chain_length, op_str, format!("FP{}", precision_bits), if is_gpu { "GPU" } else { "CPU" }
+                "\n-> Executing {} chained `{}` operations using {} format on {}...",
+                chain_length,
+                op_str,
+                format!("FP{}", precision_bits),
+                if is_gpu { "GPU" } else { "CPU" }
             );
-            
 
-            test_encrypted_ops(op_str, precision_bits as usize, is_gpu, chain_length as usize, -10.0, 10.0)?;
+            test_encrypted_ops(
+                op_str,
+                precision_bits as usize,
+                is_gpu,
+                chain_length as usize,
+                -10.0,
+                10.0,
+            )?;
         }
     }
 
     println!("========================================\nDone.");
     Ok(())
 }
-
-
-
-
-

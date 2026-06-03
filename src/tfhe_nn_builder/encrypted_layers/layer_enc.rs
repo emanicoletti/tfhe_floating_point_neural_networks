@@ -1,15 +1,18 @@
-use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptedElement;
-
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 
 pub trait EncryptedLayer<K, T>: Send + Sync
 where
     K: ServerKeyTrait,
     T: EncryptedElement,
 {
-    fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>;
+    fn forward(
+        &mut self,
+        input: &EncryptedTensor<T>,
+        ctx: &EncryptedContext<K, T>,
+    ) -> EncryptedTensor<T>;
 
     fn backward(
         &mut self,
@@ -18,14 +21,10 @@ where
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>;
 
-    fn update_parameters(
-        &mut self,
-        learning_rate: T,
-        ctx: &EncryptedContext<K, T>,
-    );
+    fn update_parameters(&mut self, learning_rate: T, ctx: &EncryptedContext<K, T>);
 
     fn get_weights(&self) -> EncryptedTensor<T>;
-    
+
     fn get_biases(&self) -> EncryptedTensor<T>;
 
     #[allow(dead_code)]

@@ -1,7 +1,6 @@
+use crate::plain_nn_builder::plain_layers::PlainLayer;
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
-use crate::plain_nn_builder::plain_layers::PlainLayer;
-
 
 pub struct PlainAvgPoolingLayer<T: PlainElement> {
     _input: PlainTensor<T>,
@@ -11,25 +10,20 @@ pub struct PlainAvgPoolingLayer<T: PlainElement> {
     id: String,
 }
 
-impl<T: PlainElement> PlainAvgPoolingLayer<T>{
-    pub fn new(
-        id: String,
-        input_dim: Vec<usize>,
-        kernel_size: usize,
-        stride: usize,
-    ) -> Self {
+impl<T: PlainElement> PlainAvgPoolingLayer<T> {
+    pub fn new(id: String, input_dim: Vec<usize>, kernel_size: usize, stride: usize) -> Self {
         Self {
             _input: PlainTensor::new(vec![], input_dim.clone()),
             id,
             _input_dim: input_dim,
             kernel_size,
-            stride
+            stride,
         }
     }
 }
 
 impl<T> PlainLayer<T> for PlainAvgPoolingLayer<T>
-where 
+where
     T: PlainElement + Copy + Ord + PlainAdd + PlainDiv + Default + PlainValueType,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
@@ -68,18 +62,19 @@ where
         }
     }
 
-    fn backward(
-        &mut self,
-        _input: &PlainTensor<T>, 
-        grad_output: &PlainTensor<T>,
-        ) -> PlainTensor<T>
+    fn backward(&mut self, _input: &PlainTensor<T>, grad_output: &PlainTensor<T>) -> PlainTensor<T>
     where
-        T: Default + Copy + PlainAdd + PlainDiv, 
+        T: Default + Copy + PlainAdd + PlainDiv,
         // T needs to support division, addition, and conversion from integer for the area
     {
         let kernel = self.kernel_size;
         let stride = self.stride;
-        let (batch, channels, height, width) = (_input.shape[0], _input.shape[1], _input.shape[2], _input.shape[3]);
+        let (batch, channels, height, width) = (
+            _input.shape[0],
+            _input.shape[1],
+            _input.shape[2],
+            _input.shape[3],
+        );
 
         let out_h = (height - kernel) / stride + 1;
         let out_w = (width - kernel) / stride + 1;
@@ -100,10 +95,9 @@ where
             for c in 0..channels {
                 for h in 0..out_h {
                     for w in 0..out_w {
-                        
                         // 1. Get the gradient from the next layer
                         let grad = grad_output.get(&[n, c, h, w]).clone();
-                        
+
                         // 2. Divide it by the window size (distribute equally)
                         let distributed_grad = grad.div(area);
 
@@ -115,9 +109,10 @@ where
 
                                 // Calculate flat index for the input gradient tensor
                                 let flat_index = ((n * channels + c) * height + ih) * width + iw;
-                                
+
                                 // IMPORTANT: Use += because windows might overlap
-                                grad_input.data[flat_index] = grad_input.data[flat_index].add(distributed_grad);
+                                grad_input.data[flat_index] =
+                                    grad_input.data[flat_index].add(distributed_grad);
                             }
                         }
                     }
@@ -136,12 +131,7 @@ where
         self.forward(input)
     }
 
-    fn update_parameters(
-        &mut self,
-        _learning_rate: T,
-        _weight_decay: T,
-        _momentum: T,
-    ) {
+    fn update_parameters(&mut self, _learning_rate: T, _weight_decay: T, _momentum: T) {
         // No parameters to update in max pooling
     }
 
@@ -175,10 +165,9 @@ where
             data: vec![],
             shape: vec![],
         }
-    }   
+    }
 
     fn get_id(&self) -> String {
         self.id.clone()
     }
-
 }

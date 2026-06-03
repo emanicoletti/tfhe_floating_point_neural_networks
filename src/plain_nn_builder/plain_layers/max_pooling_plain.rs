@@ -1,5 +1,5 @@
-use crate::plain_nn_builder::plain_utils::*;
 use crate::plain_nn_builder::plain_layers::PlainLayer;
+use crate::plain_nn_builder::plain_utils::*;
 
 pub struct PlainMaxPoolingLayer<T: PlainElement> {
     _input: PlainTensor<T>,
@@ -9,25 +9,20 @@ pub struct PlainMaxPoolingLayer<T: PlainElement> {
     id: String,
 }
 
-impl<T: PlainElement> PlainMaxPoolingLayer<T>{
-    pub fn new(
-        id: String,
-        input_dim: Vec<usize>,
-        kernel_size: usize,
-        stride: usize,
-    ) -> Self {
+impl<T: PlainElement> PlainMaxPoolingLayer<T> {
+    pub fn new(id: String, input_dim: Vec<usize>, kernel_size: usize, stride: usize) -> Self {
         Self {
             _input: PlainTensor::new(vec![], input_dim.clone()),
             id,
             _input_dim: input_dim,
             kernel_size,
-            stride
+            stride,
         }
     }
 }
 
 impl<T> PlainLayer<T> for PlainMaxPoolingLayer<T>
-where 
+where
     T: PlainElement + Copy + Ord,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
@@ -72,17 +67,18 @@ where
         }
     }
 
-    fn backward(
-        &mut self,
-        input: &PlainTensor<T>,
-        grad_output: &PlainTensor<T>,
-    ) -> PlainTensor<T>
+    fn backward(&mut self, input: &PlainTensor<T>, grad_output: &PlainTensor<T>) -> PlainTensor<T>
     where
         T: Default,
     {
         let kernel = self.kernel_size;
         let stride = self.stride;
-        let (batch, channels, height, width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
+        let (batch, channels, height, width) = (
+            input.shape[0],
+            input.shape[1],
+            input.shape[2],
+            input.shape[3],
+        );
 
         let out_h = (height - kernel) / stride + 1;
         let out_w = (width - kernel) / stride + 1;
@@ -117,7 +113,8 @@ where
                         }
 
                         let grad = grad_output.get(&[n, c, h, w]).clone();
-                        let flat_index = ((n * channels + c) * height + max_idx.0) * width + max_idx.1;
+                        let flat_index =
+                            ((n * channels + c) * height + max_idx.0) * width + max_idx.1;
                         grad_input.data[flat_index] = grad;
                     }
                 }
@@ -135,12 +132,7 @@ where
         self.forward(input)
     }
 
-    fn update_parameters(
-        &mut self,
-        _learning_rate: T,
-        _weight_decay: T,
-        _momentum: T,
-    ) { }
+    fn update_parameters(&mut self, _learning_rate: T, _weight_decay: T, _momentum: T) {}
 
     fn get_weights(&self) -> PlainTensor<T> {
         // No weights in max pooling
@@ -172,11 +164,9 @@ where
             data: vec![],
             shape: vec![],
         }
-    }   
+    }
 
     fn get_id(&self) -> String {
         self.id.clone()
     }
-
 }
-

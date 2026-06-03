@@ -1,10 +1,17 @@
-use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU, EncryptedNeuralNetworkU16GPU};
-use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
+use crate::plain_nn_builder::plain_nn::{
+    PlainNeuralNetwork, PlainNeuralNetworkU16, PlainNeuralNetworkU32,
+};
 use crate::plain_nn_builder::plain_utils::load_from_file::*;
+use crate::tfhe_nn_builder::encrypted_nn::{
+    EncryptedNeuralNetwork, EncryptedNeuralNetworkU16GPU, EncryptedNeuralNetworkU32GPU,
+};
 
 #[allow(dead_code)]
-pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-    
+pub fn experiment_1_fp32(
+    train_plain_network: bool,
+    train_encrypted_network: bool,
+    test_plain_network: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -12,8 +19,15 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    // Load data from folder experiment_1_2 
-    let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(1)?;
+    // Load data from folder experiment_1_2
+    let (
+        train_inputs_arr,
+        train_labels_arr,
+        val_inputs_arr,
+        val_labels_arr,
+        test_inputs_arr,
+        test_labels_arr,
+    ) = load_data(1)?;
 
     // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -27,7 +41,6 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     let mut plain_model = PlainNeuralNetworkU32::create(Some(1));
 
     if train_plain_network {
-
         // Define the architecture
         plain_model.add_max_pooling(vec![16, 16], 4, 4);
         plain_model.add_dense(16, 4);
@@ -43,8 +56,6 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.print_plain_biases("Dense4".to_string());
         plain_model.print_plain_weights("Dense6".to_string());
         plain_model.print_plain_biases("Dense6".to_string());
-
-
 
         // Train and validate the model
         plain_model.train(
@@ -66,7 +77,6 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         plain_model.print_plain_biases("Dense4".to_string());
         plain_model.print_plain_weights("Dense6".to_string());
         plain_model.print_plain_biases("Dense6".to_string());
-
     }
 
     if train_encrypted_network {
@@ -104,17 +114,17 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if test_plain_network {
-
         // Validate the plain model
         let mut correct = 0;
         let mut total = val_labels.len();
 
         for (input, label) in val_inputs.iter().zip(val_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
+            let input_batch = vec![input.clone()];
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
-            let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+            let prediction =
+                plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
 
             let predicted_class = prediction
                 .iter()
@@ -143,7 +153,7 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
         total = test_labels.len();
 
         for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
+            let input_batch = vec![input.clone()];
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
@@ -176,8 +186,11 @@ pub fn experiment_1_fp32(train_plain_network: bool, train_encrypted_network: boo
 }
 
 #[allow(dead_code)]
-pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-
+pub fn experiment_1_fp16(
+    train_plain_network: bool,
+    train_encrypted_network: bool,
+    test_plain_network: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -185,8 +198,15 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    // Load data from folder experiment_1_2 
-    let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(1)?;
+    // Load data from folder experiment_1_2
+    let (
+        train_inputs_arr,
+        train_labels_arr,
+        val_inputs_arr,
+        val_labels_arr,
+        test_inputs_arr,
+        test_labels_arr,
+    ) = load_data(1)?;
 
     // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -266,7 +286,6 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if test_plain_network {
-
         // Validate the plain model
         let mut correct = 0;
         let mut total = val_labels.len();
@@ -276,7 +295,8 @@ pub fn experiment_1_fp16(train_plain_network: bool, train_encrypted_network: boo
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
-            let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+            let prediction =
+                plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
 
             // Get predicted class (argmax)
             let predicted_class = prediction

@@ -1,10 +1,17 @@
-use crate::tfhe_nn_builder::encrypted_nn::{EncryptedNeuralNetwork, EncryptedNeuralNetworkU32GPU, EncryptedNeuralNetworkU16GPU};
-use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU32, PlainNeuralNetworkU16};
+use crate::plain_nn_builder::plain_nn::{
+    PlainNeuralNetwork, PlainNeuralNetworkU16, PlainNeuralNetworkU32,
+};
 use crate::plain_nn_builder::plain_utils::load_from_file::*;
+use crate::tfhe_nn_builder::encrypted_nn::{
+    EncryptedNeuralNetwork, EncryptedNeuralNetworkU16GPU, EncryptedNeuralNetworkU32GPU,
+};
 
 #[allow(dead_code)]
-pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-
+pub fn experiment_2_fp32(
+    train_plain_network: bool,
+    train_encrypted_network: bool,
+    test_plain_network: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -12,10 +19,17 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    // Load data from folder experiment_1_2 
-    let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(2)?;
+    // Load data from folder experiment_1_2
+    let (
+        train_inputs_arr,
+        train_labels_arr,
+        val_inputs_arr,
+        val_labels_arr,
+        test_inputs_arr,
+        test_labels_arr,
+    ) = load_data(2)?;
 
-    // Format the input accordingly 
+    // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
     let val_inputs = array2_to_vecvec(&val_inputs_arr);
@@ -93,7 +107,8 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
-            let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+            let prediction =
+                plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
 
             let predicted_class = prediction
                 .iter()
@@ -149,16 +164,17 @@ pub fn experiment_2_fp32(train_plain_network: bool, train_encrypted_network: boo
 
         let accuracy = correct as f32 / total as f32;
         println!("Test Accuracy: {:.2}%", accuracy * 100.0);
-
     }
 
     Ok(())
-
 }
 
 #[allow(dead_code)]
-pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-
+pub fn experiment_2_fp16(
+    train_plain_network: bool,
+    train_encrypted_network: bool,
+    test_plain_network: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -166,8 +182,15 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    // Load data from folder experiment_1_2 
-    let (train_inputs_arr, train_labels_arr, val_inputs_arr, val_labels_arr, test_inputs_arr, test_labels_arr) = load_data(2)?;
+    // Load data from folder experiment_1_2
+    let (
+        train_inputs_arr,
+        train_labels_arr,
+        val_inputs_arr,
+        val_labels_arr,
+        test_inputs_arr,
+        test_labels_arr,
+    ) = load_data(2)?;
 
     // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -244,16 +267,17 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
     }
 
     if test_plain_network {
-        // Validate the plain model    
+        // Validate the plain model
         let mut correct = 0;
         let mut total = val_labels.len();
 
         for (input, label) in val_inputs.iter().zip(val_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
+            let input_batch = vec![input.clone()];
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 
-            let prediction = plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
+            let prediction =
+                plain_model.inference(&input_batch, input_shape.clone(), label_shape.clone());
 
             let predicted_class = prediction
                 .iter()
@@ -282,7 +306,7 @@ pub fn experiment_2_fp16(train_plain_network: bool, train_encrypted_network: boo
         total = test_labels.len();
 
         for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
+            let input_batch = vec![input.clone()];
             let input_shape = vec![1, 1, 16, 16];
             let label_shape = vec![1, 1, 1, 3];
 

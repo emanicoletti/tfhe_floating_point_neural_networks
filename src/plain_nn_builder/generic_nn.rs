@@ -1,5 +1,13 @@
-
-use crate::plain_nn_builder::{plain_layers::{PlainLayer, PlainDenseLayer, PlainConv2DLayer, PlainMaxPoolingLayer, PlainAvgPoolingLayer, PlainBatchNormLayer, ResidualBlock, GlobalAveragePooling}, plain_losses::PlainLossFunction, plain_ops::*, plain_utils::{PlainElement, PlainValueType, PlainTensor}, plain_activations::{PlainTanhActivation, PlainReLUActivation}};
+use crate::plain_nn_builder::{
+    plain_activations::{PlainReLUActivation, PlainTanhActivation},
+    plain_layers::{
+        GlobalAveragePooling, PlainAvgPoolingLayer, PlainBatchNormLayer, PlainConv2DLayer,
+        PlainDenseLayer, PlainLayer, PlainMaxPoolingLayer, ResidualBlock,
+    },
+    plain_losses::PlainLossFunction,
+    plain_ops::*,
+    plain_utils::{PlainElement, PlainTensor, PlainValueType},
+};
 use rayon::prelude::*;
 
 pub struct PlainNeuralNetworkImpl<T: PlainElement> {
@@ -8,30 +16,35 @@ pub struct PlainNeuralNetworkImpl<T: PlainElement> {
 }
 
 impl<T> PlainNeuralNetworkImpl<T>
-where 
+where
     T: PlainAdd
-    + PlainMul
-    + PlainDiv
-    + PlainSub
-    + PlainTanh
-    + PlainReLU
-    + PlainBackwardReLU
-    + PlainSqrt
-    + PlainDivExact
-    + PlainMulExact
-    + PlainElement
-    + PlainValueType
-    + Clone
-    + Copy
-    + Ord
-    + Default
-    + 'static
+        + PlainMul
+        + PlainDiv
+        + PlainSub
+        + PlainTanh
+        + PlainReLU
+        + PlainBackwardReLU
+        + PlainSqrt
+        + PlainDivExact
+        + PlainMulExact
+        + PlainElement
+        + PlainValueType
+        + Clone
+        + Copy
+        + Ord
+        + Default
+        + 'static,
 {
-
-    pub fn add_dense(&mut self, weights: PlainTensor<T>, biases: PlainTensor<T>, grad_weights: PlainTensor<T>, grad_biases: PlainTensor<T>) {
+    pub fn add_dense(
+        &mut self,
+        weights: PlainTensor<T>,
+        biases: PlainTensor<T>,
+        grad_weights: PlainTensor<T>,
+        grad_biases: PlainTensor<T>,
+    ) {
         let id = format!("Dense{}", self.layers.len() + 1);
         let dense_layer = PlainDenseLayer {
-            id: id, 
+            id: id,
             weights: weights,
             biases: biases,
             grad_weights: Some(grad_weights),
@@ -44,7 +57,7 @@ where
 
     pub fn add_tanh_activation(&mut self, derivatives: PlainTensor<T>) {
         let id = format!("Tanh{}", self.layers.len() + 1);
-        let tanh_layer = PlainTanhActivation{
+        let tanh_layer = PlainTanhActivation {
             id: id,
             derivatives: derivatives,
         };
@@ -57,29 +70,27 @@ where
         self.layers.push(Box::new(relu_layer));
     }
 
-    pub fn add_max_pooling(
-        &mut self,
-        input_dim: Vec<usize>,
-        kernel_size: usize,
-        stride: usize,
-    ) {
+    pub fn add_max_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize) {
         let id = format!("MaxPooling{}", self.layers.len() + 1);
         let max_pooling_layer = PlainMaxPoolingLayer::new(id, input_dim, kernel_size, stride);
         self.layers.push(Box::new(max_pooling_layer));
     }
 
-    pub fn add_avg_pooling(
-        &mut self,
-        input_dim: Vec<usize>,
-        kernel_size: usize,
-        stride: usize,
-    ) {
+    pub fn add_avg_pooling(&mut self, input_dim: Vec<usize>, kernel_size: usize, stride: usize) {
         let id = format!("AvgPooling{}", self.layers.len() + 1);
         let avg_pooling_layer = PlainAvgPoolingLayer::new(id, input_dim, kernel_size, stride);
         self.layers.push(Box::new(avg_pooling_layer));
     }
 
-    pub fn add_conv(&mut self, weights: PlainTensor<T>, biases: PlainTensor<T>, grad_weights: PlainTensor<T>, grad_biases: PlainTensor<T>, stride: usize, padding: usize) {
+    pub fn add_conv(
+        &mut self,
+        weights: PlainTensor<T>,
+        biases: PlainTensor<T>,
+        grad_weights: PlainTensor<T>,
+        grad_biases: PlainTensor<T>,
+        stride: usize,
+        padding: usize,
+    ) {
         let id = format!("Conv{}", self.layers.len() + 1);
         let conv_layer = PlainConv2DLayer {
             id: id,
@@ -108,10 +119,7 @@ where
         self.layers.push(Box::new(batch_norm_layer));
     }
 
-    pub fn add_residual_block(
-        &mut self,
-        residual_block: ResidualBlock<T>,
-    ) {
+    pub fn add_residual_block(&mut self, residual_block: ResidualBlock<T>) {
         self.layers.push(Box::new(residual_block));
     }
 
@@ -121,7 +129,7 @@ where
         self.layers.push(Box::new(global_avg_pooling_layer));
     }
 
-    pub fn train( 
+    pub fn train(
         &mut self,
         epochs: usize,
         batch_size: usize,
@@ -130,44 +138,50 @@ where
         momentum: T,
         train_inputs: PlainTensor<T>,
         train_labels: PlainTensor<T>,
-    ) 
-    {   
-        for epoch in 0..epochs{
+    ) {
+        for epoch in 0..epochs {
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
-            for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+            for (input_batch, label_batch) in
+                self.iter_batches(&train_inputs, &train_labels, batch_size)
+            {
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
                     activations.push(output.clone());
                 }
-                
+
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                println!(
+                    "Batch {:?} Loss: {:<6} ",
+                    i_batch,
+                    loss_val.data[0].to_f32()
+                );
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
                 }
-                for layer in &mut self.layers{
-                    layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
+                for layer in &mut self.layers {
+                    layer.update_parameters(
+                        learning_rate.clone(),
+                        weight_decay.clone(),
+                        momentum.clone(),
+                    );
                 }
                 i_batch += 1;
             }
         }
     }
 
-    pub fn inference(
-        &mut self,
-        input: &PlainTensor<T>
-    ) -> PlainTensor<T>{
+    pub fn inference(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         let mut activations = vec![input.clone()];
         for layer in &mut self.layers {
             let output = layer.inference(activations.last().unwrap());
             activations.push(output.clone());
         }
-        let prediction = PlainTensor{
+        let prediction = PlainTensor {
             data: activations.last().unwrap().data.clone(),
             shape: activations.last().unwrap().shape.clone(),
         };
@@ -186,13 +200,14 @@ where
         train_labels: PlainTensor<T>,
         val_inputs: PlainTensor<T>,
         val_labels: PlainTensor<T>,
-        experiment: i8
-    )
-    {   
-        for epoch in 0..epochs{
+        experiment: i8,
+    ) {
+        for epoch in 0..epochs {
             println!("Epoch {}/{}", epoch + 1, epochs);
             let mut i_batch = 1;
-            for (input_batch, label_batch) in self.iter_batches(&train_inputs, &train_labels, batch_size){
+            for (input_batch, label_batch) in
+                self.iter_batches(&train_inputs, &train_labels, batch_size)
+            {
                 let mut activations = vec![input_batch.clone()];
                 for layer in &mut self.layers {
                     let output = layer.forward(activations.last().unwrap());
@@ -200,33 +215,41 @@ where
                 }
                 let prediction = activations.last().unwrap();
                 let loss_val = self.loss.compute_loss(&prediction, &label_batch);
-                println!("Batch {:?} Loss: {:<6} ", i_batch, loss_val.data[0].to_f32());
+                println!(
+                    "Batch {:?} Loss: {:<6} ",
+                    i_batch,
+                    loss_val.data[0].to_f32()
+                );
                 let mut grad = self.loss.gradient(&prediction, &label_batch);
                 for (i, layer) in self.layers.iter_mut().rev().enumerate() {
                     let input_to_layer = &activations[activations.len() - 2 - i];
                     grad = layer.backward(input_to_layer, &grad);
                 }
-                
+
                 // ResNet learning rate schedule
                 if experiment == 9 {
                     if epoch >= 15 && epoch < 38 {
                         learning_rate = T::from_f32(0.01);
-                    } else if epoch >= 38 && epoch < 45{
+                    } else if epoch >= 38 && epoch < 45 {
                         learning_rate = T::from_f32(0.001);
                     } else if epoch >= 45 {
                         learning_rate = T::from_f32(0.0001);
                     }
                 }
                 // VGG on Blood Mnist learning rate schedule
-                else if experiment == 8{
+                else if experiment == 8 {
                     if epoch >= 15 {
                         learning_rate = T::from_f32(0.01);
                     }
                 }
-                // Decomment to implement learning rate decay 
-                
+                // Decomment to implement learning rate decay
+
                 self.layers.par_iter_mut().for_each(|layer| {
-                    layer.update_parameters(learning_rate.clone(), weight_decay.clone(), momentum.clone());
+                    layer.update_parameters(
+                        learning_rate.clone(),
+                        weight_decay.clone(),
+                        momentum.clone(),
+                    );
                 });
                 i_batch += 1;
             }
@@ -234,7 +257,7 @@ where
             let mut correct = 0;
             let total = val_labels.shape[0];
 
-            for (input_batch, label_batch) in self.iter_batches(&val_inputs, &val_labels, 1){
+            for (input_batch, label_batch) in self.iter_batches(&val_inputs, &val_labels, 1) {
                 let prediction = self.inference(&input_batch);
                 let mut prediction_f32: Vec<f32> = vec![0.0; label_batch.shape[3]];
                 for i in 0..prediction.data.len() {
@@ -242,11 +265,11 @@ where
                 }
 
                 let predicted_index = prediction_f32
-                .iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-                .map(|(idx, _)| idx)
-                .unwrap();
+                    .iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                    .map(|(idx, _)| idx)
+                    .unwrap();
 
                 let mut one_hot: Vec<f32> = vec![0.0; prediction_f32.len()];
                 one_hot[predicted_index] = 1.0;
@@ -271,11 +294,13 @@ where
                     correct += 1;
                 }
             }
-            println!("Epoch {:?} Validation Accuracy: {:.2}%", epoch+1, (correct as f32 / total as f32) * 100.0);
-        
+            println!(
+                "Epoch {:?} Validation Accuracy: {:.2}%",
+                epoch + 1,
+                (correct as f32 / total as f32) * 100.0
+            );
         }
     }
-
 
     fn iter_batches(
         &self,
@@ -293,11 +318,11 @@ where
             "Expected 2D or 4D label tensor, got shape {:?}",
             labels.shape
         );
-    
+
         let num_samples = inputs.shape[0];
         let input_sample_size = inputs.shape[1] * inputs.shape[2] * inputs.shape[3];
         let label_sample_size: usize = labels.shape.iter().skip(1).product();
-    
+
         let mut batches = Vec::new();
         let mut start = 0;
 
@@ -318,7 +343,7 @@ where
                 data: input_batch_data,
                 shape: input_batch_shape,
             };
-    
+
             let label_start = start * label_sample_size;
             let label_end = end * label_sample_size;
             let label_batch_data = labels.data[label_start..label_end].to_vec();
@@ -328,12 +353,11 @@ where
                 data: label_batch_data,
                 shape: label_batch_shape,
             };
-    
+
             batches.push((input_batch, label_batch));
             start = end;
         }
-    
+
         batches
     }
-
 }

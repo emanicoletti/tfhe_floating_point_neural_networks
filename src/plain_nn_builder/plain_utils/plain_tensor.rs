@@ -1,34 +1,37 @@
-use crate::plain_nn_builder::plain_utils::{PlainElement, PlainValueType};
 use crate::plain_nn_builder::plain_ops::*;
+use crate::plain_nn_builder::plain_utils::{PlainElement, PlainValueType};
 
-use rayon::iter::IntoParallelIterator;
-use rayon::iter::ParallelIterator;
-use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use std::cmp::max;
 
 #[derive(Clone)]
 pub struct PlainTensor<T: PlainElement> {
     pub data: Vec<T>,
-    pub shape: Vec<usize> //[batch, channels, height, width]
+    pub shape: Vec<usize>, //[batch, channels, height, width]
 }
 
 impl<T: PlainElement> PlainTensor<T> {
-
     pub fn new(data: Vec<T>, shape: Vec<usize>) -> Self {
         Self { data, shape }
     }
 
     /// Returns the flat index from multi-dimensional indices
     pub fn flatten_index(&self, indices: &[usize]) -> usize {
-        assert_eq!(indices.len(), self.shape.len(), "Dimension mismatch in indexing");
-        
+        assert_eq!(
+            indices.len(),
+            self.shape.len(),
+            "Dimension mismatch in indexing"
+        );
+
         let mut index = 0;
-        let mut stride = 1;   
+        let mut stride = 1;
         for i in (0..self.shape.len()).rev() {
             let dim_size = self.shape[i];
             let idx = indices[i];
-            
+
             assert!(
                 idx < dim_size,
                 "Index {} out of bounds for dimension {} (size {})",
@@ -36,7 +39,7 @@ impl<T: PlainElement> PlainTensor<T> {
                 i,
                 dim_size
             );
-    
+
             index += idx * stride;
             stride *= dim_size;
         }
@@ -57,29 +60,26 @@ impl<T: PlainElement> PlainTensor<T> {
         }
     }
 
-    pub fn matmul(
-        &self,
-        other: &PlainTensor<T>,
-    )-> PlainTensor<T>
-    where 
+    pub fn matmul(&self, other: &PlainTensor<T>) -> PlainTensor<T>
+    where
         T: PlainAdd + PlainMul + PlainValueType + Copy,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
-    
+
         let [batch, channel, h1, w1] = self.shape[..] else {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
-    
+
         let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
-    
+
         assert_eq!(channel, c2, "Channel dimensions must match");
         assert_eq!(w1, h2, "Inner dimensions must match for matmul");
-    
+
         let result_shape = vec![batch, channel, h1, w2];
-    
+
         let result_data = (0..batch * channel * h1 * w2)
             .into_par_iter()
             .map(|flat_index| {
@@ -95,7 +95,7 @@ impl<T: PlainElement> PlainTensor<T> {
                 let c = (flat_index / (h1 * w2)) % channel;
                 let i = (flat_index / w2) % h1;
                 let j = flat_index % w2;
-    
+
                 // Collect all multiplications first
                 let mut products = Vec::with_capacity(w1);
                 for k in 0..w1 {
@@ -104,7 +104,7 @@ impl<T: PlainElement> PlainTensor<T> {
                     let prod = a_val.clone().mul(b_val.clone());
                     products.push(prod);
                 }
-    
+
                 // Tree-reduced addition of the products
                 while products.len() > 1 {
                     let mut next = Vec::with_capacity((products.len() + 1) / 2);
@@ -117,39 +117,36 @@ impl<T: PlainElement> PlainTensor<T> {
                     }
                     products = next;
                 }
-    
+
                 products.pop().unwrap()
             })
             .collect();
-    
+
         PlainTensor::new(result_data, result_shape)
     }
 
     #[allow(dead_code)]
     // Exact matmul for testing and debugging
-    pub fn exact_matmul(
-        &self,
-        other: &PlainTensor<T>,
-    )-> PlainTensor<T>
-    where 
+    pub fn exact_matmul(&self, other: &PlainTensor<T>) -> PlainTensor<T>
+    where
         T: PlainAdd + PlainMulExact + PlainValueType + Copy,
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
-    
+
         let [batch, channel, h1, w1] = self.shape[..] else {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
-    
+
         let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
-    
+
         assert_eq!(channel, c2, "Channel dimensions must match");
         assert_eq!(w1, h2, "Inner dimensions must match for matmul");
-    
+
         let result_shape = vec![batch, channel, h1, w2];
-    
+
         let result_data = (0..batch * channel * h1 * w2)
             .into_par_iter()
             .map(|flat_index| {
@@ -165,7 +162,7 @@ impl<T: PlainElement> PlainTensor<T> {
                 let c = (flat_index / (h1 * w2)) % channel;
                 let i = (flat_index / w2) % h1;
                 let j = flat_index % w2;
-    
+
                 // Collect all multiplications first
                 let mut products = Vec::with_capacity(w1);
                 for k in 0..w1 {
@@ -174,7 +171,7 @@ impl<T: PlainElement> PlainTensor<T> {
                     let prod = a_val.clone().mul_exact(b_val.clone());
                     products.push(prod);
                 }
-    
+
                 // Tree-reduced addition of the products
                 while products.len() > 1 {
                     let mut next = Vec::with_capacity((products.len() + 1) / 2);
@@ -187,50 +184,46 @@ impl<T: PlainElement> PlainTensor<T> {
                     }
                     products = next;
                 }
-    
+
                 products.pop().unwrap()
             })
             .collect();
-    
+
         PlainTensor::new(result_data, result_shape)
     }
 
-
     /// Element-wise addition of two tensors with the same shape.
-    pub fn add(
-        &self,
-        other: &PlainTensor<T>,
-    ) -> PlainTensor<T>
+    pub fn add(&self, other: &PlainTensor<T>) -> PlainTensor<T>
     where
         T: PlainAdd,
     {
         assert_eq!(self.shape, other.shape, "Shape mismatch for add");
-    
-        
+
         let data: Vec<T> = self
-        .data
-        .par_iter()
-        .zip(other.data.par_iter()) 
-        .map(|(a, b)| a.clone().add(b.clone())) 
-        .collect();
-            
+            .data
+            .par_iter()
+            .zip(other.data.par_iter())
+            .map(|(a, b)| a.clone().add(b.clone()))
+            .collect();
+
         PlainTensor {
             data,
             shape: self.shape.clone(),
         }
     }
 
-    pub fn sub(
-        &self,
-        other: &PlainTensor<T>,
-    ) -> PlainTensor<T>
+    pub fn sub(&self, other: &PlainTensor<T>) -> PlainTensor<T>
     where
         T: PlainSub,
     {
-        assert_eq!(self.shape.len(), other.shape.len(), "Tensors must have same rank");
+        assert_eq!(
+            self.shape.len(),
+            other.shape.len(),
+            "Tensors must have same rank"
+        );
 
         let shape = self.shape.clone();
-    
+
         let result_data = (0..self.data.len())
             .into_par_iter()
             .map(|flat_index| {
@@ -240,19 +233,19 @@ impl<T: PlainElement> PlainTensor<T> {
                     idx[i] = remainder % shape[i];
                     remainder /= shape[i];
                 }
-    
+
                 let idx_other: Vec<usize> = idx
                     .iter()
                     .enumerate()
                     .map(|(i, &v)| if other.shape[i] == 1 { 0 } else { v })
                     .collect();
-    
+
                 let a = self.get(&idx).clone();
                 let b = other.get(&idx_other).clone();
                 a.sub(b)
             })
             .collect();
-    
+
         PlainTensor::new(result_data, shape)
     }
 
@@ -274,7 +267,10 @@ impl<T: PlainElement> PlainTensor<T> {
                 }
             }
         }
-        PlainTensor::new(transposed_data, vec![self.shape[0], self.shape[1], cols, rows])
+        PlainTensor::new(
+            transposed_data,
+            vec![self.shape[0], self.shape[1], cols, rows],
+        )
     }
 
     pub fn sum_on_first_axis(&self) -> PlainTensor<T>
@@ -283,12 +279,8 @@ impl<T: PlainElement> PlainTensor<T> {
     {
         assert_eq!(self.shape.len(), 4, "sum_axis supports 4D tensors only");
 
-        let (batch, channel, height, width) = (
-            self.shape[0],
-            self.shape[1],
-            self.shape[2],
-            self.shape[3],
-        );
+        let (batch, channel, height, width) =
+            (self.shape[0], self.shape[1], self.shape[2], self.shape[3]);
 
         // Sum over batch dimension
         let result_data: Vec<T> = (0..channel * height * width)
@@ -326,9 +318,13 @@ impl<T: PlainElement> PlainTensor<T> {
 
     pub fn mul_scalar(&self, scalar: &T) -> Self
     where
-       T: PlainMul
+        T: PlainMul,
     {
-        let data = self.data.par_iter().map(|x| x.clone().mul(scalar.clone())).collect();
+        let data = self
+            .data
+            .par_iter()
+            .map(|x| x.clone().mul(scalar.clone()))
+            .collect();
 
         PlainTensor {
             data,
@@ -336,40 +332,26 @@ impl<T: PlainElement> PlainTensor<T> {
         }
     }
 
-    pub fn tanh(
-        &self,
-    ) -> (PlainTensor<T>, PlainTensor<T>)
+    pub fn tanh(&self) -> (PlainTensor<T>, PlainTensor<T>)
     where
-        T: PlainTanh
+        T: PlainTanh,
     {
-        let (result_data, derivatives): (Vec<_>, Vec<_>) = self
-            .data
-            .iter()
-            .map(|value| {
-                value.clone().tanh()
-            })
-            .unzip();
-    
+        let (result_data, derivatives): (Vec<_>, Vec<_>) =
+            self.data.iter().map(|value| value.clone().tanh()).unzip();
+
         (
             PlainTensor::new(result_data, self.shape.clone()),
             PlainTensor::new(derivatives, self.shape.clone()),
         )
     }
 
-    pub fn relu(
-        &self,
-    ) -> (PlainTensor<T>, PlainTensor<T>)
+    pub fn relu(&self) -> (PlainTensor<T>, PlainTensor<T>)
     where
-        T: PlainReLU
+        T: PlainReLU,
     {
-        let (result_data, derivatives): (Vec<_>, Vec<_>) = self
-            .data
-            .iter()
-            .map(|value| {
-                value.clone().relu()
-            })
-            .unzip();
-    
+        let (result_data, derivatives): (Vec<_>, Vec<_>) =
+            self.data.iter().map(|value| value.clone().relu()).unzip();
+
         (
             PlainTensor::new(result_data, self.shape.clone()),
             PlainTensor::new(derivatives, self.shape.clone()),
@@ -378,17 +360,17 @@ impl<T: PlainElement> PlainTensor<T> {
 
     pub fn max(&self) -> T
     where
-        T: Copy + Ord, 
+        T: Copy + Ord,
     {
         self.data
             .iter()
-            .copied() 
+            .copied()
             .reduce(max)
             .expect("Empty tensor has no max")
     }
 
     pub fn flatten_hw_to_1d(&self) -> PlainTensor<T> {
-         assert_eq!(self.shape.len(), 4, "Tensor must be 4D [B, C, H, W]");
+        assert_eq!(self.shape.len(), 4, "Tensor must be 4D [B, C, H, W]");
         let [batch, channel, height, width] = self.shape[..] else {
             panic!("Invalid shape length");
         };
@@ -412,10 +394,17 @@ impl<T: PlainElement> PlainTensor<T> {
         }
     }
 
-    pub fn unflatten_1d_to_hw(&self, original_shape: &[usize; 4]) -> PlainTensor<T> where T: Default {
+    pub fn unflatten_1d_to_hw(&self, original_shape: &[usize; 4]) -> PlainTensor<T>
+    where
+        T: Default,
+    {
         let [batch, channel, height, width] = *original_shape;
 
-        assert_eq!(self.shape.len(), 4, "Flattened tensor must be 4D [B,1,1,C*H*W]");
+        assert_eq!(
+            self.shape.len(),
+            4,
+            "Flattened tensor must be 4D [B,1,1,C*H*W]"
+        );
         assert_eq!(
             self.shape[0], batch,
             "Batch size must match the original shape"
@@ -433,7 +422,8 @@ impl<T: PlainElement> PlainTensor<T> {
                     for w in 0..width {
                         let flat_idx = c * height * width + h * width + w;
                         let val = self.get(&[b, 0, 0, flat_idx]).clone();
-                        let dst_idx = b * channel * height * width + c * height * width + h * width + w;
+                        let dst_idx =
+                            b * channel * height * width + c * height * width + h * width + w;
                         result_data[dst_idx] = val;
                     }
                 }
@@ -448,7 +438,10 @@ impl<T: PlainElement> PlainTensor<T> {
 
     #[allow(dead_code)]
     // Debugging method
-    pub fn print_tensor(&self) where T: PlainValueType + Copy {
+    pub fn print_tensor(&self)
+    where
+        T: PlainValueType + Copy,
+    {
         let prediction = self.clone();
         let size = prediction.shape[0];
         let channel = prediction.shape[1];
@@ -457,7 +450,11 @@ impl<T: PlainElement> PlainTensor<T> {
         let flat = &prediction.data;
 
         if flat.len() != size * channel * rows * cols {
-            println!("Shape mismatch: expected {} elements, got {}", size * channel * rows * cols, flat.len());
+            println!(
+                "Shape mismatch: expected {} elements, got {}",
+                size * channel * rows * cols,
+                flat.len()
+            );
             return;
         }
 
@@ -468,10 +465,7 @@ impl<T: PlainElement> PlainTensor<T> {
                 for i in 0..rows {
                     print!("[");
                     for j in 0..cols {
-                        let index = b * channel * rows * cols
-                            + c * rows * cols
-                            + i * cols
-                            + j;
+                        let index = b * channel * rows * cols + c * rows * cols + i * cols + j;
                         print!("{:<6.3} ", flat[index].to_f32());
                     }
                     println!("]");
@@ -479,6 +473,4 @@ impl<T: PlainElement> PlainTensor<T> {
             }
         }
     }
-
-
 }

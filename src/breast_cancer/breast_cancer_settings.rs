@@ -3,8 +3,9 @@ use crate::plain_nn_builder::plain_utils::load_from_file::*;
 
 #[allow(dead_code)]
 pub fn breast_cancer_fp32() -> Result<(), Box<dyn std::error::Error>> {
-    // Load data from folder 
-    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(9)?;
+    // Load data from folder
+    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) =
+        load_data(9)?;
 
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
     let train_labels = array2_to_vecvec(&train_labels_arr);
@@ -19,7 +20,7 @@ pub fn breast_cancer_fp32() -> Result<(), Box<dyn std::error::Error>> {
     plain_model.add_relu_activation(16);
     plain_model.add_dense(16, 8);
     plain_model.add_relu_activation(8);
-    plain_model.add_dense(8, 2);    
+    plain_model.add_dense(8, 2);
 
     plain_model.train_and_validate(
         100,
@@ -36,6 +37,6 @@ pub fn breast_cancer_fp32() -> Result<(), Box<dyn std::error::Error>> {
         vec![114, 1, 1, 30],
         vec![114, 1, 1, 2],
     );
-    
+
     Ok(())
 }

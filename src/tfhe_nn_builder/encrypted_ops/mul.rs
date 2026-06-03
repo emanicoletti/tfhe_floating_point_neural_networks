@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, FheUint8, FheUint16, FheUint32, FheUint64, ServerKey, set_server_key};
 
 /* GPU OPERATIONS */
 
@@ -14,7 +14,7 @@ pub fn fhe_lmul8_gpu(
 
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 0b0111_1000u8) >> 3u8,
-        || (&encrypted_b & 0b0111_1000u8) >> 3u8
+        || (&encrypted_b & 0b0111_1000u8) >> 3u8,
     );
 
     let mut result_sign = None;
@@ -65,7 +65,6 @@ pub fn fhe_lmul8_gpu(
     result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */
@@ -79,7 +78,7 @@ pub fn fhe_lmul16_gpu(
 
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 31744u16) >> 10u8,
-        || (&encrypted_b & 31744u16) >> 10u8
+        || (&encrypted_b & 31744u16) >> 10u8,
     );
 
     let mut result_sign = None;
@@ -130,7 +129,6 @@ pub fn fhe_lmul16_gpu(
     result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 32 bits floating points */
@@ -143,8 +141,8 @@ pub fn fhe_lmul32_gpu(
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let (x_exp, y_exp) = rayon::join(
-            || (&encrypted_a & 2139095040u32) >> 23u8,
-            || (&encrypted_b & 2139095040u32) >> 23u8
+        || (&encrypted_a & 2139095040u32) >> 23u8,
+        || (&encrypted_b & 2139095040u32) >> 23u8,
     );
 
     let mut result_sign = None;
@@ -191,7 +189,6 @@ pub fn fhe_lmul32_gpu(
     result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* GPU-oriented addition-based multiplication (LMUL) for 64 bits floating points */
@@ -205,7 +202,7 @@ pub fn fhe_lmul64_gpu(
 
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 0x7FF0_0000_0000_0000u64) >> 52u8,
-        || (&encrypted_b & 0x7FF0_0000_0000_0000u64) >> 52u8
+        || (&encrypted_b & 0x7FF0_0000_0000_0000u64) >> 52u8,
     );
 
     let mut result_sign = None;
@@ -254,7 +251,7 @@ pub fn fhe_lmul64_gpu(
     let denorm_flag = d | d1 | d2;
 
     result_digits = result_digits | result_sign;
-    
+
     denorm_flag.select(&encrypted_zero, &result_digits)
 }
 
@@ -267,7 +264,6 @@ pub fn fhe_lmul8_cpu(
     encrypted_zero: FheUint8,
     server_keys: ServerKey,
 ) -> FheUint8 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -307,7 +303,6 @@ pub fn fhe_lmul8_cpu(
     result_digits = result_digits | result_sign;
 
     denorm.select(&encrypted_zero, &result_digits)
-
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 16 bits floating points */
@@ -317,9 +312,9 @@ pub fn fhe_lmul16_cpu(
     encrypted_zero: FheUint16,
     _server_keys: ServerKey,
 ) -> FheUint16 {
-let (x_exp, y_exp) = rayon::join(
+    let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 31744u16) >> 10u8,
-        || (&encrypted_b & 31744u16) >> 10u8
+        || (&encrypted_b & 31744u16) >> 10u8,
     );
 
     let mut result_sign = None;
@@ -370,7 +365,6 @@ let (x_exp, y_exp) = rayon::join(
     result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 32 bits floating points */
@@ -380,10 +374,9 @@ pub fn fhe_lmul32_cpu(
     encrypted_zero: FheUint32,
     _server_keys: ServerKey,
 ) -> FheUint32 {
-
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 2139095040u32) >> 23u8,
-        || (&encrypted_b & 2139095040u32) >> 23u8
+        || (&encrypted_b & 2139095040u32) >> 23u8,
     );
 
     let mut result_sign = None;
@@ -427,10 +420,9 @@ pub fn fhe_lmul32_cpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits =  result_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
-    
 }
 
 /* CPU-oriented addition-based multiplication (LMUL) for 64 bits floating points */
@@ -440,10 +432,9 @@ pub fn fhe_lmul64_cpu(
     encrypted_zero: FheUint64,
     _server_keys: ServerKey,
 ) -> FheUint64 {
-
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 0x7FF0_0000_0000_0000u64) >> 52u8,
-        || (&encrypted_b & 0x7FF0_0000_0000_0000u64) >> 52u8
+        || (&encrypted_b & 0x7FF0_0000_0000_0000u64) >> 52u8,
     );
 
     let mut result_sign = None;
@@ -491,7 +482,7 @@ pub fn fhe_lmul64_cpu(
 
     let denorm_flag = d | d1 | d2;
 
-    result_digits =  result_digits | result_sign;
+    result_digits = result_digits | result_sign;
 
     denorm_flag.select(&encrypted_zero, &result_digits)
 }
@@ -503,7 +494,6 @@ pub fn fhe_pam_mul8_gpu(
     encrypted_zero: FheUint8,
     server_keys: CudaServerKey,
 ) -> FheUint8 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -553,7 +543,6 @@ pub fn fhe_pam_mul16_gpu(
     encrypted_zero: FheUint16,
     server_keys: CudaServerKey,
 ) -> FheUint16 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -651,7 +640,6 @@ pub fn fhe_pam_mul64_gpu(
     encrypted_zero: FheUint64,
     server_keys: CudaServerKey,
 ) -> FheUint64 {
-
     rayon::broadcast(|_| set_server_key(server_keys.clone()));
 
     let mut result_sign = None;
@@ -703,10 +691,9 @@ pub fn fhe_pam_mul8_cpu(
     encrypted_zero: FheUint8,
     _server_keys: ServerKey,
 ) -> FheUint8 {
-
     let (x_exp, y_exp) = rayon::join(
         || (&encrypted_a & 0b0111_1000u8) >> 3u8,
-        || (&encrypted_b & 0b0111_1000u8) >> 3u8
+        || (&encrypted_b & 0b0111_1000u8) >> 3u8,
     );
 
     let mut result_sign = None;
@@ -765,7 +752,6 @@ pub fn fhe_pam_mul16_cpu(
     encrypted_zero: FheUint16,
     _server_keys: ServerKey,
 ) -> FheUint16 {
-
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -813,7 +799,6 @@ pub fn fhe_pam_mul32_cpu(
     encrypted_zero: FheUint32,
     _server_keys: ServerKey,
 ) -> FheUint32 {
-
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;
@@ -861,7 +846,6 @@ pub fn fhe_pam_mul64_cpu(
     encrypted_zero: FheUint64,
     _server_keys: ServerKey,
 ) -> FheUint64 {
-
     let mut result_sign = None;
     let mut denorm = None;
     let mut result_digits = None;

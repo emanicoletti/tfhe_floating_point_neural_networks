@@ -1,32 +1,40 @@
-use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptableValueType, EncryptedElement};
-use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate};
 use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
+use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate};
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{
+    EncryptableValueType, EncryptedElement,
+};
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 
 use rayon::prelude::*;
 
 pub struct EncryptedConvLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>, 
-    pub biases: EncryptedTensor<T>,  
+    pub weights: EncryptedTensor<T>,
+    pub biases: EncryptedTensor<T>,
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
     pub stride: usize,
-    pub padding: usize
+    pub padding: usize,
 }
 
 impl<T: EncryptedElement> EncryptedConvLayer<T> {
-    pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>, stride: usize, padding: usize) -> Self {
+    pub fn _new(
+        id: String,
+        weights: EncryptedTensor<T>,
+        biases: EncryptedTensor<T>,
+        stride: usize,
+        padding: usize,
+    ) -> Self {
         Self {
             id,
-            weights, 
-            biases,  
+            weights,
+            biases,
             grad_weights: None,
             grad_biases: None,
             stride,
-            padding
+            padding,
         }
     }
 }
@@ -36,10 +44,24 @@ where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedNegate<K, T>,
     T: Clone + EncryptedElement + EncryptableValueType,
 {
-    fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
-        let (batch_size, in_channels, in_height, in_width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
-        let (out_channels, _, kernel_height, kernel_width) = (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
-        
+    fn forward(
+        &mut self,
+        input: &EncryptedTensor<T>,
+        ctx: &EncryptedContext<K, T>,
+    ) -> EncryptedTensor<T> {
+        let (batch_size, in_channels, in_height, in_width) = (
+            input.shape[0],
+            input.shape[1],
+            input.shape[2],
+            input.shape[3],
+        );
+        let (out_channels, _, kernel_height, kernel_width) = (
+            self.weights.shape[0],
+            self.weights.shape[1],
+            self.weights.shape[2],
+            self.weights.shape[3],
+        );
+
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
@@ -47,7 +69,10 @@ where
         let padded_width = in_width + 2 * self.padding;
 
         let mut padded_input = EncryptedTensor {
-            data: vec![ctx.encrypted_zero.clone(); batch_size * in_channels * padded_height * padded_width],
+            data: vec![
+                ctx.encrypted_zero.clone();
+                batch_size * in_channels * padded_height * padded_width
+            ],
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
@@ -56,15 +81,19 @@ where
                 for h in 0..in_height {
                     for w in 0..in_width {
                         let src_idx = input.flatten_index(&[b, c, h, w]);
-                        let dst_idx = padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
+                        let dst_idx =
+                            padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
                         padded_input.data[dst_idx] = input.data[src_idx].clone();
                     }
                 }
             }
         }
 
-        let mut output = EncryptedTensor{
-            data: vec![ctx.encrypted_zero.clone(); batch_size * out_channels * out_height * out_width],
+        let mut output = EncryptedTensor {
+            data: vec![
+                ctx.encrypted_zero.clone();
+                batch_size * out_channels * out_height * out_width
+            ],
             shape: vec![batch_size, out_channels, out_height, out_width],
         };
 
@@ -81,11 +110,15 @@ where
 
                                     let input_idx = padded_input.flatten_index(&[b, ic, ih, iw]);
                                     let weight_idx = self.weights.flatten_index(&[oc, ic, kh, kw]);
-                                    
+
                                     let input_val = padded_input.data[input_idx].clone();
                                     let weight_val = self.weights.data[weight_idx].clone();
-                                    
-                                    acc = ctx.server_key.add(acc, ctx.server_key.mul(input_val, weight_val, ctx), ctx);
+
+                                    acc = ctx.server_key.add(
+                                        acc,
+                                        ctx.server_key.mul(input_val, weight_val, ctx),
+                                        ctx,
+                                    );
                                 }
                             }
                         }
@@ -104,13 +137,24 @@ where
         grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T> {
-        let (batch_size, in_channels, in_height, in_width) = (input.shape[0], input.shape[1], input.shape[2], input.shape[3]);
-        let (out_channels, _, kernel_height, kernel_width) = (self.weights.shape[0], self.weights.shape[1], self.weights.shape[2], self.weights.shape[3]);
+        let (batch_size, in_channels, in_height, in_width) = (
+            input.shape[0],
+            input.shape[1],
+            input.shape[2],
+            input.shape[3],
+        );
+        let (out_channels, _, kernel_height, kernel_width) = (
+            self.weights.shape[0],
+            self.weights.shape[1],
+            self.weights.shape[2],
+            self.weights.shape[3],
+        );
 
         let out_height = (in_height + 2 * self.padding - kernel_height) / self.stride + 1;
         let out_width = (in_width + 2 * self.padding - kernel_width) / self.stride + 1;
 
-        let grad_output = grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width], ctx);
+        let grad_output =
+            grad_output.unflatten_1d_to_hw(&[batch_size, out_channels, out_height, out_width], ctx);
 
         let mut grad_input = EncryptedTensor {
             data: vec![ctx.encrypted_zero.clone(); input.data.len()],
@@ -131,12 +175,18 @@ where
         let padded_width = in_width + 2 * self.padding;
 
         let mut grad_input_padded = EncryptedTensor {
-            data: vec![ctx.encrypted_zero.clone(); batch_size * in_channels * padded_height * padded_width],
+            data: vec![
+                ctx.encrypted_zero.clone();
+                batch_size * in_channels * padded_height * padded_width
+            ],
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
         let mut padded_input = EncryptedTensor {
-            data: vec![ctx.encrypted_zero.clone(); batch_size * in_channels * padded_height * padded_width],
+            data: vec![
+                ctx.encrypted_zero.clone();
+                batch_size * in_channels * padded_height * padded_width
+            ],
             shape: vec![batch_size, in_channels, padded_height, padded_width],
         };
 
@@ -145,7 +195,8 @@ where
                 for h in 0..in_height {
                     for w in 0..in_width {
                         let src = input.flatten_index(&[b, c, h, w]);
-                        let dst = padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
+                        let dst =
+                            padded_input.flatten_index(&[b, c, h + self.padding, w + self.padding]);
                         padded_input.data[dst] = input.data[src].clone();
                     }
                 }
@@ -156,9 +207,14 @@ where
             for oc in 0..out_channels {
                 for oh in 0..out_height {
                     for ow in 0..out_width {
-                        let grad_out_val = grad_output.data[grad_output.flatten_index(&[b, oc, oh, ow])].clone();
+                        let grad_out_val =
+                            grad_output.data[grad_output.flatten_index(&[b, oc, oh, ow])].clone();
 
-                        grad_biases.data[oc] = ctx.server_key.add(grad_biases.data[oc].clone(), grad_out_val.clone(), ctx);
+                        grad_biases.data[oc] = ctx.server_key.add(
+                            grad_biases.data[oc].clone(),
+                            grad_out_val.clone(),
+                            ctx,
+                        );
 
                         for ic in 0..in_channels {
                             for kh in 0..kernel_height {
@@ -185,7 +241,11 @@ where
                                     let gip_idx = grad_input_padded.flatten_index(&[b, ic, ih, iw]);
                                     grad_input_padded.data[gip_idx] = ctx.server_key.add(
                                         grad_input_padded.data[gip_idx].clone(),
-                                        ctx.server_key.mul(grad_out_val.clone(), w_val.clone(), ctx),
+                                        ctx.server_key.mul(
+                                            grad_out_val.clone(),
+                                            w_val.clone(),
+                                            ctx,
+                                        ),
                                         ctx,
                                     );
                                 }
@@ -200,7 +260,12 @@ where
             for ic in 0..in_channels {
                 for h in 0..in_height {
                     for w in 0..in_width {
-                        let padded_idx = grad_input_padded.flatten_index(&[b, ic, h + self.padding, w + self.padding]);
+                        let padded_idx = grad_input_padded.flatten_index(&[
+                            b,
+                            ic,
+                            h + self.padding,
+                            w + self.padding,
+                        ]);
                         let idx = grad_input.flatten_index(&[b, ic, h, w]);
                         grad_input.data[idx] = grad_input_padded.data[padded_idx].clone();
                     }
@@ -214,39 +279,40 @@ where
         grad_input
     }
 
-    fn update_parameters(
-            &mut self,
-            learning_rate: T,
-            ctx: &EncryptedContext<K, T>,
-        ) {
-            if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
-                self.weights.data
-                    .par_iter_mut()
-                    .zip(grad_w.data.par_iter())
-                    .for_each(|(w, gw)| {
-                        let mul = ctx.server_key.negate(
-                            ctx.server_key.mul(gw.clone(), learning_rate.clone(), ctx)
-                        );
-                        *w = ctx.server_key.add(w.clone(), mul, ctx);
-                    });
+    fn update_parameters(&mut self, learning_rate: T, ctx: &EncryptedContext<K, T>) {
+        if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
+            self.weights
+                .data
+                .par_iter_mut()
+                .zip(grad_w.data.par_iter())
+                .for_each(|(w, gw)| {
+                    let mul = ctx.server_key.negate(ctx.server_key.mul(
+                        gw.clone(),
+                        learning_rate.clone(),
+                        ctx,
+                    ));
+                    *w = ctx.server_key.add(w.clone(), mul, ctx);
+                });
 
-                self.biases.data
-                    .par_iter_mut()
-                    .zip(grad_b.data.par_iter())
-                    .for_each(|(b, gb)| {
-                        let mul = ctx.server_key.negate(
-                            ctx.server_key.mul(gb.clone(), learning_rate.clone(), ctx)
-                        );
-                        *b = ctx.server_key.add(b.clone(), mul, ctx);
-                    });
-
-            } else {
-                panic!("Missing gradients for weights or biases");
-            }
+            self.biases
+                .data
+                .par_iter_mut()
+                .zip(grad_b.data.par_iter())
+                .for_each(|(b, gb)| {
+                    let mul = ctx.server_key.negate(ctx.server_key.mul(
+                        gb.clone(),
+                        learning_rate.clone(),
+                        ctx,
+                    ));
+                    *b = ctx.server_key.add(b.clone(), mul, ctx);
+                });
+        } else {
+            panic!("Missing gradients for weights or biases");
+        }
     }
 
     fn get_weights(&self) -> EncryptedTensor<T> {
-        self.weights.clone()    
+        self.weights.clone()
     }
 
     fn get_biases(&self) -> EncryptedTensor<T> {

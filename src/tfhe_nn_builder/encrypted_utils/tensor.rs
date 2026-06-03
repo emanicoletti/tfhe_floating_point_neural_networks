@@ -1,12 +1,13 @@
 use crate::tfhe_nn_builder::encrypted_ops::EncryptedNegate;
+use crate::tfhe_nn_builder::encrypted_ops::{
+    EncryptedAdd, EncryptedMax, EncryptedMul, EncryptedReLU, EncryptedTanh,
+};
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptableValueType;
 use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptedElement;
 use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedTanh, EncryptedMax, EncryptedReLU};
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::EncryptableValueType;
 
 use rayon::prelude::*;
-
 
 #[derive(Clone)]
 pub struct EncryptedTensor<T: EncryptedElement> {
@@ -22,14 +23,18 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
 
     /// Returns the flat index from multi-dimensional indices
     pub fn flatten_index(&self, indices: &[usize]) -> usize {
-        assert_eq!(indices.len(), self.shape.len(), "Dimension mismatch in indexing");
-        
+        assert_eq!(
+            indices.len(),
+            self.shape.len(),
+            "Dimension mismatch in indexing"
+        );
+
         let mut index = 0;
-        let mut stride = 1;   
+        let mut stride = 1;
         for i in (0..self.shape.len()).rev() {
             let dim_size = self.shape[i];
             let idx = indices[i];
-    
+
             // This assertion fails when index is invalid
             assert!(
                 idx < dim_size,
@@ -38,15 +43,15 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                 i,
                 dim_size
             );
-    
+
             index += idx * stride;
             stride *= dim_size;
         }
         index
     }
 
-     /// Get a reference to an element
-     pub fn get(&self, indices: &[usize]) -> &T {
+    /// Get a reference to an element
+    pub fn get(&self, indices: &[usize]) -> &T {
         let idx = self.flatten_index(indices);
         &self.data[idx]
     }
@@ -70,20 +75,20 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     {
         assert_eq!(self.shape.len(), 4, "Left tensor must be 4D");
         assert_eq!(other.shape.len(), 4, "Right tensor must be 4D");
-    
+
         let [batch, channel, h1, w1] = self.shape[..] else {
             panic!("Left tensor shape must be [B, C, H1, W1]");
         };
-    
+
         let [_, c2, h2, w2] = other.shape[..] else {
             panic!("Right tensor shape must be [B, C, H2, W2]");
         };
-    
+
         assert_eq!(channel, c2, "Channel dimensions must match");
         assert_eq!(w1, h2, "Inner dimensions must match for matmul");
-    
+
         let result_shape = vec![batch, channel, h1, w2];
-    
+
         let result_data = (0..batch * channel * h1 * w2)
             .into_par_iter()
             .map(|flat_index| {
@@ -99,7 +104,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                 let c = (flat_index / (h1 * w2)) % channel;
                 let i = (flat_index / w2) % h1;
                 let j = flat_index % w2;
-    
+
                 // Collect all multiplications first
                 let mut products = Vec::with_capacity(w1);
                 for k in 0..w1 {
@@ -108,7 +113,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                     let prod = ctx.server_key.mul(a_val, b_val, ctx);
                     products.push(prod);
                 }
-    
+
                 // Tree-reduced addition of the products
                 while products.len() > 1 {
                     let mut next = Vec::with_capacity((products.len() + 1) / 2);
@@ -121,11 +126,11 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                     }
                     products = next;
                 }
-    
+
                 products.pop().unwrap_or_else(|| ctx.encrypted_zero.clone())
             })
             .collect();
-    
+
         EncryptedTensor::new(result_data, result_shape)
     }
 
@@ -139,12 +144,14 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         K: ServerKeyTrait + EncryptedAdd<K, T>,
     {
         assert_eq!(self.shape, other.shape, "Shape mismatch for add");
-    
-        let data: Vec<T> = self.data.par_iter()
-        .zip(other.data.par_iter())
-        .map(|(a, b)| ctx.server_key.add(a.clone(), b.clone(), ctx))
-        .collect();
-            
+
+        let data: Vec<T> = self
+            .data
+            .par_iter()
+            .zip(other.data.par_iter())
+            .map(|(a, b)| ctx.server_key.add(a.clone(), b.clone(), ctx))
+            .collect();
+
         EncryptedTensor {
             data,
             shape: self.shape.clone(),
@@ -160,10 +167,14 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedNegate<K, T>,
         T: Clone + Send + Sync,
     {
-        assert_eq!(self.shape.len(), other.shape.len(), "Tensors must have same rank");
+        assert_eq!(
+            self.shape.len(),
+            other.shape.len(),
+            "Tensors must have same rank"
+        );
 
         let shape = self.shape.clone();
-    
+
         let result_data = (0..self.data.len())
             .into_par_iter()
             .map(|flat_index| {
@@ -173,19 +184,19 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                     idx[i] = remainder % shape[i];
                     remainder /= shape[i];
                 }
-    
+
                 let idx_other: Vec<usize> = idx
                     .par_iter()
                     .enumerate()
                     .map(|(i, &v)| if other.shape[i] == 1 { 0 } else { v })
                     .collect();
-    
+
                 let a = self.get(&idx).clone();
                 let b = other.get(&idx_other).clone();
                 ctx.server_key.add(a, ctx.server_key.negate(b), ctx)
             })
             .collect();
-    
+
         EncryptedTensor::new(result_data, shape)
     }
 
@@ -208,7 +219,10 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
             }
         }
 
-        EncryptedTensor::new(transposed_data, vec![self.shape[0], self.shape[1], cols, rows])
+        EncryptedTensor::new(
+            transposed_data,
+            vec![self.shape[0], self.shape[1], cols, rows],
+        )
     }
 
     pub fn sum_on_first_axis<K>(&self, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T>
@@ -218,12 +232,8 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     {
         assert_eq!(self.shape.len(), 4, "sum_axis supports 4D tensors only");
 
-        let (batch, channel, height, width) = (
-            self.shape[0],
-            self.shape[1],
-            self.shape[2],
-            self.shape[3],
-        );
+        let (batch, channel, height, width) =
+            (self.shape[0], self.shape[1], self.shape[2], self.shape[3]);
 
         // Sum over batch dimension
         let result_data: Vec<T> = (0..channel * height * width)
@@ -263,7 +273,11 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
     where
         K: ServerKeyTrait + EncryptedMul<K, T>,
     {
-        let data = self.data.par_iter().map(|x| ctx.server_key.mul(x.clone(), scalar.clone(), ctx)).collect();
+        let data = self
+            .data
+            .par_iter()
+            .map(|x| ctx.server_key.mul(x.clone(), scalar.clone(), ctx))
+            .collect();
 
         EncryptedTensor {
             data,
@@ -271,10 +285,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         }
     }
 
-    pub fn tanh<K>(
-        &self,
-        ctx: &EncryptedContext<K, T>,
-    ) -> (EncryptedTensor<T>, EncryptedTensor<T>)
+    pub fn tanh<K>(&self, ctx: &EncryptedContext<K, T>) -> (EncryptedTensor<T>, EncryptedTensor<T>)
     where
         K: ServerKeyTrait + EncryptedTanh<K, T> + Sync,
         T: EncryptableValueType + Send + Sync,
@@ -282,21 +293,16 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         let (result_data, derivatives): (Vec<_>, Vec<_>) = self
             .data
             .par_iter()
-            .map(|value| {
-                ctx.server_key.tanh(value.clone(), ctx)
-            })
+            .map(|value| ctx.server_key.tanh(value.clone(), ctx))
             .unzip();
-    
+
         (
             EncryptedTensor::new(result_data, self.shape.clone()),
             EncryptedTensor::new(derivatives, self.shape.clone()),
         )
     }
 
-    pub fn relu<K>(
-        &self,
-        ctx: &EncryptedContext<K, T>,
-    ) -> (EncryptedTensor<T>, EncryptedTensor<T>)
+    pub fn relu<K>(&self, ctx: &EncryptedContext<K, T>) -> (EncryptedTensor<T>, EncryptedTensor<T>)
     where
         K: ServerKeyTrait + EncryptedReLU<K, T> + Sync,
         T: EncryptableValueType + Send + Sync,
@@ -304,9 +310,7 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         let result_data: Vec<_> = self
             .data
             .par_iter()
-            .map(|value| {
-                ctx.server_key.relu(value.clone(), ctx)
-            })
+            .map(|value| ctx.server_key.relu(value.clone(), ctx))
             .collect();
         (
             EncryptedTensor::new(result_data.clone(), self.shape.clone()),
@@ -314,13 +318,13 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         )
     }
 
-    
     pub fn max<K>(&self, ctx: &EncryptedContext<K, T>) -> T
     where
-    K: ServerKeyTrait + EncryptedMax<K, T> + Sync,
-    T: EncryptableValueType + Send + Sync,
+        K: ServerKeyTrait + EncryptedMax<K, T> + Sync,
+        T: EncryptableValueType + Send + Sync,
     {
-        self.data.iter()
+        self.data
+            .iter()
             .cloned()
             .reduce(|a, b| ctx.server_key.max(a, b, ctx))
             .expect("Empty tensor has no max")
@@ -351,13 +355,21 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
         }
     }
 
-     pub fn unflatten_1d_to_hw<K>(&self, original_shape: &[usize; 4], ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> 
-     where
-        K: ServerKeyTrait 
-     {
+    pub fn unflatten_1d_to_hw<K>(
+        &self,
+        original_shape: &[usize; 4],
+        ctx: &EncryptedContext<K, T>,
+    ) -> EncryptedTensor<T>
+    where
+        K: ServerKeyTrait,
+    {
         let [batch, channel, height, width] = *original_shape;
 
-        assert_eq!(self.shape.len(), 4, "Flattened tensor must be 4D [B,1,1,C*H*W]");
+        assert_eq!(
+            self.shape.len(),
+            4,
+            "Flattened tensor must be 4D [B,1,1,C*H*W]"
+        );
         assert_eq!(
             self.shape[0], batch,
             "Batch size must match the original shape"
@@ -376,7 +388,8 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
                     for w in 0..width {
                         let flat_idx = c * height * width + h * width + w;
                         let val = self.get(&[b, 0, 0, flat_idx]).clone();
-                        let dst_idx = b * channel * height * width + c * height * width + h * width + w;
+                        let dst_idx =
+                            b * channel * height * width + c * height * width + h * width + w;
                         result_data[dst_idx] = val;
                     }
                 }
@@ -388,8 +401,4 @@ impl<T: EncryptedElement> EncryptedTensor<T> {
             shape: vec![batch, channel, height, width],
         }
     }
-  
 }
-
-
-

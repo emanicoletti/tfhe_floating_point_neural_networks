@@ -1,6 +1,6 @@
+use crate::plain_nn_builder::plain_layers::PlainLayer;
 use crate::plain_nn_builder::plain_ops::*;
 use crate::plain_nn_builder::plain_utils::*;
-use crate::plain_nn_builder::plain_layers::PlainLayer;
 
 use rayon::prelude::*;
 
@@ -20,8 +20,16 @@ pub struct PlainBatchNormLayer<T: PlainElement> {
 }
 
 impl<T: PlainElement> PlainBatchNormLayer<T> {
-    pub fn new(id: String, x_hat: PlainTensor<T>, mean: PlainTensor<T>, variance: PlainTensor<T>, gamma: PlainTensor<T>, beta: PlainTensor<T>) -> Self 
-        where T: Default
+    pub fn new(
+        id: String,
+        x_hat: PlainTensor<T>,
+        mean: PlainTensor<T>,
+        variance: PlainTensor<T>,
+        gamma: PlainTensor<T>,
+        beta: PlainTensor<T>,
+    ) -> Self
+    where
+        T: Default,
     {
         Self {
             id,
@@ -30,11 +38,11 @@ impl<T: PlainElement> PlainBatchNormLayer<T> {
             variance: variance.clone(),
             gamma,
             beta,
-            batch_mean: PlainTensor{
+            batch_mean: PlainTensor {
                 data: vec![T::default(); mean.data.len()],
                 shape: mean.shape.clone(),
             },
-            batch_variance: PlainTensor{
+            batch_variance: PlainTensor {
                 data: vec![T::default(); variance.data.len()],
                 shape: variance.shape.clone(),
             },
@@ -48,7 +56,20 @@ impl<T: PlainElement> PlainBatchNormLayer<T> {
 
 impl<T> PlainLayer<T> for PlainBatchNormLayer<T>
 where
-    T: PlainAdd + PlainSub + PlainMul + PlainDiv + PlainSqrt + PlainMulExact + PlainDivExact + Send + Sync + Clone + PlainElement + PlainValueType + Copy + Default,
+    T: PlainAdd
+        + PlainSub
+        + PlainMul
+        + PlainDiv
+        + PlainSqrt
+        + PlainMulExact
+        + PlainDivExact
+        + Send
+        + Sync
+        + Clone
+        + PlainElement
+        + PlainValueType
+        + Copy
+        + Default,
 {
     fn forward(&mut self, input: &PlainTensor<T>) -> PlainTensor<T> {
         let batch_size = input.shape[0];
@@ -99,9 +120,10 @@ where
                     for offset in 0..hw {
                         let x = input.data[batch_offset + offset];
                         let xhat_val = x.sub(batch_mean).div(std);
-                        
+
                         local_x_hat[local_batch_offset + offset] = xhat_val;
-                        local_normalized[local_batch_offset + offset] = (xhat_val.mul(gamma)).add(beta);
+                        local_normalized[local_batch_offset + offset] =
+                            (xhat_val.mul(gamma)).add(beta);
                     }
                 }
 
@@ -113,21 +135,22 @@ where
         let mut x_hat_data = vec![T::default(); input.data.len()];
 
         for (j, (b_mean, b_var, l_xhat, l_norm)) in channel_results.into_iter().enumerate() {
-            
             self.batch_mean.data[j] = b_mean;
             self.batch_variance.data[j] = b_var;
-            
+
             // Use exact multiplication for momentum
-            self.mean.data[j] = (self.mean.data[j].mul_exact(momentum)).add(b_mean.mul_exact(current_weight));
-            self.variance.data[j] = (self.variance.data[j].mul_exact(momentum)).add(b_var.mul_exact(current_weight));
-            
+            self.mean.data[j] =
+                (self.mean.data[j].mul_exact(momentum)).add(b_mean.mul_exact(current_weight));
+            self.variance.data[j] =
+                (self.variance.data[j].mul_exact(momentum)).add(b_var.mul_exact(current_weight));
+
             for i in 0..batch_size {
                 let global_idx_start = i * chw + j * hw;
                 let local_idx_start = i * hw;
-                
+
                 x_hat_data[global_idx_start..global_idx_start + hw]
                     .copy_from_slice(&l_xhat[local_idx_start..local_idx_start + hw]);
-                
+
                 normalized_data[global_idx_start..global_idx_start + hw]
                     .copy_from_slice(&l_norm[local_idx_start..local_idx_start + hw]);
             }
@@ -142,14 +165,9 @@ where
             data: normalized_data,
             shape: input.shape.clone(),
         }
-
     }
 
-    fn backward(
-        &mut self,
-        input: &PlainTensor<T>,
-        grad_output: &PlainTensor<T>,
-    ) -> PlainTensor<T> {
+    fn backward(&mut self, input: &PlainTensor<T>, grad_output: &PlainTensor<T>) -> PlainTensor<T> {
         let (batch_size, channels, height, width) = (
             input.shape[0],
             input.shape[1],
@@ -237,22 +255,22 @@ where
         }
     }
 
-    fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T) 
-    where 
-        T: Send + Sync + Copy + PlainElement 
+    fn update_parameters(&mut self, learning_rate: T, weight_decay: T, momentum: T)
+    where
+        T: Send + Sync + Copy + PlainElement,
     {
-        let zero = T::from_f32(0.0); 
+        let zero = T::from_f32(0.0);
 
         if self.velocity_gamma.is_none() {
-            self.velocity_gamma = Some(PlainTensor{
-                    data: vec![T::from_f32(0.0); self.gamma.data.len()],
-                    shape: self.gamma.shape.clone(),
+            self.velocity_gamma = Some(PlainTensor {
+                data: vec![T::from_f32(0.0); self.gamma.data.len()],
+                shape: self.gamma.shape.clone(),
             });
         }
         if self.velocity_beta.is_none() {
-            self.velocity_beta = Some(PlainTensor{
-                    data: vec![T::from_f32(0.0); self.beta.data.len()],
-                    shape: self.beta.shape.clone(),
+            self.velocity_beta = Some(PlainTensor {
+                data: vec![T::from_f32(0.0); self.beta.data.len()],
+                shape: self.beta.shape.clone(),
             });
         }
 
@@ -260,23 +278,24 @@ where
             &self.grad_gamma,
             &self.grad_beta,
             &mut self.velocity_gamma,
-            &mut self.velocity_beta
+            &mut self.velocity_beta,
         ) {
-            self.gamma.data.par_iter_mut()
+            self.gamma
+                .data
+                .par_iter_mut()
                 .zip(grad_gamma.data.par_iter())
                 .zip(vel_gamma.data.par_iter_mut())
                 .for_each(|((gamma_val, &grad), v)| {
-                    
                     let g_prime = if weight_decay.to_f32() != zero.to_f32() {
                         let wd_term = gamma_val.mul(weight_decay);
                         grad.add(wd_term)
                     } else {
-                        grad 
+                        grad
                     };
 
                     let step = if momentum.to_f32() != zero.to_f32() {
-                        let v_momentum = v.mul_exact(momentum); 
-                        *v = v_momentum.add(g_prime);         
+                        let v_momentum = v.mul_exact(momentum);
+                        *v = v_momentum.add(g_prime);
                         v.mul(learning_rate)
                     } else {
                         g_prime.mul(learning_rate)
@@ -284,14 +303,15 @@ where
                     *gamma_val = gamma_val.sub(step);
                 });
 
-            self.beta.data.par_iter_mut()
+            self.beta
+                .data
+                .par_iter_mut()
                 .zip(grad_beta.data.par_iter())
                 .zip(vel_beta.data.par_iter_mut())
                 .for_each(|((beta_val, &grad), v)| {
-                    
                     let step = if momentum.to_f32() != zero.to_f32() {
-                        let v_momentum = v.mul(momentum); 
-                        *v = v_momentum.add(grad);      
+                        let v_momentum = v.mul(momentum);
+                        *v = v_momentum.add(grad);
                         v.mul(learning_rate)
                     } else {
                         grad.mul(learning_rate)
@@ -299,7 +319,6 @@ where
 
                     *beta_val = beta_val.sub(step);
                 });
-
         } else {
             panic!("Batch Norm gradients missing update skipped");
         }
@@ -309,7 +328,7 @@ where
         let batch_size = input.shape[0];
         let mut normalized = input.clone();
 
-        for j in 0..input.shape[1] { 
+        for j in 0..input.shape[1] {
             let mean = self.mean.data[j];
             let var = self.variance.data[j];
             let gamma = self.gamma.data[j];
@@ -335,7 +354,7 @@ where
         let batch_size = input.shape[0];
         let mut normalized = input.clone();
 
-        for j in 0..input.shape[1] { 
+        for j in 0..input.shape[1] {
             let mean = self.mean.data[j];
             let var = self.variance.data[j];
             let gamma = self.gamma.data[j];
@@ -376,5 +395,4 @@ where
     fn get_grad_biases(&self) -> PlainTensor<T> {
         self.grad_beta.clone().unwrap()
     }
-
 }

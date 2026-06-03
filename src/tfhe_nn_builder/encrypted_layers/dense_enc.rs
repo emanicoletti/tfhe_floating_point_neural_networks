@@ -1,9 +1,11 @@
-use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
-use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
-use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{EncryptableValueType, EncryptedElement};
-use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate};
 use crate::tfhe_nn_builder::encrypted_layers::EncryptedLayer;
+use crate::tfhe_nn_builder::encrypted_ops::{EncryptedAdd, EncryptedMul, EncryptedNegate};
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_context::EncryptedContext;
+use crate::tfhe_nn_builder::encrypted_utils::encrypted_types::{
+    EncryptableValueType, EncryptedElement,
+};
+use crate::tfhe_nn_builder::encrypted_utils::server_key_trait::ServerKeyTrait;
+use crate::tfhe_nn_builder::encrypted_utils::tensor::EncryptedTensor;
 
 use rayon::prelude::*;
 use rayon::scope;
@@ -12,8 +14,8 @@ use std::time::Instant;
 
 pub struct EncryptedDenseLayer<T: EncryptedElement> {
     pub id: String,
-    pub weights: EncryptedTensor<T>, 
-    pub biases: EncryptedTensor<T>,  
+    pub weights: EncryptedTensor<T>,
+    pub biases: EncryptedTensor<T>,
     pub grad_weights: Option<EncryptedTensor<T>>,
     pub grad_biases: Option<EncryptedTensor<T>>,
 }
@@ -22,8 +24,8 @@ impl<T: EncryptedElement> EncryptedDenseLayer<T> {
     pub fn _new(id: String, weights: EncryptedTensor<T>, biases: EncryptedTensor<T>) -> Self {
         Self {
             id,
-            weights, 
-            biases,  
+            weights,
+            biases,
             grad_weights: None,
             grad_biases: None,
         }
@@ -35,10 +37,14 @@ where
     K: ServerKeyTrait + EncryptedAdd<K, T> + EncryptedMul<K, T> + EncryptedNegate<K, T>,
     T: Clone + EncryptedElement + EncryptableValueType,
 {
-    fn forward(&mut self, input: &EncryptedTensor<T>, ctx: &EncryptedContext<K, T>) -> EncryptedTensor<T> {
+    fn forward(
+        &mut self,
+        input: &EncryptedTensor<T>,
+        ctx: &EncryptedContext<K, T>,
+    ) -> EncryptedTensor<T> {
         let start = Instant::now();
         let flatten_input = input.flatten_hw_to_1d();
-        let mut weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx); 
+        let mut weighted_sum = flatten_input.matmul(&self.weights.transpose(), ctx);
 
         let batch_size = input.shape[0];
         let output_dim = self.biases.shape[3];
@@ -61,8 +67,8 @@ where
 
     fn backward(
         &mut self,
-        input: &EncryptedTensor<T>,          
-        grad_output: &EncryptedTensor<T>,    
+        input: &EncryptedTensor<T>,
+        grad_output: &EncryptedTensor<T>,
         ctx: &EncryptedContext<K, T>,
     ) -> EncryptedTensor<T>
     where
@@ -76,25 +82,28 @@ where
         scope(|s| {
             s.spawn(|_| {
                 let flatten_input = input.flatten_hw_to_1d();
-                let grad_weights = grad_output.transpose().matmul(&flatten_input, ctx).sum_on_first_axis(ctx);
+                let grad_weights = grad_output
+                    .transpose()
+                    .matmul(&flatten_input, ctx)
+                    .sum_on_first_axis(ctx);
                 grad_weights_opt = Some(grad_weights);
             });
-    
+
             s.spawn(|_| {
                 let grad_biases = grad_output.sum_on_first_axis(ctx);
                 grad_biases_opt = Some(grad_biases);
             });
-    
+
             s.spawn(|_| {
                 let grad_input = grad_output.matmul(&self.weights, ctx);
                 grad_input_opt = Some(grad_input);
             });
         });
-    
+
         let grad_weights = grad_weights_opt.expect("grad_weights not computed");
         let grad_biases = grad_biases_opt.expect("grad_biases not computed");
         let grad_input = grad_input_opt.expect("grad_input not computed");
-    
+
         self.grad_weights = Some(grad_weights.clone());
         self.grad_biases = Some(grad_biases.clone());
 
@@ -109,7 +118,7 @@ where
         if let (Some(grad_w), Some(grad_b)) = (&self.grad_weights, &self.grad_biases) {
             let mut lr_grad_w_opt = None;
             let mut lr_grad_b_opt = None;
-    
+
             scope(|s| {
                 s.spawn(|_| {
                     lr_grad_w_opt = Some(grad_w.mul_scalar(&learning_rate, ctx));
@@ -118,13 +127,13 @@ where
                     lr_grad_b_opt = Some(grad_b.mul_scalar(&learning_rate, ctx));
                 });
             });
-    
+
             let lr_grad_w = lr_grad_w_opt.expect("lr_grad_w not computed");
             let lr_grad_b = lr_grad_b_opt.expect("lr_grad_b not computed");
-    
+
             let mut new_weights = None;
             let mut new_biases = None;
-    
+
             scope(|s| {
                 s.spawn(|_| {
                     new_weights = Some(self.weights.sub(&lr_grad_w, ctx));
@@ -133,7 +142,7 @@ where
                     new_biases = Some(self.biases.sub(&lr_grad_b, ctx));
                 });
             });
-    
+
             self.weights = new_weights.expect("weights update failed");
             self.biases = new_biases.expect("biases update failed");
         }
@@ -159,4 +168,3 @@ where
         self.id.clone()
     }
 }
-

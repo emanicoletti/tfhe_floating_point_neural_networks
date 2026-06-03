@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{set_server_key, FheUint16, FheUint32, ServerKey, CudaServerKey};
+use tfhe::{CudaServerKey, FheUint16, FheUint32, ServerKey, set_server_key};
 
 use crate::tfhe_nn_builder::encrypted_ops::add::*;
 use crate::tfhe_nn_builder::encrypted_ops::mul::*;
@@ -25,8 +25,19 @@ pub fn fhe_lmul_tanh16_gpu(
             let lt = input.le(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_lmul16_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_ss_add16_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_lmul16_gpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_ss_add16_gpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -34,11 +45,13 @@ pub fn fhe_lmul_tanh16_gpu(
         })
         .unzip();
 
-    let result = results.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or_else(|| encrypted_zero.clone());
+    let result = results
+        .into_iter()
+        .reduce(|acc, x| &acc | &x)
+        .unwrap_or_else(|| encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| &acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -61,8 +74,19 @@ pub fn fhe_lmul_tanh32_gpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_lmul32_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_ss_add32_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_lmul32_gpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_ss_add32_gpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -70,11 +94,13 @@ pub fn fhe_lmul_tanh32_gpu(
         })
         .unzip();
 
-    let result = results.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or_else(|| encrypted_zero.clone());
+    let result = results
+        .into_iter()
+        .reduce(|acc, x| &acc | &x)
+        .unwrap_or_else(|| encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| &acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -98,8 +124,19 @@ pub fn fhe_lmul_tanh16_cpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_lmul16_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add16_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(),server_keys.clone());
+            let mul = fhe_lmul16_cpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_add16_cpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -107,11 +144,13 @@ pub fn fhe_lmul_tanh16_cpu(
         })
         .unzip();
 
-    let result = results.into_iter()
+    let result = results
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -134,8 +173,19 @@ pub fn fhe_lmul_tanh32_cpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_lmul32_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add32_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_lmul32_cpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_add32_cpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -143,11 +193,13 @@ pub fn fhe_lmul_tanh32_cpu(
         })
         .unzip();
 
-    let result = results.into_iter()
+    let result = results
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -171,8 +223,19 @@ pub fn fhe_pam_tanh16_gpu(
             let lt = input.le(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_pam_mul16_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_ss_add16_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_pam_mul16_gpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_ss_add16_gpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -180,11 +243,13 @@ pub fn fhe_pam_tanh16_gpu(
         })
         .unzip();
 
-    let result = results.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or_else(|| encrypted_zero.clone());
+    let result = results
+        .into_iter()
+        .reduce(|acc, x| &acc | &x)
+        .unwrap_or_else(|| encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| &acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -208,8 +273,19 @@ pub fn fhe_pam_tanh32_gpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_pam_mul32_gpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_ss_add32_gpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_pam_mul32_gpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_ss_add32_gpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -217,11 +293,13 @@ pub fn fhe_pam_tanh32_gpu(
         })
         .unzip();
 
-    let result = results.into_iter()
-    .reduce(|acc, x| &acc | &x)
-    .unwrap_or_else(|| encrypted_zero.clone());
+    let result = results
+        .into_iter()
+        .reduce(|acc, x| &acc | &x)
+        .unwrap_or_else(|| encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| &acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -245,8 +323,19 @@ pub fn fhe_pam_tanh16_cpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_pam_mul16_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add16_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(),server_keys.clone());
+            let mul = fhe_pam_mul16_cpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_add16_cpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -254,11 +343,13 @@ pub fn fhe_pam_tanh16_cpu(
         })
         .unzip();
 
-    let result = results.into_iter()
+    let result = results
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero);
 
@@ -282,8 +373,19 @@ pub fn fhe_pam_tanh32_cpu(
             let lt = input.lt(max.clone());
             let in_range = gt & lt;
 
-            let mul = fhe_pam_mul32_cpu(input.clone(), a.clone(), encrypted_zero.clone(), server_keys.clone());
-            let add = fhe_add32_cpu(mul, b.clone(), encrypted_mask.clone(), encrypted_zero.clone(), server_keys.clone());
+            let mul = fhe_pam_mul32_cpu(
+                input.clone(),
+                a.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
+            let add = fhe_add32_cpu(
+                mul,
+                b.clone(),
+                encrypted_mask.clone(),
+                encrypted_zero.clone(),
+                server_keys.clone(),
+            );
             let out_result = in_range.select(&add, &encrypted_zero.clone());
             let out_derivative = in_range.select(&derivative.clone(), &encrypted_zero.clone());
 
@@ -291,11 +393,13 @@ pub fn fhe_pam_tanh32_cpu(
         })
         .unzip();
 
-    let result = results.into_iter()
+    let result = results
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero.clone());
 
-    let derivative = derivatives.into_iter()
+    let derivative = derivatives
+        .into_iter()
         .reduce(|acc, x| acc | &x)
         .unwrap_or(encrypted_zero);
 

@@ -2,8 +2,11 @@ use crate::plain_nn_builder::plain_nn::{PlainNeuralNetwork, PlainNeuralNetworkU3
 use crate::plain_nn_builder::plain_utils::load_from_file::*;
 
 #[allow(dead_code)]
-pub fn mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: bool, test_plain_network: bool) -> Result<(), Box<dyn std::error::Error>> {
-    
+pub fn mnist_exp_fp32(
+    train_plain_network: bool,
+    train_encrypted_network: bool,
+    test_plain_network: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
     if !train_plain_network && test_plain_network {
         panic!("Cannot test plain network without training it first");
     }
@@ -11,8 +14,9 @@ pub fn mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: bool, 
         panic!("At least one of train_plain_network or train_encrypted_network must be true");
     }
 
-    // Load data from folder experiment_1_2 
-    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) = load_data(4)?;
+    // Load data from folder experiment_1_2
+    let (train_inputs_arr, train_labels_arr, _, _, test_inputs_arr, test_labels_arr) =
+        load_data(4)?;
 
     // Format the input accordingly
     let train_inputs = array2_to_vecvec(&train_inputs_arr);
@@ -24,7 +28,6 @@ pub fn mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: bool, 
     let mut plain_model = PlainNeuralNetworkU32::create(Some(4));
 
     if train_plain_network {
-
         // Define the architecture
         plain_model.add_conv(1, 6, 3, 3, 1, 0);
         plain_model.add_relu_activation(4056);
@@ -50,17 +53,15 @@ pub fn mnist_exp_fp32(train_plain_network: bool, train_encrypted_network: bool, 
             vec![10000, 1, 28, 28],
             vec![10000, 1, 1, 10],
         );
-
     }
 
     if test_plain_network {
-
         // Validate the plain model
         let mut correct = 0;
         let total = test_labels.len();
 
         for (input, label) in test_inputs.iter().zip(test_labels.iter()) {
-            let input_batch = vec![input.clone()]; 
+            let input_batch = vec![input.clone()];
             let input_shape = vec![1, 1, 28, 28];
             let label_shape = vec![1, 1, 1, 10];
 

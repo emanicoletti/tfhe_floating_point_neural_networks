@@ -3,7 +3,10 @@ use std::io::{self};
 use std::path::Path;
 
 /// Ensures the required dataset exists; downloads it from Zenodo if missing.
-pub fn ensure_dataset_exists(res_path: &str, zenodo_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+pub fn ensure_dataset_exists(
+    res_path: &str,
+    zenodo_url: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new(res_path);
 
     // If the folder/file already exists, do nothing and proceed!
@@ -23,13 +26,14 @@ pub fn ensure_dataset_exists(res_path: &str, zenodo_url: &str) -> Result<(), Box
     // 2. Download the zip file from Zenodo
     let zip_tmp_path = "res/temp_dataset.zip";
     let response = reqwest::blocking::get(zenodo_url)?;
-    
+
     // --- NEW: Guard rail to catch bad URLs or Zenodo server errors ---
     if !response.status().is_success() {
         return Err(format!(
-            "Failed to download dataset. Zenodo responded with status: {}", 
+            "Failed to download dataset. Zenodo responded with status: {}",
             response.status()
-        ).into());
+        )
+        .into());
     }
 
     let mut dest = File::create(zip_tmp_path)?;
