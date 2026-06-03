@@ -174,11 +174,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         || selected_experiment == Experiment::CnnTernaryMnist)
         && is_interactive
     {
-        let sub_options = vec![
-            "Run Plain version only",
-            "Run Encrypted version only",
-            "Run Both versions sequentially",
-        ];
+        let sub_options = vec!["Run Plain version only", "Run Both versions sequentially"];
 
         let sub_selection = Select::with_theme(&ColorfulTheme::default())
             .with_prompt("Choose execution variant")

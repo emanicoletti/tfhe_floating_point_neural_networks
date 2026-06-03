@@ -92,5 +92,9 @@ In the meantime, if you utilize this framework or our arithmetic primitives in y
 }
 ```
 
+## 🤝 Acknowledgments
+
+This framework is built upon the foundational cryptographic engineering of the team at **[Zama](https://zama.ai/)**. It heavily utilizes the **[TFHE-rs](https://github.com/zama-ai/tfhe-rs)** library to implement our custom accelerated floating-point primitives over Torus Fully Homomorphic Encryption.
+
 ## 📄 License
 This project is licensed under the MIT License, see the LICENSE file for details.
