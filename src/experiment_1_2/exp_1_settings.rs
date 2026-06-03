@@ -95,13 +95,13 @@ pub fn experiment_1_fp32(
 
         // Train the model
         encrypted_model.train(
-            1,
+            3,
             5,
             0.1,
             &train_inputs,
             &train_labels,
-            vec![5, 1, 16, 16],
-            vec![5, 1, 1, 3],
+            vec![50, 1, 16, 16],
+            vec![50, 1, 1, 3],
         );
 
         // Print model weights and biases
