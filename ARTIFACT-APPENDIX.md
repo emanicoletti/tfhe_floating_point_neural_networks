@@ -150,10 +150,10 @@ cargo run --release --features lmul
 
 Navigate with the CLI to **7. ResNet-20[273k] on CIFAR-10 (Plain)**. The dataset will be downloaded automatically. Computation will begin and you will see epochs and batches being processed. Alternatively, users can evaluate any of the pre-configured benchmarks provided in the suite.
 
-## Limitations (Required for Functional and Reproduced badges)
+## Limitations
 
 Fully encrypted training of large networks such as ResNet-20 and VGG-style models is severely constrained by current hardware processing limits. To work around these systemic overhead restrictions, this artifact evaluates deep architectures via a mathematically verified plaintext emulation pipeline. For fully encrypted execution of these deeper architectures, the repository produces wall-clock mathematical projections based on structural primitive timings rather than live, multi-day model iterations. Note that even the emulation pipeline requires several hours of CPU processing time and significant RAM.
 
-## Notes on Reusability (Encouraged for all badges)
+## Notes on Reusability
 
 The approximate arithmetic engine developed for this framework is designed as a standalone module within the Rust codebase. Researchers can decouple the custom FP32 L-mul and L-div primitives from the neural network routing structures and reuse them as a general-purpose approximate floating-point library for other homomorphic encryption research tasks utilizing tfhe-rs. The same applies to the exact operation primitives.
