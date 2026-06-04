@@ -43,7 +43,7 @@ Run the following commands sequentially to clone the repository, configure your 
 
 ```bash
 # 1. Clone the repository and navigate into it
-git clone [https://github.com/emanicoletti/tfhe_floating_point_neural_networks.git](https://github.com/emanicoletti/tfhe_floating_point_neural_networks.git)
+git clone https://github.com/emanicoletti/tfhe_floating_point_neural_networks.git
 cd tfhe_floating_point_neural_networks
 
 # 2. Force the cryptographic build script to prioritize the supported host compiler
