@@ -29,8 +29,8 @@ Evaluating or reusing this artifact presents no known security or privacy risks 
 
 - **Operating System**: Ubuntu 22.04 LTS or newer (highly recommended for seamless CUDA toolchain compatibility).
 - **Rust Toolchain**: Stable Rust compiler framework (Edition 2021).
-- **NVIDIA CUDA Toolkit**: CUDA version 12.0.
-- **Host C++ Compiler**: GCC 12 / G++ 12 (required to satisfy CUDA 12.0 compilation requirements during the tfhe-cuda-backend build sequence).
+- **NVIDIA CUDA Toolkit**: CUDA version 12.0 or newer. (Please refer to official NVIDIA documentation to install the correct toolkit for your specific OS architecture).
+- **Host dependencies**: `cmake`, `pkg-config`, `libssl-dev`, `git-lfs`, as well as `gcc-12` and `g++-12` (strictly required for CUDA compatibility).
 - **Dependencies**: All external crates (including tfhe-rs) are specified in `Cargo.toml` and are resolved automatically by Cargo during compilation.
 - **Datasets & Models**: The benchmark suite includes an integrated, self-healing dataset downloader. Preprocessed dataset assets are pulled directly from our verified Zenodo repository on demand during runtime execution; no manual data ingestion is required.
 
@@ -47,6 +47,14 @@ Evaluating or reusing this artifact presents no known security or privacy risks 
 The verified source code repository is persistently hosted on GitHub and can be accessed at: github.com/emanicoletti/tfhe_floating_point_neural_networks
 
 ### Set up the environment
+
+Before cloning the repository, ensure your host machine has the required build tools and libraries installed:
+
+```bash
+sudo apt update
+sudo apt install -y cmake pkg-config libssl-dev git-lfs build-essential
+git lfs install
+```
 
 Run the following commands in your terminal to clone the project, target the compliant host compiler version, and build the production-ready release profile:
 
@@ -119,6 +127,7 @@ cargo run --release
 ```
 
 Navigate with the CLI to **11. Encrypted Ops Playground (Test Encrypted Operations with Custom Configurations)** and select the operations you want to run, the number of chained operations, the format, and the hardware backend (CPU/GPU).
+To empirically validate the equivalence of encrypted and emulated computation claimed in Section 5.3: Select Miscellaneous inside the Playground and insert 50000 as the number of chained operations.
 
 #### Experiment 2: Encrypted Emulation Check (Encrypted Training)
 
@@ -149,10 +158,17 @@ cargo run --release --features lmul
 ```
 
 Navigate with the CLI to **7. ResNet-20[273k] on CIFAR-10 (Plain)**. The dataset will be downloaded automatically. Computation will begin and you will see epochs and batches being processed. Alternatively, users can evaluate any of the pre-configured benchmarks provided in the suite.
+For any experiment, to reproduce the exact arithmetic accuracy metrics found in Table 5, you must run the plain execution using the exact feature flag: 
+
+```bash
+cargo run --release --features exact
+```
 
 ## Limitations
 
 Fully encrypted training of large networks such as ResNet-20 and VGG-style models is severely constrained by current hardware processing limits. To work around these systemic overhead restrictions, this artifact evaluates deep architectures via a mathematically verified plaintext emulation pipeline. For fully encrypted execution of these deeper architectures, the repository produces wall-clock mathematical projections based on structural primitive timings rather than live, multi-day model iterations. Note that even the emulation pipeline requires several hours of CPU processing time and significant RAM.
+
+Memory consumption for each single operation (Figure 3) is not visible using the CLI. It was measured using external profiling tools. It is omitted from the artifact because a direct, fair comparison requires integrating external SoTA source code.
 
 ## Notes on Reusability
 
