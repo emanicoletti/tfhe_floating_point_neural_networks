@@ -157,7 +157,7 @@ Run the command:
 cargo run --release --features lmul
 ```
 
-Navigate with the CLI to **7. ResNet-20[273k] on CIFAR-10 (Plain)**. The dataset will be downloaded automatically. Computation will begin and you will see epochs and batches being processed. Alternatively, users can evaluate any of the pre-configured benchmarks provided in the suite.
+Navigate with the CLI to **7. ResNet-20[273k] on CIFAR-10 (Plain)**. The dataset will be downloaded automatically. Computation will begin and you will see epochs and batches being processed. Alternatively, users can evaluate any of the pre-configured benchmarks provided in the suite. Please note that the numbers in the CLI are strictly menu indices used to distinguish entries, not experiment numbers. To map the experiments correctly, please refer to the experiment name (i.e., the specific architecture and dataset).
 For any experiment, to reproduce the exact arithmetic accuracy metrics found in Table 5, you must run the plain execution using the exact feature flag: 
 
 ```bash
