@@ -74,21 +74,16 @@ When conducting plain executions, you can toggle between standard exact evaluati
 
 ## 📜 Citation
 
-[![Citation: Pending](https://img.shields.io/badge/Citation-Pending_⏳-lightgrey.svg)](#)
-
-*Our paper has been accepted to **PoPETS 2026**. The official BibTeX record and DOI are currently pending and will be updated here as soon as the publisher finalizes the proceedings.*
-
-In the meantime, if you utilize this framework or our arithmetic primitives in your research, please use the following preliminary citation:
-
 ```bibtex
-@inproceedings{nicoletti2026,
-  author    = {Nicoletti, Emanuele and Pittorino, Fabrizio and Falcetta, Alessandro and Colombo, Luca and Roveri, Manuel},
-  title     = {Training TFHE-Based Neural Networks with Approximated Floating-Point Arithmetic},
-  booktitle = {Proceedings of the Privacy Enhancing Technologies Symposium (PoPETS)},
-  volume    = {2026},
-  year      = {2026},
-  publisher = {},
-  note      = {To appear}
+@article{nicoletti2026training,
+  title={Training TFHE-Based Neural Networks with Approximated Floating-Point Arithmetic},
+  author={Nicoletti, Emanuele and Pittorino, Fabrizio and Falcetta, Alessandro and Colombo, Luca and Roveri, Manuel},
+  journal={Proceedings on Privacy Enhancing Technologies},
+  volume={2026},
+  number={4},
+  pages={376--395},
+  year={2026},
+  doi={10.56553/popets-2026-0126}
 }
 ```
 
