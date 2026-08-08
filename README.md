@@ -5,7 +5,7 @@
 [![CUDA](https://img.shields.io/badge/CUDA-12.0-green.svg)](https://developer.nvidia.com/cuda-toolkit)
 [![DOI](https://img.shields.io/badge/Zenodo-Dataset-blue.svg)](https://zenodo.org/records/YOUR_RESERVED_REC_ID)
 
-This repository contains the official Rust implementation companion for our paper: **"Training TFHE-Based Neural Networks with Approximated Floating-Point Arithmetic"** (Accepted at **PoPETS 2026**).
+This repository contains the official Rust implementation companion for our paper: [Training TFHE-Based Neural Networks with Approximated Floating-Point Arithmetic](https://petsymposium.org/popets/2026/popets-2026-0126.pdf) (Accepted at **PoPETS 2026**).
 
 ---
 
